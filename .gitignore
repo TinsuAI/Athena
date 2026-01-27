@@ -1,0 +1,7 @@
+_bmad/
+.agent/
+.claude/
+.tinsu/data/
+
+# TinSu worktrees (auto-generated)
+.tinsu/worktrees/

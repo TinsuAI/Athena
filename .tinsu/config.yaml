@@ -1,0 +1,8 @@
+projectName: athena
+methodology: bmad
+createdAt: "2026-01-27T09:14:15.140Z"
+version: 1.0.0
+planningTasksInitialized: true
+devAgentModel: opus
+reviewAgentModel: sonnet
+preserveWorktrees: false
