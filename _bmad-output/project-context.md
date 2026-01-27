@@ -170,7 +170,7 @@ OPENROUTER_API_KEY=<for-embeddings>
 ```
 NEXTAUTH_URL=https://athena.example.com
 NEXTAUTH_SECRET=<shared-with-backend>
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://tinxudev.airplane-manta.ts.net:8000
 ```
 
 ---

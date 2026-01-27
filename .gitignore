@@ -1,7 +1,62 @@
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# BMAD & Agent Configuration
 _bmad/
 .agent/
 .claude/
 .tinsu/data/
-
-# TinSu worktrees (auto-generated)
 .tinsu/worktrees/
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.Python
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+*.egg-info/
+
+# IDE & Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing & Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.nyc_output/
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Docker volumes (local development)
+postgres_data/
+redis_data/
+
+# Data files (may contain sensitive tariff data)
+data/*.csv
+data/*.json
+!data/.gitkeep
+
+# Temporary files
+tmp/
+temp/
+*.tmp
