@@ -8,9 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.api.hs_codes import router as hs_codes_router
+from app.api.search import router as search_router
 from app.core.config import get_settings
 from app.core.database import engine
-from app.core.redis import check_redis_connection
+from app.core.rate_limiter import RateLimitMiddleware
+from app.core.redis import check_redis_connection, redis_pool
 from app.schemas.base import ApiResponse, HealthData, success_response
 
 settings = get_settings()
@@ -32,6 +34,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate limiting middleware (NFR-SEC6: 100 req/min per user)
+app.add_middleware(RateLimitMiddleware, redis_pool=redis_pool)
+
 # CORS middleware for frontend access
 app.add_middleware(
     CORSMiddleware,
@@ -43,6 +48,7 @@ app.add_middleware(
 
 # Register routers
 app.include_router(hs_codes_router)
+app.include_router(search_router)
 
 
 @app.get("/health", response_model=ApiResponse[HealthData])

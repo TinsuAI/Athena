@@ -381,36 +381,69 @@ So that **I can develop and test search functionality against the complete produ
 
 ---
 
-### Story 1.3: Search API with Hybrid Search
+### Story 1.3: Search API with Hybrid Search & Customs Classification Analysis
 
 As a **user**,
-I want **to search for HS codes using product descriptions in any language**,
-So that **I can quickly find the correct classification for my goods**.
+I want **to search for HS codes using detailed product descriptions in any language and receive comprehensive customs classification analysis**,
+So that **I can understand not just the HS code, but the reasoning behind the classification**.
 
 **Acceptance Criteria:**
 
-**Given** I am a user with a product description
-**When** I send POST `/api/search` with `{"query": "máy xay sinh tố"}` (Vietnamese)
-**Then** I receive results ranked by confidence score (0-100)
+**Given** I am a user with a detailed Vietnamese product description
+**When** I send POST `/api/search` with `{"query": "Thanh treo khăn MITO, mã A2018ANE, bằng đồng mạ chrome, kích thước 33,5x8cm, nhà sản xuất INDA S.p.a, hàng mới 100%"}`
+**Then** I receive a customs classification analysis response
 **And** response time is <3 seconds (NFR-P1)
-**And** response format is `{"success": true, "data": {"items": [...], "total": N}}`
+**And** response format includes:
+```json
+{
+  "success": true,
+  "data": {
+    "hsCode": "7418.20.00",
+    "description": "Đồ trang bị trong nhà vệ sinh và các bộ phận của chúng (bằng đồng)",
+    "dutyRate": "30%",
+    "vatRate": "8% hoặc 10%",
+    "classification": {
+      "material": "Sản phẩm được làm bằng đồng (bao gồm cả hợp kim đồng như đồng thau - brass), dù có mạ chrome thì vẫn được phân loại theo kim loại cơ bản là đồng thuộc Chương 74 (\"Đồng và các sản phẩm bằng đồng\").",
+      "function": "Thanh treo khăn là một thiết bị/phụ kiện dùng trong nhà tắm. Theo Danh mục thuế, Nhóm 74.18 bao gồm: \"Bộ đồ ăn, đồ nhà bếp... và đồ trang bị trong nhà vệ sinh và các bộ phận của chúng, bằng đồng\". Trong nhóm này, mã 7418.20.00 được dành riêng cho \"Đồ trang bị trong nhà vệ sinh và các bộ phận của chúng\"."
+    },
+    "practicalNotes": [
+      "Hàng mới 100%: Sản phẩm là hàng mới nên đủ điều kiện nhập khẩu. Trong biểu thuế có ghi chú chính sách quản lý đối với hàng tiêu dùng đã qua sử dụng (cấm nhập khẩu), nhưng không áp dụng với hàng của bạn.",
+      "Chính sách thuế: Mức thuế nhập khẩu MFN cho mã này khá cao (30%). Nếu hàng hóa có C/O (Chứng nhận xuất xứ) từ các nước có hiệp định thương mại tự do với Việt Nam (như Châu Âu - EVFTA, hoặc các nước ASEAN, v.v.), bạn nên xuất trình để được hưởng mức thuế ưu đãi đặc biệt thấp hơn."
+    ],
+    "confidence": 95
+  }
+}
+```
+
+**Given** I search with a simple Vietnamese description
+**When** I send POST `/api/search` with `{"query": "máy xay sinh tố"}`
+**Then** I receive customs classification analysis with material analysis and function explanation
+**And** the system extracts key features from the query to determine material and function
 
 **Given** I search with an English description
-**When** I send POST `/api/search` with `{"query": "blender machine"}`
-**Then** I receive relevant HS code matches with confidence scores
+**When** I send POST `/api/search` with `{"query": "copper bathroom towel rack, chrome plated, 33.5x8cm"}`
+**Then** I receive relevant classification analysis with reasoning in Vietnamese (per NFR-I3)
+**And** the analysis includes material classification and functional categorization
 
 **Given** I search with a Chinese description
-**When** I send POST `/api/search` with `{"query": "搅拌机"}`
-**Then** I receive relevant HS code matches (best effort per Architecture)
+**When** I send POST `/api/search` with `{"query": "铜制浴室毛巾架，镀铬"}`
+**Then** I receive relevant classification analysis (best effort per Architecture)
 
 **Given** I search with an exact HS code
-**When** I send POST `/api/search` with `{"query": "85094010"}`
-**Then** I receive that exact HS code as the top result with 100% confidence (FR4)
+**When** I send POST `/api/search` with `{"query": "7418.20.00"}`
+**Then** I receive that exact HS code with 100% confidence (FR4)
+**And** the response includes full classification reasoning and practical notes
 
 **Given** I search with a query that has no matches
 **When** I send POST `/api/search` with `{"query": "xyznonexistent123"}`
-**Then** I receive an empty results array
-**And** the response includes `{"success": true, "data": {"items": [], "total": 0}}`
+**Then** I receive error response with guidance
+**And** the response includes `{"success": false, "error": {"message": "No matching HS code found. Try using more specific product details (material, function, industry)"}}`
+
+**Technical Implementation Notes:**
+- The API must analyze the input query to extract: material, dimensions, manufacturer details, condition (new/used)
+- Classification reasoning must reference the Vietnam Customs tariff structure (Chương/Nhóm)
+- Practical notes should include: import eligibility based on condition, FTA optimization opportunities
+- Material-based classification takes precedence over surface treatment (e.g., copper base vs chrome plating)
 
 ---
 

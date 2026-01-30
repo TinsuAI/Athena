@@ -8,11 +8,13 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-# Create Redis connection pool
+# Create Redis connection pool with timeout configuration
 redis_pool = redis.ConnectionPool.from_url(
     settings.redis_url,
     decode_responses=True,
     max_connections=20,
+    socket_timeout=5.0,  # 5 second timeout for operations
+    socket_connect_timeout=2.0,  # 2 second timeout for connection
 )
 
 
