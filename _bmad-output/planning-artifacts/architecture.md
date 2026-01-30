@@ -204,17 +204,36 @@ athena/
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| **Data Model** | Normalized | `hs_codes` + `fta_rates` tables, flexible for FTA changes |
+| **Data Model** | Hierarchical + Normalized | Full HS hierarchy (sections→chapters→headings→subheadings→codes) + `fta_rates` |
 | **Versioning** | Version column | `data_version_id` FK, active version in system config |
 | **Caching** | Full Redis | Sessions, search results, hot HS codes |
 | **ORM** | SQLAlchemy 2.0 async | Type-safe, async support, Alembic migrations |
 
+**HS Code Hierarchy Structure:**
+```
+SECTION (PHẦN)              - 20 sections (I-XXI, skipping XV per HS standard)
+  └─ CHAPTER (Chương)         - 98 chapters (01-98)
+       └─ HEADING (Nhóm)          - 4-digit codes (e.g., 0101)
+            └─ SUBHEADING (Phân nhóm) - 6-digit codes (e.g., 010121)
+                 └─ HS CODE (Mã hàng)     - 8-digit codes (e.g., 01012100)
+```
+
 **Core Tables:**
 ```sql
-hs_codes (id, code, description_vn, description_en, unit, duty_rate, vat_rate,
-          policy_notes, embedding, data_version_id, created_at)
+-- Hierarchy tables (follow Harmonized System international standard)
+hs_sections (id, section_number, section_roman, name_vn, name_en, notes_vn, notes_en, created_at)
 
-fta_rates (id, hs_code_id, agreement_code, preferential_rate, conditions)
+hs_chapters (id, chapter_code, section_id, name_vn, name_en, notes_vn, notes_en, created_at)
+
+hs_headings (id, heading_code, chapter_id, name_vn, name_en, created_at)
+
+hs_subheadings (id, subheading_code, heading_id, name_vn, name_en, indent_level, created_at)
+
+-- National tariff line (8-digit Vietnam-specific codes)
+hs_codes (id, code, subheading_id, description_vn, description_en, unit, duty_rate, vat_rate,
+          policy_notes, indent_level, embedding, data_version_id, created_at)
+
+fta_rates (id, hs_code_id, agreement_code, preferential_rate, conditions, created_at)
 
 data_versions (id, name, source_file, uploaded_at, activated_at, is_active)
 
@@ -223,6 +242,28 @@ users (id, email, password_hash, role, created_at)
 favorites (id, user_id, hs_code_id, notes, created_at)
 
 search_history (id, user_id, query, selected_hs_code_id, created_at)
+```
+
+**Hierarchy Navigation Queries:**
+```sql
+-- Get full hierarchy path for an HS code
+SELECT s.section_roman, s.name_vn as section_name,
+       c.chapter_code, c.name_vn as chapter_name,
+       h.heading_code, h.name_vn as heading_name,
+       sh.subheading_code, sh.name_vn as subheading_name,
+       hc.code, hc.description_vn
+FROM hs_codes hc
+JOIN hs_subheadings sh ON hc.subheading_id = sh.id
+JOIN hs_headings h ON sh.heading_id = h.id
+JOIN hs_chapters c ON h.chapter_id = c.id
+JOIN hs_sections s ON c.section_id = s.id
+WHERE hc.code = '01012100';
+
+-- Browse all HS codes under a chapter
+SELECT hc.* FROM hs_codes hc
+JOIN hs_subheadings sh ON hc.subheading_id = sh.id
+JOIN hs_headings h ON sh.heading_id = h.id
+WHERE h.chapter_id = (SELECT id FROM hs_chapters WHERE chapter_code = '01');
 ```
 
 ### Authentication & Security
@@ -436,8 +477,14 @@ api/app/
 │   ├── search.py
 │   ├── hs_code.py
 │   └── responses.py
-├── models/              # SQLAlchemy models
-│   ├── hs_code.py
+├── models/              # SQLAlchemy models (hierarchical HS code structure)
+│   ├── hs_section.py    # Section (PHẦN) - top-level
+│   ├── hs_chapter.py    # Chapter (Chương) - 2-digit
+│   ├── hs_heading.py    # Heading (Nhóm) - 4-digit
+│   ├── hs_subheading.py # Subheading (Phân nhóm) - 6-digit
+│   ├── hs_code.py       # HS Code (Mã hàng) - 8-digit
+│   ├── fta_rate.py
+│   ├── data_version.py
 │   └── user.py
 └── core/                # Config, deps, middleware
     ├── config.py
@@ -823,8 +870,9 @@ athena/
 │   │   │   ├── search_service_test.py
 │   │   │   ├── embedding_service.py
 │   │   │   ├── embedding_service_test.py
-│   │   │   ├── excel_parser_service.py
+│   │   │   ├── excel_parser_service.py       # Basic flat Excel parsing
 │   │   │   ├── excel_parser_service_test.py
+│   │   │   ├── tariff_hierarchy_parser.py    # Full hierarchy extraction
 │   │   │   └── cache_service.py
 │   │   ├── repositories/
 │   │   │   ├── __init__.py
@@ -847,7 +895,11 @@ athena/
 │   │   ├── models/
 │   │   │   ├── __init__.py
 │   │   │   ├── base.py               # SQLAlchemy base
-│   │   │   ├── hs_code.py
+│   │   │   ├── hs_section.py         # Section (PHẦN) - 20 sections
+│   │   │   ├── hs_chapter.py         # Chapter (Chương) - 98 chapters
+│   │   │   ├── hs_heading.py         # Heading (Nhóm) - 4-digit codes
+│   │   │   ├── hs_subheading.py      # Subheading (Phân nhóm) - 6-digit codes
+│   │   │   ├── hs_code.py            # HS Code (Mã hàng) - 8-digit codes
 │   │   │   ├── fta_rate.py
 │   │   │   ├── data_version.py
 │   │   │   ├── user.py
@@ -866,12 +918,12 @@ athena/
 │   │   ├── env.py
 │   │   ├── script.py.mako
 │   │   └── versions/
-│   │       ├── 001_initial_schema.py
-│   │       ├── 002_add_pgvector.py
-│   │       └── 003_add_fta_rates.py
+│   │       ├── 20260127_..._add_hs_codes_fta_rates_data_versions.py
+│   │       └── 20260128_add_hs_hierarchy_tables.py
 │   └── scripts/
-│       ├── seed_data.py              # Initial data seeding
-│       └── backup.sh                 # pg_dump backup script
+│       ├── import_tariff_data.py         # Basic flat data import
+│       ├── import_tariff_hierarchy.py    # Full hierarchical import (recommended)
+│       └── backup.sh                     # pg_dump backup script
 │
 ├── data/                             # Sample/test data (gitignored in prod)
 │   └── sample_tariff.xlsx
@@ -904,6 +956,7 @@ athena/
 **Data Boundaries:**
 | Boundary | Tables | Access Pattern |
 |----------|--------|----------------|
+| HS Code Hierarchy | `hs_sections`, `hs_chapters`, `hs_headings`, `hs_subheadings` | Read-only, static hierarchy |
 | HS Code Domain | `hs_codes`, `fta_rates`, `data_versions` | Read-heavy, versioned |
 | User Domain | `users`, `favorites`, `search_history` | User-scoped CRUD |
 | Cache Layer | Redis | Sessions, search results, hot data |
@@ -914,12 +967,14 @@ athena/
 - API: `api/app/api/search.py`, `api/app/api/hs_codes.py`
 - Services: `api/app/services/search_service.py`, `embedding_service.py`
 - Repository: `api/app/repositories/hs_code_repository.py`
+- Models: `api/app/models/hs_*.py` (full hierarchy for browsing)
 - Frontend: `web/src/app/search/`, `web/src/app/hs-codes/`
 
 **FR10-18: Tariff Data Display**
-- Models: `api/app/models/hs_code.py`, `fta_rate.py`
+- Models: `api/app/models/hs_section.py`, `hs_chapter.py`, `hs_heading.py`, `hs_subheading.py`, `hs_code.py`, `fta_rate.py`
 - Schemas: `api/app/schemas/hs_code.py`
 - Frontend: `web/src/app/hs-codes/[code]/components/`
+- Note: Use hierarchy for breadcrumb navigation (Section → Chapter → Heading → Subheading → HS Code)
 
 **FR19-29: Favorites & History**
 - API: `api/app/api/favorites.py`, `history.py`
@@ -932,7 +987,8 @@ athena/
 
 **FR36-42: Admin Data Management**
 - API: `api/app/api/admin/data.py`
-- Services: `api/app/services/excel_parser_service.py`
+- Services: `api/app/services/tariff_hierarchy_parser.py` (full hierarchy), `excel_parser_service.py` (flat)
+- Scripts: `api/app/scripts/import_tariff_hierarchy.py`
 - Frontend: `web/src/app/admin/data/`
 
 ### Integration Points
@@ -1108,6 +1164,26 @@ All 50 functional requirements have explicit architectural support:
 - 5 potential conflict areas addressed with clear conventions
 - Concrete code examples provided for all patterns
 - Enforcement guidelines defined for AI agents
+
+### Imported Data Statistics (Story 1.2 Completed)
+
+**Vietnam 2026 Tariff Schedule (BIEU-THUE-XNK-2026.xlsx):**
+| Entity | Count | Notes |
+|--------|-------|-------|
+| Sections | 20 | I-XXI (XV skipped per HS standard) |
+| Chapters | 98 | 01-98 |
+| Headings | 1,269 | 4-digit codes |
+| Subheadings | 5,786 | 6-digit codes |
+| HS Codes | 11,871 | 8-digit national tariff lines |
+| FTA Rates | 211,391 | 18 FTA agreements |
+
+**FTA Agreements Imported:**
+ACFTA, ATIGA, AJCEP, VJEPA, AKFTA, AANZFTA, AIFTA, VKFTA, VCFTA, VN-EAEU, CPTPP, AHKFTA, VNCU, EVFTA, UKVFTA, VN-LAO, VIFTA, RCEPT
+
+**Import Performance:**
+- Total import time: ~76 seconds
+- All HS codes linked to hierarchy (100% coverage)
+- Section/chapter notes extracted for reference
 
 ### Gap Analysis Results
 

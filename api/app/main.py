@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from app.api.hs_codes import router as hs_codes_router
 from app.core.config import get_settings
 from app.core.database import engine
 from app.core.redis import check_redis_connection
@@ -39,6 +40,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register routers
+app.include_router(hs_codes_router)
 
 
 @app.get("/health", response_model=ApiResponse[HealthData])

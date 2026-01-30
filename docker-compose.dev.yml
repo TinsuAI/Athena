@@ -1,8 +1,6 @@
 # Development Docker Compose Configuration
 # Full stack with hot reloading for frontend and backend
 
-version: '3.8'
-
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -45,6 +43,7 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-in-production}
     volumes:
       - ./api:/app
+      - ./docs:/docs:ro  # Mount docs for tariff data import
       - /app/.venv # Exclude venv from mount
     ports:
       - "8980:8980"
