@@ -42,7 +42,7 @@ class HSCode(Base):
     policy_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     indent_level: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True)  # Number of leading dashes
     embedding: Mapped[list[float] | None] = mapped_column(
-        Vector(1536),
+        Vector(3072),
         nullable=True
     )
     data_version_id: Mapped[int] = mapped_column(

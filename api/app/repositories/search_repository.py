@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.hs_code import HSCode
+from app.models.hs_subheading import HSSubheading
+from app.models.hs_heading import HSHeading
 
 
 class SearchResult(NamedTuple):
@@ -73,7 +75,7 @@ class SearchRepository:
             .where(HSCode.code == code)
             .options(
                 selectinload(HSCode.fta_rates),
-                selectinload(HSCode.subheading).selectinload("heading").selectinload("chapter"),
+                selectinload(HSCode.subheading).selectinload(HSSubheading.heading).selectinload(HSHeading.chapter),
             )
         )
         hs_code = result.scalar_one_or_none()
@@ -95,7 +97,7 @@ class SearchRepository:
         """Search using vector similarity (cosine).
 
         Args:
-            embedding: Query embedding (1536 dimensions)
+            embedding: Query embedding (3072 dimensions)
             limit: Maximum results to return
 
         Returns:
@@ -112,7 +114,7 @@ class SearchRepository:
             .limit(limit)
             .options(
                 selectinload(HSCode.fta_rates),
-                selectinload(HSCode.subheading).selectinload("heading").selectinload("chapter"),
+                selectinload(HSCode.subheading).selectinload(HSSubheading.heading).selectinload(HSHeading.chapter),
             )
         )
 
@@ -153,7 +155,7 @@ class SearchRepository:
             .limit(limit)
             .options(
                 selectinload(HSCode.fta_rates),
-                selectinload(HSCode.subheading).selectinload("heading").selectinload("chapter"),
+                selectinload(HSCode.subheading).selectinload(HSSubheading.heading).selectinload(HSHeading.chapter),
             )
         )
 

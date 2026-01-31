@@ -14,7 +14,7 @@ settings = get_settings()
 
 # OpenRouter API configuration
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/embeddings"
-OPENROUTER_MODEL = "openai/text-embedding-3-small"
+OPENROUTER_MODEL = "openai/text-embedding-3-large"
 
 # Cache TTL constants
 EMBEDDING_CACHE_TTL = 86400  # 24 hours for embedding cache
@@ -144,7 +144,7 @@ class EmbeddingService:
             text: The text to embed
 
         Returns:
-            1536-dimensional embedding vector
+            3072-dimensional embedding vector
 
         Raises:
             ValueError: If text is empty or whitespace-only

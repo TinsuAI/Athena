@@ -4,7 +4,8 @@ This script:
 1. Loads all HS codes from the database
 2. Generates embeddings for Vietnamese descriptions via OpenRouter API
 3. Stores embeddings in the hs_codes.embedding column
-4. Creates HNSW index for vector similarity search
+4. Creates IVFFlat index for vector similarity search
+   (HNSW has a 2000-dim limit; IVFFlat supports larger dimensions like 3072)
 
 Features:
 - Batch processing (100 at a time to respect API rate limits)
@@ -89,12 +90,15 @@ async def update_hs_code_embedding(
     )
 
 
-async def create_hnsw_index(session: AsyncSession) -> None:
-    """Create HNSW index for vector similarity search.
+async def create_ivfflat_index(session: AsyncSession) -> None:
+    """Create IVFFlat index for vector similarity search.
 
-    Only creates if index doesn't already exist.
+    Note: pgvector HNSW and IVFFlat indexes have a 2000-dimension limit
+    in older versions. For 3072-dimensional embeddings, index creation
+    will be skipped if not supported. Vector search will still work
+    via sequential scan (acceptable for ~12k rows).
     """
-    # Check if any HNSW index exists on the embedding column
+    # Check if any vector index exists on the embedding column
     result = await session.execute(
         text("""
             SELECT i.indexname
@@ -103,7 +107,7 @@ async def create_hnsw_index(session: AsyncSession) -> None:
             JOIN pg_index idx ON idx.indexrelid = c.oid
             JOIN pg_am am ON am.oid = c.relam
             WHERE i.tablename = 'hs_codes'
-              AND am.amname = 'hnsw'
+              AND am.amname IN ('ivfflat', 'hnsw')
               AND EXISTS (
                   SELECT 1 FROM pg_attribute a
                   WHERE a.attrelid = (SELECT oid FROM pg_class WHERE relname = 'hs_codes')
@@ -114,20 +118,31 @@ async def create_hnsw_index(session: AsyncSession) -> None:
     )
     existing_index = result.scalar()
     if existing_index:
-        logger.info(f"HNSW index already exists: {existing_index}")
+        logger.info(f"Vector index already exists: {existing_index}")
         return
 
-    logger.info("Creating HNSW index for embeddings...")
-    await session.execute(
-        text("""
-            CREATE INDEX hs_codes_embedding_hnsw_idx
-            ON hs_codes
-            USING hnsw (embedding vector_cosine_ops)
-            WITH (m = 16, ef_construction = 64)
-        """)
-    )
-    await session.commit()
-    logger.info("HNSW index created successfully")
+    logger.info("Attempting to create IVFFlat index for embeddings...")
+    try:
+        # lists = sqrt(rows) is a good starting point; with ~12k rows, lists=100 is reasonable
+        await session.execute(
+            text("""
+                CREATE INDEX idx_hs_codes_embedding_ivfflat
+                ON hs_codes
+                USING ivfflat (embedding vector_cosine_ops)
+                WITH (lists = 100)
+            """)
+        )
+        await session.commit()
+        logger.info("IVFFlat index created successfully")
+    except Exception as e:
+        if "2000 dimensions" in str(e):
+            logger.warning(
+                "Could not create vector index: pgvector version does not support "
+                "dimensions > 2000. Vector search will use sequential scan instead. "
+                "Consider upgrading pgvector to 0.7.0+ for index support."
+            )
+        else:
+            raise
 
 
 async def generate_embeddings_for_all_hs_codes() -> None:
@@ -155,7 +170,7 @@ async def generate_embeddings_for_all_hs_codes() -> None:
             if pending_count == 0:
                 logger.info("All HS codes already have embeddings!")
                 # Still check/create index
-                await create_hnsw_index(session)
+                await create_ivfflat_index(session)
                 return
 
             # Process in batches
@@ -204,7 +219,7 @@ async def generate_embeddings_for_all_hs_codes() -> None:
                     await asyncio.sleep(BATCH_DELAY)
 
             # Create HNSW index after all embeddings are populated
-            await create_hnsw_index(session)
+            await create_ivfflat_index(session)
 
             # Verify all embeddings are populated
             final_pending = await count_hs_codes_without_embeddings(session)

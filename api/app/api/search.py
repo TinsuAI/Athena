@@ -106,12 +106,15 @@ async def search_hs_codes(
                 from sqlalchemy import select
                 from sqlalchemy.orm import selectinload
 
+                from app.models.hs_subheading import HSSubheading
+                from app.models.hs_heading import HSHeading
+
                 result = await db.execute(
                     select(HSCode)
                     .where(HSCode.code == best_cached.hs_code.replace(".", ""))
                     .options(
                         selectinload(HSCode.fta_rates),
-                        selectinload(HSCode.subheading).selectinload("heading").selectinload("chapter"),
+                        selectinload(HSCode.subheading).selectinload(HSSubheading.heading).selectinload(HSHeading.chapter),
                     )
                 )
                 hs_code_obj = result.scalar_one_or_none()

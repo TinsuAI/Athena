@@ -70,3 +70,31 @@ class ApiClient {
 
 export const apiClient = new ApiClient(API_URL);
 export type { ApiResponse, ApiError };
+
+// Search API
+import type { SearchResult } from "@/types/hs-code";
+
+export async function searchHsCodes(
+  query: string,
+  signal?: AbortSignal
+): Promise<SearchResult> {
+  const url = `${API_URL}/api/search`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query }),
+    signal,
+  });
+
+  const data: ApiResponse<SearchResult> = await response.json();
+
+  if (!data.success || !data.data) {
+    throw new Error(data.error?.detail || "Search failed");
+  }
+
+  return data.data;
+}

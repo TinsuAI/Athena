@@ -3,12 +3,18 @@
  */
 
 import { create } from "zustand";
+import type { SearchResult } from "@/types/hs-code";
 
 interface SearchState {
-  query: string;
-  isLoading: boolean;
-  setQuery: (query: string) => void;
-  setIsLoading: (isLoading: boolean) => void;
+  searchQuery: string;
+  searchResult: SearchResult | null;
+  isSearching: boolean;
+  searchError: string | null;
+  setSearchQuery: (query: string) => void;
+  setSearchResult: (result: SearchResult | null) => void;
+  setIsSearching: (isSearching: boolean) => void;
+  setSearchError: (error: string | null) => void;
+  clearSearch: () => void;
 }
 
 interface AuthState {
@@ -26,10 +32,20 @@ interface AppStore extends SearchState, AuthState, FavoritesState {}
 
 export const useStore = create<AppStore>((set) => ({
   // Search slice
-  query: "",
-  isLoading: false,
-  setQuery: (query) => set({ query }),
-  setIsLoading: (isLoading) => set({ isLoading }),
+  searchQuery: "",
+  searchResult: null,
+  isSearching: false,
+  searchError: null,
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
+  setSearchResult: (searchResult) => set({ searchResult, searchError: null }),
+  setIsSearching: (isSearching) => set({ isSearching }),
+  setSearchError: (searchError) => set({ searchError }),
+  clearSearch: () =>
+    set({
+      searchQuery: "",
+      searchResult: null,
+      searchError: null,
+    }),
 
   // Auth slice
   isAuthenticated: false,

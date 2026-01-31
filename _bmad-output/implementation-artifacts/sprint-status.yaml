@@ -43,7 +43,7 @@ development_status:
   1-1-project-scaffolding-infrastructure-setup: done
   1-2-hs-code-database-schema-data-import: done  # Verified: 11,871 HS codes + 211,391 FTA rates imported, all ACs passing
   1-3-search-api-with-hybrid-search: done  # Code review: Fixed 8 HIGH + 4 MEDIUM issues, search cache integrated, eager loading added
-  1-4-search-page-ui-searchbar-component: backlog
+  1-4-search-page-ui-searchbar-component: review
   1-5-search-results-display: backlog
   1-6-hs-code-detail-view: backlog
   1-7-error-handling-system-feedback: backlog

@@ -10,7 +10,7 @@ class TestEmbeddingService:
     """Test cases for EmbeddingService."""
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_returns_1536_dimensions(self):
+    async def test_generate_embedding_returns_3072_dimensions(self):
         """Test that embedding generation returns correct dimensions."""
         mock_redis = AsyncMock()
         mock_redis.get.return_value = None  # Cache miss
@@ -23,7 +23,7 @@ class TestEmbeddingService:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
-                {"embedding": [0.1] * 1536, "index": 0}
+                {"embedding": [0.1] * 3072, "index": 0}
             ]
         }
 
@@ -31,14 +31,14 @@ class TestEmbeddingService:
             embedding = await service.generate_embedding("máy xay sinh tố")
 
         assert embedding is not None
-        assert len(embedding) == 1536
+        assert len(embedding) == 3072
 
     @pytest.mark.asyncio
     async def test_generate_embedding_uses_cache(self):
         """Test that embedding service uses cache for repeated queries."""
         mock_redis = AsyncMock()
         # Return cached embedding
-        cached_embedding = "[" + ",".join(["0.1"] * 1536) + "]"
+        cached_embedding = "[" + ",".join(["0.1"] * 3072) + "]"
         mock_redis.get.return_value = cached_embedding
 
         service = EmbeddingService(redis_client=mock_redis)
@@ -46,7 +46,7 @@ class TestEmbeddingService:
         embedding = await service.generate_embedding("máy xay sinh tố")
 
         assert embedding is not None
-        assert len(embedding) == 1536
+        assert len(embedding) == 3072
         # Should not call setex since cache hit
         mock_redis.setex.assert_not_called()
 
@@ -63,7 +63,7 @@ class TestEmbeddingService:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
-                {"embedding": [0.1] * 1536, "index": 0}
+                {"embedding": [0.1] * 3072, "index": 0}
             ]
         }
 
@@ -92,7 +92,7 @@ class TestEmbeddingService:
         mock_response_success = MagicMock()
         mock_response_success.status_code = 200
         mock_response_success.json.return_value = {
-            "data": [{"embedding": [0.1] * 1536, "index": 0}]
+            "data": [{"embedding": [0.1] * 3072, "index": 0}]
         }
 
         call_count = 0
@@ -142,8 +142,8 @@ class TestEmbeddingService:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
-                {"embedding": [0.1] * 1536, "index": 0},
-                {"embedding": [0.2] * 1536, "index": 1},
+                {"embedding": [0.1] * 3072, "index": 0},
+                {"embedding": [0.2] * 3072, "index": 1},
             ]
         }
 
@@ -153,7 +153,7 @@ class TestEmbeddingService:
             )
 
         assert len(embeddings) == 2
-        assert all(len(e) == 1536 for e in embeddings)
+        assert all(len(e) == 3072 for e in embeddings)
 
     @pytest.mark.asyncio
     async def test_cache_key_generation(self):
