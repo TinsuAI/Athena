@@ -13,12 +13,19 @@ from app.core.redis import get_redis
 from app.schemas.base import ApiResponse, error_response, success_response
 from app.schemas.search import (
     ClassificationSchema,
+    ProcessLogEntry,
     SearchRequest,
     SearchResponseData,
 )
+from app.core.config import get_settings
 from app.services.classification_analyzer import ClassificationAnalyzer
+from app.services.llm_reasoning_service import LLMReasoningService
+from app.services.query_enhancement_service import QueryEnhancementService
+from app.services.reranking_service import RerankingService
 from app.services.search_cache import CachedSearchResult, SearchCacheService
 from app.services.search_service import SearchService
+
+settings = get_settings()
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +83,16 @@ async def search_hs_codes(
         Best matching HS code with classification analysis
     """
     start_time = time.time()
+    process_logs: list[ProcessLogEntry] = []
+
+    def add_log(step: str, status: str, message: str, duration_ms: int | None = None, details: dict | None = None):
+        process_logs.append(ProcessLogEntry(
+            step=step,
+            status=status,
+            message=message,
+            duration_ms=duration_ms,
+            details=details,
+        ))
 
     # Log search request (anonymized - NFR-M3)
     logger.info(
@@ -87,19 +104,78 @@ async def search_hs_codes(
         }
     )
 
+    add_log("init", "started", f"Search initiated for query: {body.query[:100]}{'...' if len(body.query) > 100 else ''}")
+
     try:
         # Create services
         search_service = SearchService(session=db, redis_client=redis_client)
         cache_service = SearchCacheService(redis_client=redis_client)
-        analyzer = ClassificationAnalyzer()
+
+        # Create LLM reasoning service if API key is available
+        llm_service = None
+        model_name = body.model or settings.llm_reasoning_model
+        if settings.openrouter_api_key:
+            llm_service = LLMReasoningService(
+                redis_client=redis_client,
+                model=body.model,
+            )
+            add_log("init", "completed", f"LLM service initialized with model: {model_name}")
+        else:
+            add_log("init", "skipped", "No OPENROUTER_API_KEY, LLM services disabled")
+
+        analyzer = ClassificationAnalyzer(llm_service=llm_service)
+
+        # Create enhancement and reranking services if enabled
+        enhancement_service = None
+        reranking_service = None
+        if settings.openrouter_api_key:
+            if settings.enable_query_enhancement:
+                enhancement_service = QueryEnhancementService(
+                    redis_client=redis_client,
+                    model=body.model,
+                )
+                add_log("init", "completed", "Query enhancement service enabled")
+            else:
+                add_log("init", "skipped", "Query enhancement disabled in config")
+            if settings.enable_reranking:
+                reranking_service = RerankingService(
+                    redis_client=redis_client,
+                    model=body.model,
+                )
+                add_log("init", "completed", f"Reranking service enabled (candidates: {settings.reranking_candidates})")
+            else:
+                add_log("init", "skipped", "Reranking disabled in config")
 
         # Check cache first
+        cache_start = time.time()
+        add_log("cache", "started", "Checking search cache...")
         cached_results = await cache_service.get(body.query)
+        cache_duration = int((time.time() - cache_start) * 1000)
+
         if cached_results:
             logger.info("Cache hit for search query")
+            # Show all cached candidates
+            cached_candidates = [
+                {"hs_code": _format_hs_code(r.hs_code), "description": r.description_vn[:80], "confidence": r.confidence}
+                for r in cached_results
+            ]
+            add_log("cache", "completed", f"Cache HIT - found {len(cached_results)} cached results",
+                    duration_ms=cache_duration,
+                    details={"cached_candidates": cached_candidates})
+
+            # Skip enhancement and reranking for cached results
+            add_log("enhancement", "skipped", "Using cached results, enhancement not needed")
+            add_log("search", "skipped", "Using cached results")
+            add_log("reranking", "skipped", "Using cached results, reranking not needed")
+
             # Convert cached result to response (use first result)
             if cached_results:
                 best_cached = cached_results[0]
+                add_log("result", "completed", f"Best cached result: {_format_hs_code(best_cached.hs_code)}",
+                        details={"hs_code": _format_hs_code(best_cached.hs_code),
+                                 "description": best_cached.description_vn,
+                                 "confidence": best_cached.confidence})
+
                 # We still need to generate classification analysis from query
                 # Load HS code to get full object for analysis
                 from app.models.hs_code import HSCode
@@ -120,7 +196,18 @@ async def search_hs_codes(
                 hs_code_obj = result.scalar_one_or_none()
 
                 if hs_code_obj:
-                    analysis = analyzer.analyze(body.query, hs_code_obj)
+                    # Generate classification analysis
+                    classify_start = time.time()
+                    add_log("classification", "started", f"Generating classification reasoning with LLM (model: {model_name})...")
+                    analysis = await analyzer.analyze_async(body.query, hs_code_obj)
+                    classify_duration = int((time.time() - classify_start) * 1000)
+                    add_log("classification", "completed", f"Classification reasoning generated (model: {model_name})",
+                            duration_ms=classify_duration,
+                            details={"model": model_name, "material": analysis.material, "function": analysis.function})
+
+                    duration = time.time() - start_time
+                    add_log("complete", "completed", f"Search completed (from cache): {_format_hs_code(best_cached.hs_code)}",
+                            duration_ms=int(duration * 1000))
 
                     response_data = SearchResponseData(
                         hs_code=_format_hs_code(best_cached.hs_code),
@@ -133,20 +220,56 @@ async def search_hs_codes(
                         ),
                         practical_notes=analysis.practical_notes,
                         confidence=best_cached.confidence,
+                        process_logs=process_logs,
                     )
 
-                    duration = time.time() - start_time
                     logger.info(
                         "Search completed from cache",
                         extra={"duration_ms": int(duration * 1000)}
                     )
                     return success_response(response_data.model_dump())
+        else:
+            add_log("cache", "completed", "Cache MISS - will perform full search", duration_ms=cache_duration)
+
+        # Enhance query if service is available
+        search_query = body.query
+        enhanced_details = None
+        if enhancement_service:
+            enhance_start = time.time()
+            add_log("enhancement", "started", f"Enhancing query with LLM (model: {model_name})...")
+            try:
+                enhanced = await enhancement_service.enhance_query(body.query)
+                # Use enhanced query for better embedding matches
+                search_query = enhanced.enhanced_query
+                enhance_duration = int((time.time() - enhance_start) * 1000)
+                enhanced_details = {
+                    "model": model_name,
+                    "original_query": body.query,
+                    "enhanced_query": enhanced.enhanced_query,
+                    "material_keywords": enhanced.material_keywords,
+                    "function_keywords": enhanced.function_keywords,
+                    "category": enhanced.category,
+                    "likely_chapters": enhanced.likely_chapters,
+                }
+                add_log("enhancement", "completed", f"Query enhanced successfully (model: {model_name})", duration_ms=enhance_duration, details=enhanced_details)
+            except Exception as e:
+                enhance_duration = int((time.time() - enhance_start) * 1000)
+                add_log("enhancement", "failed", f"Enhancement failed: {str(e)}", duration_ms=enhance_duration)
+                logger.warning(f"Query enhancement failed, using original: {e}")
+        else:
+            add_log("enhancement", "skipped", "Enhancement service not available")
+
+        # Determine search limit - get more candidates if reranking is enabled
+        search_limit = settings.reranking_candidates if reranking_service else body.limit
 
         # Perform search
+        search_start = time.time()
+        add_log("search", "started", f"Searching with query (limit={search_limit})...")
         results = await search_service.search(
-            query=body.query,
-            limit=body.limit,
+            query=search_query,
+            limit=search_limit,
         )
+        search_duration = int((time.time() - search_start) * 1000)
 
         # Log search duration
         duration = time.time() - start_time
@@ -160,6 +283,8 @@ async def search_hs_codes(
 
         # Handle no results
         if not results:
+            add_log("search", "completed", "No results found", duration_ms=search_duration)
+            add_log("complete", "failed", "Search completed with no results")
             return error_response(
                 type_uri="https://athena.example/errors/no-results",
                 title="No Results",
@@ -168,8 +293,71 @@ async def search_hs_codes(
                 instance="/api/search",
             )
 
-        # Get best result
+        # Log search results
+        search_candidates = [
+            {"hs_code": _format_hs_code(r.hs_code), "description": r.description_vn[:80], "confidence": r.confidence}
+            for r in results[:10]  # Top 10 for logging
+        ]
+        add_log("search", "completed", f"Found {len(results)} candidates", duration_ms=search_duration, details={"candidates": search_candidates})
+
+        # Rerank results if service is available
         best_result = results[0]
+        original_best = _format_hs_code(results[0].hs_code)
+        if reranking_service and len(results) > 1:
+            rerank_start = time.time()
+            add_log("reranking", "started", f"Reranking {len(results)} candidates with LLM (model: {model_name})...")
+            try:
+                # Prepare candidates for reranking
+                candidates = []
+                for r in results:
+                    hs_code_obj = r.hs_code_full
+                    candidate = {
+                        "hs_code": r.hs_code,
+                        "description_vn": r.description_vn,
+                    }
+                    # Add chapter/heading info if available
+                    if hs_code_obj and hs_code_obj.subheading:
+                        heading = hs_code_obj.subheading.heading
+                        if heading:
+                            candidate["heading_info"] = f"{heading.heading_code}: {heading.name_vn}"
+                            if heading.chapter:
+                                candidate["chapter_info"] = f"{heading.chapter.chapter_code}: {heading.chapter.name_vn}"
+                    candidates.append(candidate)
+
+                # Use original query for reranking (not enhanced)
+                rerank_result = await reranking_service.rerank(body.query, candidates)
+                rerank_duration = int((time.time() - rerank_start) * 1000)
+
+                if rerank_result:
+                    reranked_best = _format_hs_code(rerank_result.best_code)
+                    changed = rerank_result.best_code != results[0].hs_code
+                    # Find the reranked best result
+                    for r in results:
+                        if r.hs_code == rerank_result.best_code:
+                            best_result = r
+                            break
+                    add_log("reranking", "completed",
+                        f"Reranked: {reranked_best} {'(CHANGED from ' + original_best + ')' if changed else '(unchanged)'} (model: {model_name})",
+                        duration_ms=rerank_duration,
+                        details={
+                            "model": model_name,
+                            "original_best": original_best,
+                            "reranked_best": reranked_best,
+                            "changed": changed,
+                            "reasoning": rerank_result.reasoning,
+                        }
+                    )
+                else:
+                    add_log("reranking", "failed", f"Reranking returned no result (model: {model_name}), using original order", duration_ms=rerank_duration)
+            except Exception as e:
+                rerank_duration = int((time.time() - rerank_start) * 1000)
+                add_log("reranking", "failed", f"Reranking failed: {str(e)}", duration_ms=rerank_duration)
+                logger.warning(f"Reranking failed, using original order: {e}")
+        else:
+            if not reranking_service:
+                add_log("reranking", "skipped", "Reranking service not available")
+            else:
+                add_log("reranking", "skipped", "Only 1 result, skipping reranking")
 
         # Cache the results for future queries
         cached_items = [
@@ -190,8 +378,28 @@ async def search_hs_codes(
         # Get full HS code object for classification analysis
         hs_code_obj = best_result.hs_code_full
 
+        # Add result selection log
+        add_log("result", "completed", f"Selected best result: {_format_hs_code(best_result.hs_code)}",
+                details={"hs_code": _format_hs_code(best_result.hs_code),
+                         "description": best_result.description_vn,
+                         "confidence": best_result.confidence})
+
         # Generate classification analysis
-        analysis = analyzer.analyze(body.query, hs_code_obj)
+        classify_start = time.time()
+        add_log("classification", "started", f"Generating classification reasoning with LLM (model: {model_name})...")
+        analysis = await analyzer.analyze_async(body.query, hs_code_obj)
+        classify_duration = int((time.time() - classify_start) * 1000)
+        add_log("classification", "completed", f"Classification reasoning generated (model: {model_name})",
+                duration_ms=classify_duration,
+                details={"model": model_name, "material": analysis.material, "function": analysis.function})
+
+        # Final completion log
+        total_duration = int((time.time() - start_time) * 1000)
+        add_log("complete", "completed", f"Search completed: {_format_hs_code(best_result.hs_code)}",
+                duration_ms=total_duration,
+                details={"total_steps": len(process_logs) + 1,
+                         "final_hs_code": _format_hs_code(best_result.hs_code),
+                         "confidence": best_result.confidence})
 
         # Build response
         response_data = SearchResponseData(
@@ -205,6 +413,7 @@ async def search_hs_codes(
             ),
             practical_notes=analysis.practical_notes,
             confidence=best_result.confidence,
+            process_logs=process_logs,
         )
 
         return success_response(response_data.model_dump())

@@ -1,9 +1,16 @@
 """Classification analyzer for generating customs classification reasoning."""
 
+import logging
 import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from app.models.hs_code import HSCode
+
+if TYPE_CHECKING:
+    from app.services.llm_reasoning_service import LLMReasoningService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -84,9 +91,22 @@ FUNCTION_KEYWORDS = {
 class ClassificationAnalyzer:
     """Analyzer for generating customs classification reasoning.
 
-    Extracts material and function information from queries and HS codes
-    to generate human-readable classification reasoning.
+    Supports two modes:
+    1. LLM-based reasoning (primary): Uses LLM for coherent, accurate explanations
+    2. Rule-based reasoning (fallback): Keyword-based extraction when LLM unavailable
+
+    The LLM mode produces better results for complex cases where function
+    takes precedence over material (e.g., brass faucets classified in Ch. 84).
     """
+
+    def __init__(self, llm_service: "LLMReasoningService | None" = None):
+        """Initialize analyzer.
+
+        Args:
+            llm_service: Optional LLM reasoning service. If provided, LLM-based
+                reasoning will be used with rule-based fallback on failure.
+        """
+        self.llm_service = llm_service
 
     def extract_materials(self, text: str) -> list[tuple[str, str]]:
         """Extract material information from text.
@@ -307,12 +327,39 @@ class ClassificationAnalyzer:
 
         return notes
 
-    def analyze(
+    def _rule_based_analyze(
+        self,
+        query: str,
+        hs_code: HSCode,
+        is_new: bool,
+    ) -> ClassificationAnalysis:
+        """Generate analysis using rule-based keyword matching.
+
+        This is the fallback method when LLM is unavailable.
+
+        Args:
+            query: The search query
+            hs_code: The matched HS code
+            is_new: Whether the product is new
+
+        Returns:
+            ClassificationAnalysis with material, function, and practical notes
+        """
+        return ClassificationAnalysis(
+            material=self.generate_material_reasoning(query, hs_code),
+            function=self.generate_function_reasoning(query, hs_code),
+            practical_notes=self.generate_practical_notes(hs_code, is_new),
+        )
+
+    async def analyze_async(
         self,
         query: str,
         hs_code: HSCode,
     ) -> ClassificationAnalysis:
-        """Generate full classification analysis.
+        """Generate full classification analysis using LLM with fallback.
+
+        This is the primary async method that attempts LLM-based reasoning
+        first, falling back to rule-based analysis on failure.
 
         Args:
             query: The search query
@@ -326,8 +373,57 @@ class ClassificationAnalyzer:
             re.search(r"(hàng\s*mới|100\s*%|new|brand\s*new)", query, re.IGNORECASE)
         )
 
-        return ClassificationAnalysis(
-            material=self.generate_material_reasoning(query, hs_code),
-            function=self.generate_function_reasoning(query, hs_code),
-            practical_notes=self.generate_practical_notes(hs_code, is_new),
+        # Generate practical notes (always rule-based)
+        practical_notes = self.generate_practical_notes(hs_code, is_new)
+
+        # Try LLM-based reasoning if service is available
+        if self.llm_service:
+            try:
+                chapter_info = self._get_chapter_info(hs_code)
+                heading_info = self._get_heading_info(hs_code)
+                formatted_code = f"{hs_code.code[:4]}.{hs_code.code[4:6]}.{hs_code.code[6:]}"
+
+                reasoning = await self.llm_service.generate_reasoning(
+                    query=query,
+                    hs_code=formatted_code,
+                    chapter_info=chapter_info,
+                    heading_info=heading_info,
+                    description=hs_code.description_vn,
+                )
+
+                return ClassificationAnalysis(
+                    material=reasoning.material,
+                    function=reasoning.function,
+                    practical_notes=practical_notes,
+                )
+
+            except Exception as e:
+                logger.warning(f"LLM reasoning failed, falling back to rule-based: {e}")
+                # Fall through to rule-based analysis
+
+        # Fallback to rule-based analysis
+        return self._rule_based_analyze(query, hs_code, is_new)
+
+    def analyze(
+        self,
+        query: str,
+        hs_code: HSCode,
+    ) -> ClassificationAnalysis:
+        """Generate full classification analysis (sync version).
+
+        This is the synchronous method for backward compatibility.
+        It only uses rule-based analysis.
+
+        Args:
+            query: The search query
+            hs_code: The matched HS code
+
+        Returns:
+            ClassificationAnalysis with material, function, and practical notes
+        """
+        # Check if query mentions "new" or "100%"
+        is_new = bool(
+            re.search(r"(hàng\s*mới|100\s*%|new|brand\s*new)", query, re.IGNORECASE)
         )
+
+        return self._rule_based_analyze(query, hs_code, is_new)

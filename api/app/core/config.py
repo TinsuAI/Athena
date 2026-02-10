@@ -33,6 +33,15 @@ class Settings(BaseSettings):
     # External APIs
     openrouter_api_key: str = ""
 
+    # LLM Reasoning
+    llm_reasoning_model: str = "openai/gpt-4o-mini"
+    llm_reasoning_cache_ttl: int = 86400  # 24 hours
+
+    # Search Enhancement Features
+    enable_query_enhancement: bool = True
+    enable_reranking: bool = True
+    reranking_candidates: int = 10
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Parse comma-separated CORS origins into a list."""

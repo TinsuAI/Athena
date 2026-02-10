@@ -10,10 +10,12 @@ interface SearchState {
   searchResult: SearchResult | null;
   isSearching: boolean;
   searchError: string | null;
+  llmModel: string;
   setSearchQuery: (query: string) => void;
   setSearchResult: (result: SearchResult | null) => void;
   setIsSearching: (isSearching: boolean) => void;
   setSearchError: (error: string | null) => void;
+  setLlmModel: (model: string) => void;
   clearSearch: () => void;
 }
 
@@ -36,10 +38,12 @@ export const useStore = create<AppStore>((set) => ({
   searchResult: null,
   isSearching: false,
   searchError: null,
+  llmModel: "openai/gpt-4o-mini",
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSearchResult: (searchResult) => set({ searchResult, searchError: null }),
   setIsSearching: (isSearching) => set({ isSearching }),
   setSearchError: (searchError) => set({ searchError }),
+  setLlmModel: (llmModel) => set({ llmModel }),
   clearSearch: () =>
     set({
       searchQuery: "",

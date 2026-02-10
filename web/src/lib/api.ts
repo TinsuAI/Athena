@@ -74,11 +74,23 @@ export type { ApiResponse, ApiError };
 // Search API
 import type { SearchResult } from "@/types/hs-code";
 
+export interface SearchOptions {
+  query: string;
+  model?: string;
+  signal?: AbortSignal;
+}
+
 export async function searchHsCodes(
   query: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  model?: string
 ): Promise<SearchResult> {
   const url = `${API_URL}/api/search`;
+
+  const body: { query: string; model?: string } = { query };
+  if (model) {
+    body.model = model;
+  }
 
   const response = await fetch(url, {
     method: "POST",
@@ -86,7 +98,7 @@ export async function searchHsCodes(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify(body),
     signal,
   });
 

@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
 import { SearchBar } from "./components/SearchBar";
+import { ModelSelect } from "@/components/ui/ModelSelect";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
 import { useStore } from "@/lib/store";
 import { searchHsCodes } from "@/lib/api";
+import type { ProcessLogEntry } from "@/types/hs-code";
 
 /**
  * Search page with SearchBar component.
@@ -13,16 +15,20 @@ import { searchHsCodes } from "@/lib/api";
 export default function SearchPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [showLogs, setShowLogs] = useState(true);
+  const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
 
   // Zustand store selectors
   const searchQuery = useStore((state) => state.searchQuery);
   const searchResult = useStore((state) => state.searchResult);
   const isSearching = useStore((state) => state.isSearching);
   const searchError = useStore((state) => state.searchError);
+  const llmModel = useStore((state) => state.llmModel);
   const setSearchQuery = useStore((state) => state.setSearchQuery);
   const setSearchResult = useStore((state) => state.setSearchResult);
   const setIsSearching = useStore((state) => state.setIsSearching);
   const setSearchError = useStore((state) => state.setSearchError);
+  const setLlmModel = useStore((state) => state.setLlmModel);
   const clearSearch = useStore((state) => state.clearSearch);
 
   // Set up keyboard shortcuts (/ and Cmd+K)
@@ -51,7 +57,8 @@ export default function SearchPage() {
     try {
       const result = await searchHsCodes(
         query,
-        abortControllerRef.current.signal
+        abortControllerRef.current.signal,
+        llmModel || undefined
       );
       setSearchResult(result);
     } catch (err) {
@@ -66,7 +73,7 @@ export default function SearchPage() {
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery, setSearchResult, setIsSearching, setSearchError]);
+  }, [searchQuery, llmModel, setSearchResult, setIsSearching, setSearchError]);
 
   const handleQueryChange = (value: string) => {
     setSearchQuery(value);
@@ -100,6 +107,21 @@ export default function SearchPage() {
           />
           <p className="text-sm text-muted-foreground mt-2 text-center">
             Press Enter or click Search to find HS codes
+          </p>
+        </div>
+
+        {/* Model selector for testing */}
+        <div className="mb-8 p-4 border rounded-lg bg-muted/30">
+          <label className="block text-sm font-medium mb-2">
+            LLM Model (for classification reasoning)
+          </label>
+          <ModelSelect
+            value={llmModel}
+            onChange={setLlmModel}
+            placeholder="Search or enter model..."
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Type to search models or enter any OpenRouter model ID
           </p>
         </div>
 
@@ -177,7 +199,112 @@ export default function SearchPage() {
             </p>
           </div>
         )}
+
+        {/* Process Logs Panel */}
+        {searchResult?.process_logs && searchResult.process_logs.length > 0 && (
+          <div className="mt-8 border rounded-lg bg-card">
+            <button
+              onClick={() => setShowLogs(!showLogs)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">Process Logs</span>
+                <span className="text-xs text-muted-foreground">
+                  ({searchResult.process_logs.length} steps)
+                </span>
+              </div>
+              <span className="text-muted-foreground">
+                {showLogs ? "▼" : "▶"}
+              </span>
+            </button>
+
+            {showLogs && (
+              <div className="border-t">
+                <div className="p-4 space-y-2 max-h-[500px] overflow-y-auto font-mono text-xs">
+                  {searchResult.process_logs.map((log, idx) => (
+                    <LogEntry
+                      key={idx}
+                      log={log}
+                      isExpanded={expandedLogs.has(idx)}
+                      onToggle={() => {
+                        const newExpanded = new Set(expandedLogs);
+                        if (newExpanded.has(idx)) {
+                          newExpanded.delete(idx);
+                        } else {
+                          newExpanded.add(idx);
+                        }
+                        setExpandedLogs(newExpanded);
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function LogEntry({
+  log,
+  isExpanded,
+  onToggle,
+}: {
+  log: ProcessLogEntry;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const statusColors: Record<string, string> = {
+    started: "text-blue-500",
+    completed: "text-green-500",
+    failed: "text-red-500",
+    skipped: "text-yellow-500",
+  };
+
+  const statusIcons: Record<string, string> = {
+    started: "○",
+    completed: "✓",
+    failed: "✗",
+    skipped: "⊘",
+  };
+
+  const hasDetails = log.details && Object.keys(log.details).length > 0;
+
+  return (
+    <div className="border-l-2 border-muted pl-3 py-1">
+      <div
+        className={`flex items-start gap-2 ${hasDetails ? "cursor-pointer hover:bg-muted/30 -ml-3 pl-3 -mr-1 pr-1 rounded" : ""}`}
+        onClick={hasDetails ? onToggle : undefined}
+      >
+        <span className={statusColors[log.status] || "text-muted-foreground"}>
+          {statusIcons[log.status] || "•"}
+        </span>
+        <span className="text-muted-foreground uppercase w-24 shrink-0">
+          [{log.step}]
+        </span>
+        <span className="flex-1">{log.message}</span>
+        {log.duration_ms !== undefined && (
+          <span className="text-muted-foreground shrink-0">
+            {log.duration_ms}ms
+          </span>
+        )}
+        {hasDetails && (
+          <span className="text-muted-foreground shrink-0">
+            {isExpanded ? "▼" : "▶"}
+          </span>
+        )}
+      </div>
+
+      {/* Expanded details */}
+      {hasDetails && isExpanded && (
+        <div className="mt-2 ml-8 p-2 bg-muted/30 rounded text-[10px] overflow-x-auto">
+          <pre className="whitespace-pre-wrap break-words">
+            {JSON.stringify(log.details, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }

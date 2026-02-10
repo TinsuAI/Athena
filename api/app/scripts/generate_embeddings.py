@@ -23,10 +23,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.core.redis import redis_pool
 from app.models.hs_code import HSCode
+from app.models.hs_subheading import HSSubheading
+from app.models.hs_heading import HSHeading
 from app.services.embedding_service import EmbeddingService
 
 import redis.asyncio as redis
@@ -45,6 +48,52 @@ BATCH_SIZE = 100
 
 # Delay between batches (seconds) to respect rate limits
 BATCH_DELAY = 2.0
+
+# Maximum length for policy notes in embedding text
+POLICY_NOTES_MAX_LENGTH = 500
+
+
+def build_embedding_text(hs_code: HSCode) -> str:
+    """Build rich embedding text from HS code with chapter, heading, and policy context.
+
+    This provides more context for embeddings than just the description_vn field,
+    improving search accuracy by including hierarchical classification information.
+
+    Args:
+        hs_code: The HS code object with eager-loaded relationships
+
+    Returns:
+        Concatenated text for embedding generation
+    """
+    parts = []
+
+    # Add chapter context if available
+    if hs_code.subheading and hs_code.subheading.heading and hs_code.subheading.heading.chapter:
+        chapter = hs_code.subheading.heading.chapter
+        parts.append(f"Chương {chapter.chapter_code}: {chapter.name_vn}")
+
+    # Add heading context if available
+    if hs_code.subheading and hs_code.subheading.heading:
+        heading = hs_code.subheading.heading
+        parts.append(f"Nhóm {heading.heading_code}: {heading.name_vn}")
+
+    # Add subheading context if available
+    if hs_code.subheading:
+        parts.append(f"Phân nhóm {hs_code.subheading.subheading_code}: {hs_code.subheading.name_vn}")
+
+    # Add main descriptions (VN and EN)
+    parts.append(hs_code.description_vn)
+    if hs_code.description_en:
+        parts.append(hs_code.description_en)
+
+    # Add truncated policy notes if available
+    if hs_code.policy_notes:
+        truncated_notes = hs_code.policy_notes[:POLICY_NOTES_MAX_LENGTH]
+        if len(hs_code.policy_notes) > POLICY_NOTES_MAX_LENGTH:
+            truncated_notes += "..."
+        parts.append(f"Ghi chú: {truncated_notes}")
+
+    return " | ".join(parts)
 
 
 async def count_hs_codes_without_embeddings(session: AsyncSession) -> int:
@@ -66,14 +115,28 @@ async def count_total_hs_codes(session: AsyncSession) -> int:
 async def get_hs_codes_without_embeddings(
     session: AsyncSession,
     batch_size: int = BATCH_SIZE,
+    force_regenerate: bool = False,
 ) -> list[HSCode]:
-    """Get batch of HS codes that don't have embeddings yet."""
-    result = await session.execute(
-        select(HSCode)
-        .where(HSCode.embedding.is_(None))
-        .order_by(HSCode.id)
-        .limit(batch_size)
-    )
+    """Get batch of HS codes that need embeddings.
+
+    Args:
+        session: Database session
+        batch_size: Number of codes to fetch
+        force_regenerate: If True, get all codes regardless of existing embeddings
+
+    Returns:
+        List of HS codes with eager-loaded relationships
+    """
+    query = select(HSCode).options(
+        selectinload(HSCode.subheading)
+        .selectinload(HSSubheading.heading)
+        .selectinload(HSHeading.chapter)
+    ).order_by(HSCode.id).limit(batch_size)
+
+    if not force_regenerate:
+        query = query.where(HSCode.embedding.is_(None))
+
+    result = await session.execute(query)
     return list(result.scalars().all())
 
 
@@ -145,8 +208,13 @@ async def create_ivfflat_index(session: AsyncSession) -> None:
             raise
 
 
-async def generate_embeddings_for_all_hs_codes() -> None:
-    """Main function to generate embeddings for all HS codes."""
+async def generate_embeddings_for_all_hs_codes(force_regenerate: bool = False) -> None:
+    """Main function to generate embeddings for all HS codes.
+
+    Args:
+        force_regenerate: If True, regenerate embeddings for ALL codes,
+            not just those without embeddings.
+    """
     engine = create_async_engine(settings.database_url, echo=False)
     async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -167,11 +235,18 @@ async def generate_embeddings_for_all_hs_codes() -> None:
             logger.info(f"Already processed: {completed_count}")
             logger.info(f"Pending: {pending_count}")
 
-            if pending_count == 0:
+            if force_regenerate:
+                logger.info("Force regenerate mode: will regenerate ALL embeddings")
+                pending_count = total_count
+                completed_count = 0
+            elif pending_count == 0:
                 logger.info("All HS codes already have embeddings!")
                 # Still check/create index
                 await create_ivfflat_index(session)
                 return
+
+            # Track offset for force-regenerate mode
+            offset = 0
 
             # Process in batches
             batch_num = 0
@@ -179,7 +254,24 @@ async def generate_embeddings_for_all_hs_codes() -> None:
 
             while True:
                 batch_num += 1
-                hs_codes = await get_hs_codes_without_embeddings(session, BATCH_SIZE)
+
+                if force_regenerate:
+                    # For force-regenerate, get codes by offset
+                    result = await session.execute(
+                        select(HSCode)
+                        .options(
+                            selectinload(HSCode.subheading)
+                            .selectinload(HSSubheading.heading)
+                            .selectinload(HSHeading.chapter)
+                        )
+                        .order_by(HSCode.id)
+                        .offset(offset)
+                        .limit(BATCH_SIZE)
+                    )
+                    hs_codes = list(result.scalars().all())
+                    offset += len(hs_codes)
+                else:
+                    hs_codes = await get_hs_codes_without_embeddings(session, BATCH_SIZE)
 
                 if not hs_codes:
                     break
@@ -189,8 +281,8 @@ async def generate_embeddings_for_all_hs_codes() -> None:
                     f"total processed: {completed_count + processed_in_session}/{total_count})"
                 )
 
-                # Prepare texts for batch embedding
-                texts = [code.description_vn for code in hs_codes]
+                # Prepare texts for batch embedding (with rich context)
+                texts = [build_embedding_text(code) for code in hs_codes]
 
                 try:
                     # Generate embeddings in batch
@@ -269,6 +361,11 @@ def main():
         action="store_true",
         help="Only verify embedding status, don't generate",
     )
+    parser.add_argument(
+        "--force-regenerate",
+        action="store_true",
+        help="Regenerate embeddings for ALL codes (including those with existing embeddings)",
+    )
     args = parser.parse_args()
 
     if args.verify:
@@ -279,7 +376,7 @@ def main():
         print(f"  Without embeddings: {result['without_embeddings']}")
         print(f"  Completion: {result['completion_percentage']:.1f}%")
     else:
-        asyncio.run(generate_embeddings_for_all_hs_codes())
+        asyncio.run(generate_embeddings_for_all_hs_codes(force_regenerate=args.force_regenerate))
 
 
 if __name__ == "__main__":

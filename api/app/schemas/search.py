@@ -3,6 +3,16 @@
 from pydantic import BaseModel, Field
 
 
+class ProcessLogEntry(BaseModel):
+    """A single log entry from search processing."""
+
+    step: str = Field(description="Step name (e.g., 'enhancement', 'search', 'reranking')")
+    status: str = Field(description="Status: 'started', 'completed', 'failed', 'skipped'")
+    message: str = Field(description="Human-readable message")
+    duration_ms: int | None = Field(default=None, description="Duration in milliseconds")
+    details: dict | None = Field(default=None, description="Additional details (e.g., enhanced query, candidates)")
+
+
 class SearchRequest(BaseModel):
     """Search request body."""
 
@@ -16,6 +26,11 @@ class SearchRequest(BaseModel):
         ge=1,
         le=50,
         description="Maximum number of results to return"
+    )
+    model: str | None = Field(
+        default=None,
+        max_length=100,
+        description="LLM model to use for classification reasoning (e.g., 'openai/gpt-4o-mini')"
     )
 
 
@@ -48,3 +63,4 @@ class SearchResponseData(BaseModel):
     classification: ClassificationSchema = Field(description="Classification reasoning")
     practical_notes: list[str] = Field(description="Practical import notes")
     confidence: int = Field(ge=0, le=100, description="Match confidence (0-100%)")
+    process_logs: list[ProcessLogEntry] = Field(default_factory=list, description="Detailed process logs")

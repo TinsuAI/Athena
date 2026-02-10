@@ -229,6 +229,11 @@ class TariffHierarchyParser:
         seen_hs_codes: set[str] = set()
         duplicate_count = 0
 
+        # Category context tracking: [(indent_level, category_vn, category_en), ...]
+        category_stack: list[tuple[int, str, str]] = []
+        # Track all categories seen within current heading for negative context on "Other" codes
+        heading_categories: list[tuple[str, str]] = []  # [(category_vn, category_en), ...]
+
         for row_idx, row in enumerate(rows):
             if row_idx % 5000 == 0:
                 logger.info(f"Processing row {row_idx}/{total_rows}...")
@@ -323,6 +328,23 @@ class TariffHierarchyParser:
                     notes_buffer.append(desc_vn_str)
                 continue
 
+            # Calculate indent level for current row
+            current_indent = self._count_leading_dashes(desc_vn_str)
+
+            # Pop categories from stack when indent level decreases (moving to sibling or parent)
+            while category_stack and category_stack[-1][0] >= current_indent:
+                category_stack.pop()
+
+            # Detect category indicator row: has description, no code, starts with dash
+            if code_val is None and desc_vn_str.startswith("- "):
+                # This is a category indicator - push to stack
+                category_vn = desc_vn_str.lstrip("- ").rstrip(":").strip()
+                category_en = desc_en_str.lstrip("- ").rstrip(":").strip() if desc_en_str else ""
+                category_stack.append((current_indent, category_vn, category_en))
+                # Also track for negative context on sibling "Other" codes
+                heading_categories.append((category_vn, category_en))
+                continue
+
             # Process code-based entries
             if code_val is None:
                 continue
@@ -340,6 +362,10 @@ class TariffHierarchyParser:
 
             # 4-digit code = Heading
             if len(code_str) == 4 and code_str.isdigit():
+                # Clear category stack and heading categories when encountering a new heading
+                category_stack.clear()
+                heading_categories.clear()
+
                 if code_str not in seen_headings:
                     seen_headings.add(code_str)
                     current_heading = HeadingData(
@@ -434,11 +460,33 @@ class TariffHierarchyParser:
                     if rate_value is not None:
                         fta_rates[agreement] = self._parse_rate(rate_value)
 
+                # Append category context from stack to description
+                final_desc_vn = desc_vn_str
+                final_desc_en = desc_en_str
+
+                if category_stack:
+                    # Build positive context string from stack
+                    context_vn = " / ".join([c[1] for c in category_stack])
+                    context_en = " / ".join([c[2] for c in category_stack if c[2]])
+
+                    final_desc_vn = f"{desc_vn_str} [{context_vn}]"
+                    if context_en:
+                        final_desc_vn += f" [{context_en}]"
+                elif heading_categories and "Loại khác" in desc_vn_str:
+                    # Add negative context for "Other" codes that have sibling categories
+                    # This helps search distinguish "Other bamboo" from "Other wood in general"
+                    excluded_vn = ", ".join([c[0] for c in heading_categories])
+                    excluded_en = ", ".join([c[1] for c in heading_categories if c[1]])
+
+                    final_desc_vn = f"{desc_vn_str} [không thuộc: {excluded_vn}]"
+                    if excluded_en:
+                        final_desc_vn += f" [not: {excluded_en}]"
+
                 hs_code = HSCodeData(
                     code=code_str,
                     subheading_code=subheading_code,
-                    description_vn=desc_vn_str,
-                    description_en=desc_en_str,
+                    description_vn=final_desc_vn,
+                    description_en=final_desc_en,
                     unit=unit,
                     duty_rate=duty_rate,
                     vat_rate=vat_rate,

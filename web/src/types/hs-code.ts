@@ -19,6 +19,17 @@ export interface Classification {
 }
 
 /**
+ * A single log entry from search processing
+ */
+export interface ProcessLogEntry {
+  step: string;
+  status: "started" | "completed" | "failed" | "skipped";
+  message: string;
+  duration_ms?: number;
+  details?: Record<string, unknown>;
+}
+
+/**
  * Search result from the API - single best match
  */
 export interface SearchResult {
@@ -29,6 +40,7 @@ export interface SearchResult {
   classification: Classification;
   practical_notes: string[];
   confidence: number;
+  process_logs?: ProcessLogEntry[];
 }
 
 /**

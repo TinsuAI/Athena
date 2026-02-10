@@ -3,7 +3,7 @@ stepsCompleted: [1, 2, 3, 4]
 status: complete
 completedAt: '2026-01-26'
 totalEpics: 5
-totalStories: 27
+totalStories: 28  # Added Story 1-2.1 (2026-02-02)
 frCoverage: '50/50 (100%)'
 inputDocuments:
   - path: _bmad-output/planning-artifacts/prd.md
@@ -267,6 +267,7 @@ Users can search for HS codes in Vietnamese, English, or Chinese and view comple
 - Sets up PostgreSQL + pgvector, hybrid search, FastAPI backend, Next.js frontend
 - Builds core UI components: SearchBar, ResultCard, ConfidenceBadge, TariffDetailPanel
 - Implements 150ms debounced search with loading skeletons
+- **Story 1-2.1 added (2026-02-02):** Fix category context import to resolve 0% search accuracy
 
 ### Epic 2: User Authentication & Sessions
 Users can create accounts, log in securely, and maintain persistent sessions across browser sessions. Enables personalization features in subsequent epics.
@@ -378,6 +379,80 @@ So that **I can develop and test search functionality against the complete produ
 **Given** HS codes exist in the database
 **When** I query for a specific HS code (e.g., "85094010")
 **Then** I receive the complete record including VN/EN descriptions, duty rate, VAT, and all FTA rates
+
+---
+
+### Story 1.2.1: Fix Category Context Import (ADDED 2026-02-02)
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-02.md`
+
+As a **developer**,
+I want **the tariff import to capture category indicator rows and append context to HS codes**,
+So that **search can distinguish between codes like "Other bamboo" vs "Other wood"**.
+
+**Background:**
+The Vietnam Customs Excel file contains category indicator rows (e.g., "- Từ tre:" meaning "From bamboo") that group HS codes. The current parser skips these rows because they lack 8-digit codes, causing child HS codes to lose crucial classification context. This results in 0% search accuracy.
+
+**Acceptance Criteria:**
+
+**Given** the Excel row "- Từ tre:" (indent level 1, no 8-digit code)
+**When** the parser processes subsequent 8-digit codes at deeper indent levels
+**Then** those codes include category context in their description_vn field
+
+**Given** HS code 4419.19.00 (currently "- - Loại khác")
+**When** re-import completes
+**Then** description becomes "- - Loại khác [Từ tre / Of bamboo]"
+
+**Given** HS code 4419.90.00 (currently "- Loại khác")
+**When** re-import completes
+**Then** description becomes "- Loại khác [không thuộc tre hoặc gỗ nhiệt đới]"
+
+**Given** the data is re-imported with category context
+**When** I search for "Khay chia bát đĩa, gỗ MDF phủ Veneer"
+**Then** the search returns 4419.90.00 (not 4419.19.00)
+
+**Given** the data is re-imported with category context
+**When** I search for "Bộ trộn nước nóng lạnh cho vòi sen, bằng đồng"
+**Then** the search returns 7418.20.00 (not 8481.80.98)
+
+**Given** embeddings are regenerated
+**When** I run `python -m app.scripts.generate_embeddings --force-regenerate`
+**Then** all 11,871 HS codes have embeddings that include category context
+
+**Technical Tasks:**
+
+1. Modify `api/app/services/tariff_hierarchy_parser.py`:
+   - Add `category_stack: list[tuple[int, str]]` to track (indent_level, category_name)
+   - When encountering a row with description but no 8-digit code and starts with "- ": push to stack
+   - When indent level decreases: pop categories at higher indent levels
+   - When creating HSCodeData: append category context from stack to description_vn
+
+2. Re-import tariff data:
+   ```bash
+   docker exec athena-api python -m app.scripts.import_tariff_hierarchy
+   ```
+
+3. Regenerate all embeddings:
+   ```bash
+   docker exec athena-api python -m app.scripts.generate_embeddings --force-regenerate
+   ```
+
+4. Clear all caches:
+   ```bash
+   docker exec athena-redis redis-cli FLUSHALL
+   ```
+
+5. Validate with test queries (target: >50% improvement from 0% baseline)
+
+**Definition of Done:**
+- [ ] Parser captures category indicator rows
+- [ ] Category context appended to child HS code descriptions
+- [ ] Data re-imported successfully
+- [ ] Embeddings regenerated (11,871 codes)
+- [ ] Caches cleared
+- [ ] MDF kitchenware query returns 4419.90.00
+- [ ] Copper mixer query returns 7418.20.00
+- [ ] At least 10 test queries validated
 
 ---
 
