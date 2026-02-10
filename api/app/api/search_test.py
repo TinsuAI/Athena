@@ -1,6 +1,7 @@
 """Tests for search API endpoint."""
 
 import hashlib
+from datetime import datetime, timezone
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -9,6 +10,7 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 from app.api.search import _detect_query_language, _format_hs_code, _format_rate, _record_lookup
+from app.services.knowledge_base_service import KBLookupResult
 
 
 class TestSearchEndpointHelpers:
@@ -394,3 +396,423 @@ class TestRecordLookup:
 
             created_record = mock_repo.create.call_args[0][0]
             assert created_record.query_language == "vi"
+
+
+class TestKBSearchIntegration:
+    """Integration tests for KB-enhanced search (AC #1-6)."""
+
+    def _make_mock_hs_code(self):
+        """Create a mock HS code object for testing."""
+        mock_hs_code = MagicMock()
+        mock_hs_code.id = 42
+        mock_hs_code.code = "74182000"
+        mock_hs_code.description_vn = "Đồ trang bị trong nhà vệ sinh"
+        mock_hs_code.description_en = "Sanitary ware"
+        mock_hs_code.duty_rate = 30.0
+        mock_hs_code.vat_rate = 10.0
+        mock_hs_code.unit = "Chiếc"
+        mock_hs_code.fta_rates = []
+        mock_hs_code.subheading = None
+        return mock_hs_code
+
+    def _make_kb_result(self, match_type="exact", confidence=100, similarity=1.0):
+        """Create a KBLookupResult for testing."""
+        return KBLookupResult(
+            hs_code_id=42,
+            confidence=confidence,
+            similarity_score=similarity,
+            lookup_record_id=1,
+            verified_by_user_id=5,
+            verified_at=datetime(2026, 2, 10, 12, 0, 0, tzinfo=timezone.utc),
+            match_type=match_type,
+        )
+
+    @pytest.mark.asyncio
+    async def test_kb_exact_match_returns_verified_result(self):
+        """AC1: KB exact match returns verified result with source='knowledge_base', confidence=100."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_hs_code = self._make_mock_hs_code()
+        kb_result = self._make_kb_result(match_type="exact", confidence=100, similarity=1.0)
+
+        # Mock DB execute for HS code loading
+        mock_db_result = MagicMock()
+        mock_db_result.scalar_one_or_none.return_value = mock_hs_code
+        mock_db.execute.return_value = mock_db_result
+
+        search_request = SearchRequest(query="copper towel rack")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup") as mock_record, \
+             patch("app.api.search.get_settings") as mock_get_settings:
+            
+            mock_settings = MagicMock()
+            mock_settings.openrouter_api_key = None
+            mock_settings.enable_query_enhancement = False
+            mock_settings.enable_reranking = False
+            mock_settings.llm_reasoning_model = "gpt-4o-mini"
+            mock_get_settings.return_value = mock_settings
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = kb_result
+            mock_kb_class.return_value = mock_kb
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "Copper material"
+            mock_analysis.function = "Bathroom fixture"
+            mock_analysis.practical_notes = ["Note 1"]
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["source"] == "knowledge_base"
+        assert response["data"]["is_verified"] is True
+        assert response["data"]["confidence"] == 100
+        assert response["data"]["verified_by"] == "5"
+        assert response["data"]["verified_at"] is not None
+        assert response["data"]["hs_code"] == "7418.20.00"
+
+        # Verify KB lookup was called
+        mock_kb.lookup.assert_awaited_once_with("copper towel rack")
+
+        # Verify lookup was recorded with search_method="knowledge_base"
+        mock_record.assert_awaited_once()
+        call_kwargs = mock_record.call_args[1]
+        assert call_kwargs["search_method"] == "knowledge_base"
+
+    @pytest.mark.asyncio
+    async def test_kb_similar_match_returns_scaled_confidence(self):
+        """AC2: KB similar match returns verified result with scaled confidence."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_hs_code = self._make_mock_hs_code()
+        kb_result = self._make_kb_result(match_type="similar", confidence=92, similarity=0.92)
+
+        mock_db_result = MagicMock()
+        mock_db_result.scalar_one_or_none.return_value = mock_hs_code
+        mock_db.execute.return_value = mock_db_result
+
+        search_request = SearchRequest(query="copper towel holder")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup"), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+            
+            mock_settings = MagicMock()
+            mock_settings.openrouter_api_key = None
+            mock_settings.enable_query_enhancement = False
+            mock_settings.enable_reranking = False
+            mock_settings.llm_reasoning_model = "gpt-4o-mini"
+            mock_get_settings.return_value = mock_settings
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = kb_result
+            mock_kb_class.return_value = mock_kb
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "Copper material"
+            mock_analysis.function = "Bathroom fixture"
+            mock_analysis.practical_notes = []
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["source"] == "knowledge_base"
+        assert response["data"]["is_verified"] is True
+        assert response["data"]["confidence"] == 92
+
+    @pytest.mark.asyncio
+    async def test_no_kb_match_falls_back_to_ai_search(self):
+        """AC3: No KB match falls back to AI search with source='ai_suggestion'."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_search_result = MagicMock()
+        mock_search_result.hs_code = "74182000"
+        mock_search_result.description_vn = "Đồ trang bị trong nhà vệ sinh"
+        mock_search_result.description_en = "Sanitary ware"
+        mock_search_result.duty_rate = 30.0
+        mock_search_result.vat_rate = 10.0
+        mock_search_result.unit = "Chiếc"
+        mock_search_result.confidence = 85
+        mock_search_result.is_exact_match = False
+        mock_search_result.hs_code_full = self._make_mock_hs_code()
+
+        search_request = SearchRequest(query="some product description")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.SearchService") as mock_search_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup"), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+            
+            mock_settings = MagicMock()
+            mock_settings.openrouter_api_key = None
+            mock_settings.enable_query_enhancement = False
+            mock_settings.enable_reranking = False
+            mock_settings.llm_reasoning_model = "gpt-4o-mini"
+            mock_get_settings.return_value = mock_settings
+
+            # KB returns no match
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            # Cache miss
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache_class.return_value = mock_cache
+
+            # Search service returns result
+            mock_search = AsyncMock()
+            mock_search.search.return_value = [mock_search_result]
+            mock_search_class.return_value = mock_search
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "Copper material"
+            mock_analysis.function = "Bathroom fixture"
+            mock_analysis.practical_notes = []
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["source"] == "ai_suggestion"
+        assert response["data"]["is_verified"] is False
+        assert response["data"]["verified_by"] is None
+        assert response["data"]["verified_at"] is None
+
+    @pytest.mark.asyncio
+    async def test_search_priority_order_kb_before_cache(self):
+        """AC4: KB lookup happens before cache check - KB hit short-circuits."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_hs_code = self._make_mock_hs_code()
+        kb_result = self._make_kb_result()
+
+        mock_db_result = MagicMock()
+        mock_db_result.scalar_one_or_none.return_value = mock_hs_code
+        mock_db.execute.return_value = mock_db_result
+
+        search_request = SearchRequest(query="copper towel rack")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search.SearchService") as mock_search_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup"), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+            
+            mock_settings = MagicMock()
+            mock_settings.openrouter_api_key = None
+            mock_settings.enable_query_enhancement = False
+            mock_settings.enable_reranking = False
+            mock_settings.llm_reasoning_model = "gpt-4o-mini"
+            mock_get_settings.return_value = mock_settings
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = kb_result
+            mock_kb_class.return_value = mock_kb
+
+            mock_cache = AsyncMock()
+            mock_cache_class.return_value = mock_cache
+
+            mock_search = AsyncMock()
+            mock_search_class.return_value = mock_search
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "Copper"
+            mock_analysis.function = "Fixture"
+            mock_analysis.practical_notes = []
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        # KB hit should short-circuit - cache and search should NOT be called
+        mock_cache.get.assert_not_awaited()
+        mock_search.search.assert_not_awaited()
+        assert response["data"]["source"] == "knowledge_base"
+
+    @pytest.mark.asyncio
+    async def test_response_always_includes_source_and_verification_fields(self):
+        """AC5: All responses include source, is_verified, verified_by, verified_at."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_search_result = MagicMock()
+        mock_search_result.hs_code = "74182000"
+        mock_search_result.description_vn = "Đồ trang bị"
+        mock_search_result.description_en = "Sanitary ware"
+        mock_search_result.duty_rate = 30.0
+        mock_search_result.vat_rate = 10.0
+        mock_search_result.unit = "Chiếc"
+        mock_search_result.confidence = 85
+        mock_search_result.is_exact_match = False
+        mock_search_result.hs_code_full = self._make_mock_hs_code()
+
+        search_request = SearchRequest(query="some product")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.SearchService") as mock_search_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup"), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+            
+            mock_settings = MagicMock()
+            mock_settings.openrouter_api_key = None
+            mock_settings.enable_query_enhancement = False
+            mock_settings.enable_reranking = False
+            mock_settings.llm_reasoning_model = "gpt-4o-mini"
+            mock_get_settings.return_value = mock_settings
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache_class.return_value = mock_cache
+
+            mock_search = AsyncMock()
+            mock_search.search.return_value = [mock_search_result]
+            mock_search_class.return_value = mock_search
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "Material"
+            mock_analysis.function = "Function"
+            mock_analysis.practical_notes = []
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        data = response["data"]
+        assert "source" in data
+        assert "is_verified" in data
+        assert "verified_by" in data
+        assert "verified_at" in data
+
+    @pytest.mark.asyncio
+    async def test_kb_hit_records_lookup_with_knowledge_base_method(self):
+        """AC6: KB hit creates lookup record with search_method='knowledge_base'."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_hs_code = self._make_mock_hs_code()
+        kb_result = self._make_kb_result()
+
+        mock_db_result = MagicMock()
+        mock_db_result.scalar_one_or_none.return_value = mock_hs_code
+        mock_db.execute.return_value = mock_db_result
+
+        search_request = SearchRequest(query="copper towel rack")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup") as mock_record, \
+             patch("app.api.search.get_settings") as mock_get_settings:
+            
+            mock_settings = MagicMock()
+            mock_settings.openrouter_api_key = None
+            mock_settings.enable_query_enhancement = False
+            mock_settings.enable_reranking = False
+            mock_settings.llm_reasoning_model = "gpt-4o-mini"
+            mock_get_settings.return_value = mock_settings
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = kb_result
+            mock_kb_class.return_value = mock_kb
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "Copper"
+            mock_analysis.function = "Fixture"
+            mock_analysis.practical_notes = []
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        mock_record.assert_awaited_once()
+        call_kwargs = mock_record.call_args[1]
+        assert call_kwargs["search_method"] == "knowledge_base"
+        assert call_kwargs["matched_hs_code_id"] == 42
+        assert call_kwargs["confidence_score"] == 100

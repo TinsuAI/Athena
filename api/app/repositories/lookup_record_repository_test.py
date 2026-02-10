@@ -166,3 +166,137 @@ class TestLookupRecordRepository:
         await repo.touch_updated_at(record_id=1)
 
         mock_session.execute.assert_awaited_once()
+
+    # --- Tests for find_verified_exact (Task 1.1) ---
+
+    @pytest.mark.asyncio
+    async def test_find_verified_exact_found(self):
+        """Test finding verified record by exact query hash."""
+        mock_session = AsyncMock()
+        expected_record = self._make_record(
+            is_verified=True,
+            correct_hs_code_id=42,
+            query_hash=compute_query_hash("copper towel rack"),
+        )
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = expected_record
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.find_verified_exact(
+            compute_query_hash("copper towel rack")
+        )
+
+        assert result is expected_record
+        mock_session.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_find_verified_exact_not_found(self):
+        """Test no verified record found for given hash."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.find_verified_exact("nonexistent_hash")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_find_verified_exact_excludes_unverified(self):
+        """Test that unverified records are excluded from exact match."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.find_verified_exact(
+            compute_query_hash("copper towel rack")
+        )
+
+        assert result is None
+        mock_session.execute.assert_awaited_once()
+
+    # --- Tests for find_verified_similar (Task 1.2) ---
+
+    @pytest.mark.asyncio
+    async def test_find_verified_similar_found(self):
+        """Test finding verified records by text similarity."""
+        mock_session = AsyncMock()
+        expected_record = self._make_record(
+            is_verified=True,
+            correct_hs_code_id=42,
+        )
+
+        mock_row = MagicMock()
+        mock_row.LookupRecord = expected_record
+        mock_row.similarity = 0.92
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        results = await repo.find_verified_similar("copper towel rack")
+
+        assert len(results) == 1
+        record, sim_score = results[0]
+        assert record is expected_record
+        assert sim_score == 0.92
+
+    @pytest.mark.asyncio
+    async def test_find_verified_similar_not_found(self):
+        """Test no similar verified records found."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        results = await repo.find_verified_similar("xyznonexistent123")
+
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_find_verified_similar_custom_threshold(self):
+        """Test similar search with custom threshold."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        results = await repo.find_verified_similar(
+            "copper towel rack", threshold=0.95
+        )
+
+        assert results == []
+        mock_session.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_find_verified_similar_respects_limit(self):
+        """Test similar search respects limit parameter."""
+        mock_session = AsyncMock()
+        records = [
+            self._make_record(id=i, is_verified=True, correct_hs_code_id=i + 10)
+            for i in range(3)
+        ]
+
+        mock_rows = []
+        for i, rec in enumerate(records):
+            mock_row = MagicMock()
+            mock_row.LookupRecord = rec
+            mock_row.similarity = 0.95 - (i * 0.03)
+            mock_rows.append(mock_row)
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = mock_rows
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        results = await repo.find_verified_similar("copper towel rack", limit=3)
+
+        assert len(results) == 3

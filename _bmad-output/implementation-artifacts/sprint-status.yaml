@@ -49,7 +49,7 @@ development_status:
   1-6-hs-code-detail-view: backlog  # MINOR UPDATE: show verification status
   1-7-error-handling-system-feedback: backlog
   1-8-knowledge-base-schema-lookup-storage: done  # NEW: Sprint Change 2026-02-10 - KB foundation (Code review: 4 medium + 3 low issues fixed)
-  1-9-knowledge-enhanced-search: backlog  # NEW: Sprint Change 2026-02-10 - KB as primary search, AI fallback
+  1-9-knowledge-enhanced-search: review  # NEW: Sprint Change 2026-02-10 - KB as primary search, AI fallback
   1-10-expert-review-correction-interface: backlog  # NEW: Sprint Change 2026-02-10 - human-in-the-loop
   epic-1-retrospective: optional
 

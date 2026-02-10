@@ -10,6 +10,7 @@ _bmad/
 .claude/
 .tinsu/data/
 .tinsu/worktrees/
+.gemini/
 
 # Dependencies
 node_modules/

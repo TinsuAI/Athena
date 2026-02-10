@@ -6,7 +6,9 @@ from typing import Any
 
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.redis import get_redis
@@ -18,6 +20,9 @@ from app.schemas.search import (
     SearchResponseData,
 )
 from app.core.config import get_settings
+from app.models.hs_code import HSCode
+from app.models.hs_heading import HSHeading
+from app.models.hs_subheading import HSSubheading
 from app.models.lookup_record import LookupRecord
 from app.repositories.lookup_record_repository import (
     LookupRecordRepository,
@@ -27,10 +32,9 @@ from app.services.classification_analyzer import ClassificationAnalyzer
 from app.services.llm_reasoning_service import LLMReasoningService
 from app.services.query_enhancement_service import QueryEnhancementService
 from app.services.reranking_service import RerankingService
+from app.services.knowledge_base_service import KnowledgeBaseService
 from app.services.search_cache import CachedSearchResult, SearchCacheService
 from app.services.search_service import SearchService
-
-settings = get_settings()
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +158,7 @@ async def search_hs_codes(
     Returns:
         Best matching HS code with classification analysis
     """
+    settings = get_settings()
     start_time = time.time()
     process_logs: list[ProcessLogEntry] = []
 
@@ -218,6 +223,97 @@ async def search_hs_codes(
             else:
                 add_log("init", "skipped", "Reranking disabled in config")
 
+        # --- Knowledge Base Lookup (NEW - primary search) ---
+        try:
+            kb_service = KnowledgeBaseService(session=db)
+
+            kb_exact_start = time.time()
+            add_log("kb_exact_lookup", "started", "Checking knowledge base for exact match...")
+            kb_result = await kb_service.lookup(body.query)
+            kb_duration = int((time.time() - kb_exact_start) * 1000)
+
+            if kb_result:
+                match_label = f"KB {kb_result.match_type} match"
+                add_log(
+                    f"kb_{kb_result.match_type}_lookup",
+                    "completed",
+                    f"{match_label} found (confidence: {kb_result.confidence}, similarity: {kb_result.similarity_score:.2f})",
+                    duration_ms=kb_duration,
+                    details={"match_type": kb_result.match_type, "confidence": kb_result.confidence, "similarity": kb_result.similarity_score},
+                )
+
+                # Load full HS code object for classification
+                hs_result = await db.execute(
+                    select(HSCode)
+                    .where(HSCode.id == kb_result.hs_code_id)
+                    .options(
+                        selectinload(HSCode.fta_rates),
+                        selectinload(HSCode.subheading).selectinload(HSSubheading.heading).selectinload(HSHeading.chapter),
+                    )
+                )
+                hs_code_obj = hs_result.scalar_one_or_none()
+
+                if hs_code_obj:
+                    # Generate classification analysis (same as existing flow)
+                    classify_start = time.time()
+                    add_log("classification", "started", f"Generating classification reasoning with LLM (model: {model_name})...")
+                    analysis = await analyzer.analyze_async(body.query, hs_code_obj)
+                    classify_duration = int((time.time() - classify_start) * 1000)
+                    add_log("classification", "completed", f"Classification reasoning generated (model: {model_name})",
+                            duration_ms=classify_duration,
+                            details={"model": model_name, "material": analysis.material, "function": analysis.function})
+
+                    total_duration = int((time.time() - start_time) * 1000)
+                    add_log("complete", "completed", f"Search completed (from KB {kb_result.match_type}): {_format_hs_code(hs_code_obj.code)}",
+                            duration_ms=total_duration)
+
+                    verified_at_str = kb_result.verified_at.isoformat() if kb_result.verified_at else None
+                    verified_by_str = str(kb_result.verified_by_user_id) if kb_result.verified_by_user_id else None
+
+                    response_data = SearchResponseData(
+                        hs_code=_format_hs_code(hs_code_obj.code),
+                        description=hs_code_obj.description_vn,
+                        duty_rate=_format_rate(float(hs_code_obj.duty_rate)),
+                        vat_rate=_format_rate(float(hs_code_obj.vat_rate)),
+                        classification=ClassificationSchema(
+                            material=analysis.material,
+                            function=analysis.function,
+                        ),
+                        practical_notes=analysis.practical_notes,
+                        confidence=kb_result.confidence,
+                        process_logs=process_logs,
+                        source="knowledge_base",
+                        is_verified=True,
+                        verified_by=verified_by_str,
+                        verified_at=verified_at_str,
+                    )
+
+                    logger.info(
+                        "Search completed from knowledge base",
+                        extra={"duration_ms": total_duration, "match_type": kb_result.match_type}
+                    )
+
+                    # Record lookup with search_method="knowledge_base"
+                    await _record_lookup(
+                        db=db,
+                        query=body.query,
+                        matched_hs_code_id=hs_code_obj.id,
+                        confidence_score=kb_result.confidence,
+                        search_method="knowledge_base",
+                    )
+
+                    return success_response(response_data.model_dump())
+                else:
+                    add_log("kb_exact_lookup", "failed", f"KB matched record but HS code id={kb_result.hs_code_id} not found in hs_codes table",
+                            duration_ms=kb_duration)
+            else:
+                add_log("kb_exact_lookup", "completed", "No KB match found, falling back to AI search", duration_ms=kb_duration)
+        except Exception as e:
+            kb_duration = int((time.time() - kb_exact_start) * 1000) if 'kb_exact_start' in locals() else 0
+            add_log("kb_exact_lookup", "failed", f"KB lookup failed: {str(e)}, falling back to AI search", duration_ms=kb_duration)
+            logger.warning("KB lookup failed, continuing with AI search", extra={"error": str(e)}, exc_info=True)
+
+        # --- AI Fallback: Existing search flow ---
         # Check cache first
         cache_start = time.time()
         add_log("cache", "started", "Checking search cache...")
@@ -250,13 +346,6 @@ async def search_hs_codes(
 
                 # We still need to generate classification analysis from query
                 # Load HS code to get full object for analysis
-                from app.models.hs_code import HSCode
-                from sqlalchemy import select
-                from sqlalchemy.orm import selectinload
-
-                from app.models.hs_subheading import HSSubheading
-                from app.models.hs_heading import HSHeading
-
                 result = await db.execute(
                     select(HSCode)
                     .where(HSCode.code == best_cached.hs_code.replace(".", ""))
@@ -293,6 +382,8 @@ async def search_hs_codes(
                         practical_notes=analysis.practical_notes,
                         confidence=best_cached.confidence,
                         process_logs=process_logs,
+                        source="ai_suggestion",
+                        is_verified=False,
                     )
 
                     logger.info(
@@ -506,6 +597,8 @@ async def search_hs_codes(
             practical_notes=analysis.practical_notes,
             confidence=best_result.confidence,
             process_logs=process_logs,
+            source="ai_suggestion",
+            is_verified=False,
         )
 
         # Record lookup for knowledge base
