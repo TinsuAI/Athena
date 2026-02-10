@@ -18,6 +18,11 @@ from app.schemas.search import (
     SearchResponseData,
 )
 from app.core.config import get_settings
+from app.models.lookup_record import LookupRecord
+from app.repositories.lookup_record_repository import (
+    LookupRecordRepository,
+    compute_query_hash,
+)
 from app.services.classification_analyzer import ClassificationAnalyzer
 from app.services.llm_reasoning_service import LLMReasoningService
 from app.services.query_enhancement_service import QueryEnhancementService
@@ -44,6 +49,73 @@ def _format_rate(rate: float) -> str:
     if rate == int(rate):
         return f"{int(rate)}%"
     return f"{rate}%"
+
+
+def _detect_query_language(query: str) -> str | None:
+    """Detect query language based on character ranges (best-effort heuristic).
+
+    Returns: 'vi', 'en', 'zh', or None if uncertain
+    """
+    if not query:
+        return None
+
+    # Count character types
+    vietnamese_chars = sum(1 for c in query if c in 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ')
+    chinese_chars = sum(1 for c in query if '\u4e00' <= c <= '\u9fff')
+    latin_chars = sum(1 for c in query if c.isalpha() and ord(c) < 128)
+
+    # Simple heuristic: majority character type
+    if vietnamese_chars > 0:
+        return 'vi'
+    elif chinese_chars > 0:
+        return 'zh'
+    elif latin_chars > 0:
+        return 'en'
+
+    return None
+
+
+async def _record_lookup(
+    db: AsyncSession,
+    query: str,
+    matched_hs_code_id: int | None,
+    confidence_score: float | None,
+    search_method: str,
+) -> None:
+    """Record a search lookup for the knowledge base (best-effort, failures logged)."""
+    try:
+        repo = LookupRecordRepository(session=db)
+        query_hash = compute_query_hash(query)
+
+        # Dedup: check if same query hash exists within 24h
+        existing = await repo.find_by_query_hash(query_hash)
+        if existing:
+            await repo.touch_updated_at(existing.id)
+            return
+
+        # Detect query language
+        query_language = _detect_query_language(query)
+
+        record = LookupRecord(
+            query_text=query,
+            query_hash=query_hash,
+            query_language=query_language,
+            matched_hs_code_id=matched_hs_code_id,
+            is_verified=False,
+            confidence_score=confidence_score,
+            search_method=search_method,
+        )
+        await repo.create(record)
+    except Exception as e:
+        logger.warning(
+            "Failed to record lookup",
+            extra={
+                "query_preview": query[:50],
+                "matched_hs_code_id": matched_hs_code_id,
+                "error": str(e),
+            },
+            exc_info=True,
+        )
 
 
 @router.post(
@@ -227,6 +299,16 @@ async def search_hs_codes(
                         "Search completed from cache",
                         extra={"duration_ms": int(duration * 1000)}
                     )
+
+                    # Record lookup for knowledge base
+                    await _record_lookup(
+                        db=db,
+                        query=body.query,
+                        matched_hs_code_id=hs_code_obj.id,
+                        confidence_score=best_cached.confidence,
+                        search_method="exact" if best_cached.is_exact_match else "vector",
+                    )
+
                     return success_response(response_data.model_dump())
         else:
             add_log("cache", "completed", "Cache MISS - will perform full search", duration_ms=cache_duration)
@@ -285,6 +367,16 @@ async def search_hs_codes(
         if not results:
             add_log("search", "completed", "No results found", duration_ms=search_duration)
             add_log("complete", "failed", "Search completed with no results")
+
+            # Record lookup even for no-results (valuable for KB)
+            await _record_lookup(
+                db=db,
+                query=body.query,
+                matched_hs_code_id=None,
+                confidence_score=None,
+                search_method="vector",
+            )
+
             return error_response(
                 type_uri="https://athena.example/errors/no-results",
                 title="No Results",
@@ -414,6 +506,18 @@ async def search_hs_codes(
             practical_notes=analysis.practical_notes,
             confidence=best_result.confidence,
             process_logs=process_logs,
+        )
+
+        # Record lookup for knowledge base
+        hs_code_id = None
+        if best_result.hs_code_full and hasattr(best_result.hs_code_full, "id"):
+            hs_code_id = best_result.hs_code_full.id
+        await _record_lookup(
+            db=db,
+            query=body.query,
+            matched_hs_code_id=hs_code_id,
+            confidence_score=best_result.confidence,
+            search_method="exact" if best_result.is_exact_match else "vector",
         )
 
         return success_response(response_data.model_dump())

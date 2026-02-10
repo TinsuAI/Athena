@@ -3,7 +3,7 @@ stepsCompleted: [1, 2, 3, 4]
 status: complete
 completedAt: '2026-01-26'
 totalEpics: 5
-totalStories: 28  # Added Story 1-2.1 (2026-02-02)
+totalStories: 31  # Added Stories 1-8, 1-9, 1-10 (2026-02-10 Knowledge Base Sprint Change)
 frCoverage: '50/50 (100%)'
 inputDocuments:
   - path: _bmad-output/planning-artifacts/prd.md
@@ -258,16 +258,17 @@ This document provides the complete epic and story breakdown for Athena, decompo
 ## Epic List
 
 ### Epic 1: Core HS Code Search Experience
-Users can search for HS codes in Vietnamese, English, or Chinese and view complete tariff details including duty rates, VAT, and FTA preferential rates. This is the MVP - the fundamental value proposition of Athena.
+Users can search for HS codes in Vietnamese, English, or Chinese and view complete tariff details including duty rates, VAT, and FTA preferential rates. Search is powered by an expert-verified knowledge base with AI fallback for novel queries. This is the MVP - the fundamental value proposition of Athena.
 
-**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR10, FR11, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR43, FR46, FR47, FR48, FR49, FR50
+**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR10, FR11, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR43, FR46, FR47, FR48, FR49, FR50, FR51, FR52, FR53, FR54
 
 **Implementation Notes:**
 - Includes project scaffolding from Architecture starter template
 - Sets up PostgreSQL + pgvector, hybrid search, FastAPI backend, Next.js frontend
 - Builds core UI components: SearchBar, ResultCard, ConfidenceBadge, TariffDetailPanel
 - Implements 150ms debounced search with loading skeletons
-- **Story 1-2.1 added (2026-02-02):** Fix category context import to resolve 0% search accuracy
+- **Story 1-2.1 added (2026-02-02):** Fix category context import (deprioritized, no longer blocking)
+- **Stories 1-8, 1-9, 1-10 added (2026-02-10):** Knowledge base with human-in-the-loop correction system. Primary search via expert-verified KB, AI search as fallback. Expert correction interface for continuous improvement.
 
 ### Epic 2: User Authentication & Sessions
 Users can create accounts, log in securely, and maintain persistent sessions across browser sessions. Enables personalization features in subsequent epics.
@@ -660,6 +661,154 @@ So that **I understand the system state and can take appropriate action**.
 **When** the search fails
 **Then** I see "Search timed out. Please try again."
 **And** I can retry without refreshing the page
+
+---
+
+### Story 1.8: Knowledge Base Schema & Lookup Storage (ADDED 2026-02-10)
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-10.md`
+
+As a **developer**,
+I want **a knowledge base that stores every user lookup with a field for expert correction**,
+So that **verified human classifications can enhance future search results**.
+
+**Background:**
+Three attempts at AI-based search (vector embeddings, category context enrichment, LLM query enhancement + reranking) all failed at 0% accuracy. HS code classification requires specialized domain expertise that general-purpose AI cannot replicate. This story creates the foundation for a knowledge base where expert-verified classifications become the primary search mechanism.
+
+**Acceptance Criteria:**
+
+**Given** the database is running
+**When** I run the migration
+**Then** the `lookup_records` table is created with columns: id, query_text, query_hash, query_language, matched_hs_code_id, correct_hs_code_id, is_verified, verified_by_user_id, verified_at, confidence_score, search_method, notes, created_at, updated_at
+
+**Given** a user performs a search via POST /api/search
+**When** results are returned
+**Then** a lookup_record is automatically created with query_text, matched_hs_code_id, is_verified=false
+
+**Given** duplicate queries within 24 hours
+**When** the same query text is searched again
+**Then** no duplicate lookup_record is created (deduplicate by query_hash)
+
+**Given** the lookup_records table has data
+**When** I query for unverified records
+**Then** I can retrieve all records where is_verified = false, ordered by created_at descending
+
+**Technical Tasks:**
+1. Create SQLAlchemy model: `api/app/models/lookup_record.py`
+2. Create Alembic migration for `lookup_records` table with indexes (query_hash, is_verified, query_text pg_trgm)
+3. Create repository: `api/app/repositories/lookup_record_repository.py`
+4. Integrate lookup storage into search API endpoint
+5. Add deduplication logic by query_hash (24hr window)
+
+**Definition of Done:**
+- [ ] lookup_records table created with all columns and indexes
+- [ ] Every search auto-creates a lookup_record
+- [ ] Duplicate queries within 24hrs are deduplicated
+- [ ] Unverified records retrievable and sortable
+
+---
+
+### Story 1.9: Knowledge-Enhanced Search (ADDED 2026-02-10)
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-10.md`
+
+As a **user**,
+I want **my searches to return expert-verified results when available**,
+So that **I get accurate HS codes based on real expert knowledge, not just AI guesses**.
+
+**Acceptance Criteria:**
+
+**Given** an expert has previously verified a query -> HS code mapping
+**When** another user searches with the same query text
+**Then** the verified HS code is returned with source: "knowledge_base" and confidence: 100
+
+**Given** an expert has verified a similar (but not exact) query
+**When** a user searches with similar text (pg_trgm similarity >= 0.85)
+**Then** the system returns the verified HS code with high confidence
+
+**Given** no verified match exists in the knowledge base
+**When** a user searches for a product description
+**Then** the system falls back to vector/fuzzy/LLM search
+**And** results are marked with source: "ai_suggestion"
+
+**Given** the search flow processes a query
+**Then** the system checks in this order:
+1. Exact match in verified KB (query_hash, <50ms)
+2. Similar match in verified KB (pg_trgm >= 0.85, <100ms)
+3. Fallback to vector search + LLM (existing pipeline, ~2-3s)
+
+**Technical Tasks:**
+1. Create service: `api/app/services/knowledge_base_service.py`
+2. Implement exact match lookup by query_hash
+3. Implement similarity match using pg_trgm on query_text
+4. Integrate KB lookup as first step in search API (before vector search)
+5. Add `source`, `isVerified`, `verifiedBy`, `verifiedAt` fields to search response schema
+6. Write tests for KB hit and miss scenarios
+
+**Definition of Done:**
+- [ ] KB exact match returns verified results in <50ms
+- [ ] KB similar match returns verified results in <100ms
+- [ ] AI fallback works when no KB match exists
+- [ ] Response includes source and verification metadata
+- [ ] All searches still create lookup_records
+
+**Dependency:** Story 1-8 must be complete
+
+---
+
+### Story 1.10: Expert Review & Correction Interface (ADDED 2026-02-10)
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-10.md`
+
+As an **HS code expert**,
+I want **to review user lookups and correct the HS code classifications**,
+So that **the knowledge base grows with verified, accurate mappings**.
+
+**Acceptance Criteria:**
+
+**Given** I am logged in as a user with "expert" role
+**When** I navigate to /expert/review
+**Then** I see a paginated list of unverified lookup records (query text, suggested HS code, timestamp)
+
+**Given** I am reviewing a lookup where the system's suggestion is correct
+**When** I click "Mark Correct"
+**Then** the record is verified in one click (correct_hs_code_id = matched_hs_code_id, is_verified = true)
+
+**Given** I am reviewing a lookup where the system's suggestion is wrong
+**When** I search for the correct HS code via autocomplete or hierarchy browser
+**Then** I can select the correct code and submit the correction with optional notes
+
+**Given** I submit a correction
+**When** the correction is saved
+**Then** the correction is immediately available for future searches
+
+**Given** the expert review page
+**When** I view statistics
+**Then** I see: total unverified, total verified today, total verified all-time
+
+**API Endpoints:**
+- GET /api/expert/lookups?verified=false&page=1
+- GET /api/expert/lookups/:id
+- PATCH /api/expert/lookups/:id/verify
+- GET /api/expert/stats
+
+**Technical Tasks:**
+1. Add "expert" role to user model and auth middleware
+2. Create API router: `api/app/api/expert.py`
+3. Create Pydantic schemas: `api/app/schemas/expert.py`
+4. Build frontend: ExpertReviewQueue component (table with filter/sort/pagination)
+5. Build frontend: ExpertCorrectionPanel (split view: lookup details + HS code selector)
+6. Add "Review Queue" tab for expert role users with unverified count badge
+
+**Definition of Done:**
+- [ ] Expert role exists and is enforced on review endpoints
+- [ ] Expert can view unverified lookups list
+- [ ] Expert can "Mark Correct" in one click
+- [ ] Expert can select a different correct HS code
+- [ ] Corrections immediately available in knowledge base
+- [ ] Statistics displayed on review page
+
+**Dependency:** Story 1-8 must be complete. Story 1-9 recommended but not required.
 
 ---
 

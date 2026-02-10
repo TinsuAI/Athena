@@ -8,6 +8,7 @@ from app.models.hs_code import HSCode
 from app.models.hs_heading import HSHeading
 from app.models.hs_section import HSSection
 from app.models.hs_subheading import HSSubheading
+from app.models.lookup_record import LookupRecord
 
 __all__ = [
     "Base",
@@ -18,4 +19,5 @@ __all__ = [
     "HSHeading",
     "HSSection",
     "HSSubheading",
+    "LookupRecord",
 ]
