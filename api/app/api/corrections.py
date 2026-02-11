@@ -33,7 +33,7 @@ CORRECTION_RATE_PREFIX = "correction_rate:"
 
 
 async def check_correction_rate_limit(
-    redis_client: redis.Redis[bytes] | None,
+    redis_client: "redis.Redis | None",
     client_ip: str,
 ) -> tuple[bool, int, int]:
     """Check IP-based rate limit for corrections (10/hour).
