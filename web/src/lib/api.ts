@@ -72,7 +72,10 @@ export const apiClient = new ApiClient(API_URL);
 export type { ApiResponse, ApiError };
 
 // Lookup History API
-import type { PaginatedLookupListResponse } from "@/types/lookup";
+import type {
+  LookupDetail,
+  PaginatedLookupListResponse,
+} from "@/types/lookup";
 
 export async function getLookups(
   limit: number = 20,
@@ -91,6 +94,14 @@ export async function getLookups(
   );
   if (!response.success || !response.data) {
     throw new Error(response.error?.detail || "Failed to fetch lookups");
+  }
+  return response.data;
+}
+
+export async function getLookupDetail(id: number): Promise<LookupDetail> {
+  const response = await apiClient.get<LookupDetail>(`/api/lookups/${id}`);
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.detail || "Failed to fetch lookup detail");
   }
   return response.data;
 }

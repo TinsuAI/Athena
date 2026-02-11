@@ -10,6 +10,51 @@ from app.main import app
 client = TestClient(app)
 
 
+def _make_mock_detail_record(
+    id: int = 1,
+    query_text: str = "copper towel rack",
+    query_language: str | None = "en",
+    confidence_score: float | None = 85.0,
+    search_method: str = "vector",
+    is_verified: bool = False,
+    verified_at: datetime | None = None,
+    notes: str | None = None,
+    classification_data: dict | None = None,
+    practical_notes: list | None = None,
+    process_logs: list | None = None,
+    matched_hs_code: MagicMock | None = "default",
+    correct_hs_code: MagicMock | None = None,
+) -> MagicMock:
+    """Create a mock LookupRecord with full detail fields."""
+    record = MagicMock()
+    record.id = id
+    record.query_text = query_text
+    record.query_language = query_language
+    record.confidence_score = confidence_score
+    record.search_method = search_method
+    record.is_verified = is_verified
+    record.verified_at = verified_at
+    record.notes = notes
+    record.classification_data = classification_data
+    record.practical_notes = practical_notes
+    record.process_logs = process_logs
+    record.created_at = datetime(2026, 2, 10, 12, 0, 0, tzinfo=timezone.utc)
+
+    if matched_hs_code == "default":
+        hs = MagicMock()
+        hs.code = "7418.20.00"
+        hs.description_vn = "Thanh treo khăn đồng"
+        hs.description_en = "Copper towel rack"
+        hs.duty_rate = "30%"
+        hs.vat_rate = "10%"
+        record.matched_hs_code = hs
+    else:
+        record.matched_hs_code = matched_hs_code
+
+    record.correct_hs_code = correct_hs_code
+    return record
+
+
 def _make_mock_record(
     id: int = 1,
     query_text: str = "copper towel rack",
@@ -263,3 +308,170 @@ class TestListLookups:
         mock_repo.get_all_with_hs_codes.assert_awaited_once_with(
             limit=5, offset=10, verified_filter=None
         )
+
+
+class TestGetLookupDetail:
+    """Tests for GET /api/lookups/{id} endpoint."""
+
+    @patch("app.api.lookups.LookupRecordRepository")
+    @patch("app.api.lookups.get_db")
+    def test_get_detail_success(self, mock_get_db, mock_repo_class):
+        """Test successful detail retrieval with all fields."""
+        mock_db = AsyncMock()
+        mock_get_db.return_value = mock_db
+
+        record = _make_mock_detail_record(
+            classification_data={
+                "material": "Copper alloy",
+                "function": "Bathroom fixture",
+            },
+            practical_notes=["Import note 1", "Import note 2"],
+            process_logs=[{
+                "step": "init",
+                "status": "completed",
+                "message": "Started",
+                "duration_ms": 5,
+            }],
+        )
+        mock_repo = AsyncMock()
+        mock_repo.find_by_id_with_details.return_value = record
+        mock_repo_class.return_value = mock_repo
+
+        response = client.get("/api/lookups/1")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        detail = data["data"]
+        assert detail["id"] == 1
+        assert detail["query_text"] == "copper towel rack"
+        assert detail["query_language"] == "en"
+        assert detail["matched_hs_code"]["code"] == "7418.20.00"
+        assert detail["matched_hs_code"]["description_vn"] == "Thanh treo khăn đồng"
+        assert detail["matched_hs_code"]["duty_rate"] == "30%"
+        assert detail["matched_hs_code"]["vat_rate"] == "10%"
+        assert detail["correct_hs_code"] is None
+        assert detail["classification_data"]["material"] == "Copper alloy"
+        assert detail["practical_notes"] == ["Import note 1", "Import note 2"]
+        assert len(detail["process_logs"]) == 1
+        assert detail["confidence_score"] == 85.0
+        assert detail["search_method"] == "vector"
+        assert detail["is_verified"] is False
+        assert detail["verified_at"] is None
+        assert detail["notes"] is None
+        assert "created_at" in detail
+
+    @patch("app.api.lookups.LookupRecordRepository")
+    @patch("app.api.lookups.get_db")
+    def test_get_detail_not_found(self, mock_get_db, mock_repo_class):
+        """Test 404 error for non-existent lookup record."""
+        mock_db = AsyncMock()
+        mock_get_db.return_value = mock_db
+
+        mock_repo = AsyncMock()
+        mock_repo.find_by_id_with_details.return_value = None
+        mock_repo_class.return_value = mock_repo
+
+        response = client.get("/api/lookups/99999")
+
+        assert response.status_code == 200  # envelope always 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["error"]["status"] == 404
+        assert "99999" in data["error"]["detail"]
+
+    @patch("app.api.lookups.LookupRecordRepository")
+    @patch("app.api.lookups.get_db")
+    def test_get_detail_verified_with_correction(self, mock_get_db, mock_repo_class):
+        """Test detail of a verified record with correct HS code."""
+        mock_db = AsyncMock()
+        mock_get_db.return_value = mock_db
+
+        correct_hs = MagicMock()
+        correct_hs.code = "7418.10.00"
+        correct_hs.description_vn = "Bồn rửa đồng"
+        correct_hs.description_en = "Copper sink"
+        correct_hs.duty_rate = "25%"
+        correct_hs.vat_rate = "10%"
+
+        record = _make_mock_detail_record(
+            is_verified=True,
+            verified_at=datetime(2026, 2, 11, 10, 0, 0, tzinfo=timezone.utc),
+            notes="Corrected by expert",
+            correct_hs_code=correct_hs,
+        )
+        mock_repo = AsyncMock()
+        mock_repo.find_by_id_with_details.return_value = record
+        mock_repo_class.return_value = mock_repo
+
+        response = client.get("/api/lookups/1")
+
+        assert response.status_code == 200
+        detail = response.json()["data"]
+        assert detail["is_verified"] is True
+        assert detail["verified_at"] is not None
+        assert detail["notes"] == "Corrected by expert"
+        assert detail["correct_hs_code"]["code"] == "7418.10.00"
+        assert detail["correct_hs_code"]["description_vn"] == "Bồn rửa đồng"
+        assert detail["correct_hs_code"]["duty_rate"] == "25%"
+
+    @patch("app.api.lookups.LookupRecordRepository")
+    @patch("app.api.lookups.get_db")
+    def test_get_detail_no_matched_hs_code(self, mock_get_db, mock_repo_class):
+        """Test detail when matched HS code is null."""
+        mock_db = AsyncMock()
+        mock_get_db.return_value = mock_db
+
+        record = _make_mock_detail_record(matched_hs_code=None)
+        mock_repo = AsyncMock()
+        mock_repo.find_by_id_with_details.return_value = record
+        mock_repo_class.return_value = mock_repo
+
+        response = client.get("/api/lookups/1")
+
+        assert response.status_code == 200
+        detail = response.json()["data"]
+        assert detail["matched_hs_code"] is None
+
+    @patch("app.api.lookups.LookupRecordRepository")
+    @patch("app.api.lookups.get_db")
+    def test_get_detail_null_jsonb_fields(self, mock_get_db, mock_repo_class):
+        """Test detail when JSONB fields are null."""
+        mock_db = AsyncMock()
+        mock_get_db.return_value = mock_db
+
+        record = _make_mock_detail_record(
+            classification_data=None,
+            practical_notes=None,
+            process_logs=None,
+        )
+        mock_repo = AsyncMock()
+        mock_repo.find_by_id_with_details.return_value = record
+        mock_repo_class.return_value = mock_repo
+
+        response = client.get("/api/lookups/1")
+
+        assert response.status_code == 200
+        detail = response.json()["data"]
+        assert detail["classification_data"] is None
+        assert detail["practical_notes"] is None
+        assert detail["process_logs"] is None
+
+    @patch("app.api.lookups.LookupRecordRepository")
+    @patch("app.api.lookups.get_db")
+    def test_get_detail_envelope_format(self, mock_get_db, mock_repo_class):
+        """Test response follows envelope format."""
+        mock_db = AsyncMock()
+        mock_get_db.return_value = mock_db
+
+        record = _make_mock_detail_record()
+        mock_repo = AsyncMock()
+        mock_repo.find_by_id_with_details.return_value = record
+        mock_repo_class.return_value = mock_repo
+
+        response = client.get("/api/lookups/1")
+
+        data = response.json()
+        assert "success" in data
+        assert "data" in data
+        assert "error" in data

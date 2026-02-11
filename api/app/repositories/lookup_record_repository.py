@@ -168,6 +168,19 @@ class LookupRecordRepository:
         )
         return result.scalar_one_or_none()
 
+    async def find_by_id_with_details(self, record_id: int) -> LookupRecord | None:
+        """Get a single lookup record with eager-loaded HS code relationships."""
+        query = (
+            select(LookupRecord)
+            .options(
+                selectinload(LookupRecord.matched_hs_code),
+                selectinload(LookupRecord.correct_hs_code),
+            )
+            .where(LookupRecord.id == record_id)
+        )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
     async def apply_correction(
         self,
         record_id: int,

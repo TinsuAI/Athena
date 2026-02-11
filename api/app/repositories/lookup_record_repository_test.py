@@ -567,6 +567,58 @@ class TestLookupRecordRepository:
 
     # --- Tests for apply_correction (Story 1-10, Task 2.3) ---
 
+    # --- Tests for find_by_id_with_details (Story 1-13, Task 1.1) ---
+
+    @pytest.mark.asyncio
+    async def test_find_by_id_with_details_found(self):
+        """Test finding a record by ID with both HS code relationships eagerly loaded."""
+        mock_session = AsyncMock()
+        expected_record = self._make_record(id=42)
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = expected_record
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.find_by_id_with_details(42)
+
+        assert result is expected_record
+        mock_session.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_find_by_id_with_details_not_found(self):
+        """Test finding non-existent record by ID with details returns None."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.find_by_id_with_details(99999)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_find_by_id_with_details_uses_selectinload(self):
+        """Test that find_by_id_with_details uses selectinload for relationships."""
+        mock_session = AsyncMock()
+        expected_record = self._make_record(id=1)
+        expected_record.matched_hs_code = MagicMock()
+        expected_record.correct_hs_code = MagicMock()
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = expected_record
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.find_by_id_with_details(1)
+
+        assert result is expected_record
+        # Verify the query was executed (selectinload is part of the query options)
+        mock_session.execute.assert_awaited_once()
+
+    # --- Tests for apply_correction (Story 1-10, Task 2.3) ---
+
     @pytest.mark.asyncio
     async def test_apply_correction(self):
         """Test applying a correction updates the record."""
