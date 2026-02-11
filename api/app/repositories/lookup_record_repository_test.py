@@ -432,6 +432,139 @@ class TestLookupRecordRepository:
         assert result.classification_data == {"material": "Updated", "function": "Updated"}
         assert result.practical_notes == ["New note"]
 
+    # --- Tests for get_all_with_hs_codes (Story 1-12, Task 1.1) ---
+
+    @pytest.mark.asyncio
+    async def test_get_all_with_hs_codes_returns_all(self):
+        """Test getting all records with eagerly loaded HS code data."""
+        mock_session = AsyncMock()
+        records = [self._make_record(id=i) for i in range(3)]
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = records
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.get_all_with_hs_codes(limit=10, offset=0)
+
+        assert len(result) == 3
+        mock_session.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_get_all_with_hs_codes_verified_filter_true(self):
+        """Test filtering for verified records only."""
+        mock_session = AsyncMock()
+        records = [self._make_record(id=1, is_verified=True)]
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = records
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.get_all_with_hs_codes(verified_filter=True)
+
+        assert len(result) == 1
+        mock_session.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_get_all_with_hs_codes_verified_filter_false(self):
+        """Test filtering for unverified records only."""
+        mock_session = AsyncMock()
+        records = [self._make_record(id=1, is_verified=False)]
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = records
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.get_all_with_hs_codes(verified_filter=False)
+
+        assert len(result) == 1
+        mock_session.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_get_all_with_hs_codes_no_filter(self):
+        """Test getting all records without filter (verified_filter=None)."""
+        mock_session = AsyncMock()
+        records = [
+            self._make_record(id=1, is_verified=True),
+            self._make_record(id=2, is_verified=False),
+        ]
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = records
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.get_all_with_hs_codes(verified_filter=None)
+
+        assert len(result) == 2
+
+    @pytest.mark.asyncio
+    async def test_get_all_with_hs_codes_pagination(self):
+        """Test pagination parameters are passed correctly."""
+        mock_session = AsyncMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.get_all_with_hs_codes(limit=5, offset=10)
+
+        assert result == []
+        mock_session.execute.assert_awaited_once()
+
+    # --- Tests for count_all (Story 1-12, Task 1.2) ---
+
+    @pytest.mark.asyncio
+    async def test_count_all_no_filter(self):
+        """Test counting all records without filter."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 42
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.count_all()
+
+        assert result == 42
+
+    @pytest.mark.asyncio
+    async def test_count_all_verified_filter_true(self):
+        """Test counting verified records only."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 10
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.count_all(verified_filter=True)
+
+        assert result == 10
+
+    @pytest.mark.asyncio
+    async def test_count_all_verified_filter_false(self):
+        """Test counting unverified records only."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 32
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.count_all(verified_filter=False)
+
+        assert result == 32
+
     # --- Tests for apply_correction (Story 1-10, Task 2.3) ---
 
     @pytest.mark.asyncio

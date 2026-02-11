@@ -129,6 +129,38 @@ class LookupRecordRepository:
         )
         return list(result.scalars().all())
 
+    async def get_all_with_hs_codes(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        verified_filter: bool | None = None,
+    ) -> list[LookupRecord]:
+        """Get paginated lookup records with eager-loaded HS codes.
+
+        Args:
+            limit: Max records to return
+            offset: Number of records to skip
+            verified_filter: None=all, True=verified only, False=unverified only
+        """
+        query = (
+            select(LookupRecord)
+            .options(selectinload(LookupRecord.matched_hs_code))
+            .order_by(LookupRecord.created_at.desc())
+        )
+        if verified_filter is not None:
+            query = query.where(LookupRecord.is_verified == verified_filter)  # noqa: E712
+        query = query.limit(limit).offset(offset)
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def count_all(self, verified_filter: bool | None = None) -> int:
+        """Count total lookup records with optional filter."""
+        query = select(func.count(LookupRecord.id))
+        if verified_filter is not None:
+            query = query.where(LookupRecord.is_verified == verified_filter)  # noqa: E712
+        result = await self.session.execute(query)
+        return result.scalar_one()
+
     async def find_by_id(self, record_id: int) -> LookupRecord | None:
         """Find a lookup record by its primary key ID."""
         result = await self.session.execute(

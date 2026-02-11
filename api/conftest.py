@@ -12,9 +12,20 @@ from app.models.base import Base
 
 settings = get_settings()
 
-# Create test database engine
+
+def _get_test_database_url() -> str:
+    """Derive test database URL by replacing the database name with athena_test."""
+    url = settings.database_url
+    # Replace /athena at end of URL with /athena_test
+    if url.endswith("/athena"):
+        return url[:-7] + "/athena_test"
+    # Fallback: use TEST_DATABASE_URL env var or the original URL
+    return url
+
+
+# Create test database engine — uses athena_test to avoid destroying dev data
 test_engine = create_async_engine(
-    settings.database_url,
+    _get_test_database_url(),
     echo=False,
     pool_pre_ping=True,
 )

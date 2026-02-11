@@ -71,6 +71,30 @@ class ApiClient {
 export const apiClient = new ApiClient(API_URL);
 export type { ApiResponse, ApiError };
 
+// Lookup History API
+import type { PaginatedLookupListResponse } from "@/types/lookup";
+
+export async function getLookups(
+  limit: number = 20,
+  offset: number = 0,
+  verified?: boolean
+): Promise<PaginatedLookupListResponse> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  if (verified !== undefined) {
+    params.set("verified", String(verified));
+  }
+  const response = await apiClient.get<PaginatedLookupListResponse>(
+    `/api/lookups?${params.toString()}`
+  );
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.detail || "Failed to fetch lookups");
+  }
+  return response.data;
+}
+
 // Search API
 import type { SearchResult } from "@/types/hs-code";
 

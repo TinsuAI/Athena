@@ -19,10 +19,10 @@ export function Sidebar() {
           Favorites
         </Link>
         <Link
-          href="/history"
+          href="/lookups"
           className="rounded-md px-3 py-2 text-sm font-medium hover:bg-accent"
         >
-          History
+          Lookups
         </Link>
       </nav>
     </aside>

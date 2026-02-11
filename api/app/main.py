@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from app.api.corrections import router as corrections_router
 from app.api.hs_codes import router as hs_codes_router
+from app.api.lookups import router as lookups_router
 from app.api.search import router as search_router
 from app.core.config import get_settings
 from app.core.database import engine
@@ -53,6 +54,7 @@ app.add_middleware(
 # No "expert" role should be created (Story 1.10 AC7)
 app.include_router(corrections_router)
 app.include_router(hs_codes_router)
+app.include_router(lookups_router)
 app.include_router(search_router)
 
 
