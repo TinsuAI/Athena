@@ -60,7 +60,7 @@ development_status:
   # Epic 2: Tariff Schedule Browser (NEW - Sprint Change 2026-02-11, 3 stories)
   epic-2: in-progress
   2-1-expand-tariff-import: done  # NEW: Sprint Change 2026-02-11 - export rates, TTDB, BVMT, RCEP yearly, FTA conditions (Code review: 1 critical + 2 high + 6 medium issues fixed)
-  2-2-tariff-browse-api-endpoints: backlog  # NEW: Sprint Change 2026-02-11 - sections, chapters, chapter detail, browse search
+  2-2-tariff-browse-api-endpoints: ready-for-dev  # NEW: Sprint Change 2026-02-11 - sections, chapters, chapter detail, browse search
   2-3-tariff-schedule-browser-page: backlog  # NEW: Sprint Change 2026-02-11 - collapsible tree, inline rates, search/filter
   epic-2-retrospective: optional
 
