@@ -2,9 +2,9 @@
 stepsCompleted: [1, 2, 3, 4]
 status: complete
 completedAt: '2026-01-26'
-totalEpics: 5
-totalStories: 34  # Added Stories 1-8, 1-9, 1-10 (KB), 1-11, 1-12, 1-13 (Lookup History) (2026-02-10)
-frCoverage: '50/50 (100%)'
+totalEpics: 6  # Reordered 2026-02-11: New Epic 2 (Tariff Browser), old 2→3, 3→4, 4→5, 5→6
+totalStories: 37  # Added Stories 2-1, 2-2, 2-3 (Tariff Browser, Sprint Change 2026-02-11). Removed old 4.1 (moved to Epic 2).
+frCoverage: '61/61 (100%)'  # Added FR54-FR61 (2026-02-11)
 inputDocuments:
   - path: _bmad-output/planning-artifacts/prd.md
     type: prd
@@ -211,8 +211,8 @@ This document provides the complete epic and story breakdown for Athena, decompo
 | FR5 | Epic 1 | View confidence-ranked results |
 | FR6 | Epic 1 | See confidence indicators |
 | FR7 | Epic 1 | View full tariff details from results |
-| FR8 | Epic 4 | Browse HS codes hierarchically |
-| FR9 | Epic 4 | Filter by HS code chapter |
+| FR8 | Epic 2 | Browse HS codes hierarchically |
+| FR9 | Epic 5 | Filter by HS code chapter |
 | FR10 | Epic 1 | View 8-digit HS code |
 | FR11 | Epic 1 | View Vietnamese description |
 | FR12 | Epic 1 | View English description |
@@ -222,33 +222,33 @@ This document provides the complete epic and story breakdown for Athena, decompo
 | FR16 | Epic 1 | View FTA preferential rates |
 | FR17 | Epic 1 | View policy notes |
 | FR18 | Epic 1 | View data version and date |
-| FR19 | Epic 3 | Save to favorites |
-| FR20 | Epic 3 | Add notes to favorites |
-| FR21 | Epic 3 | View favorites list |
-| FR22 | Epic 3 | Remove from favorites |
-| FR23 | Epic 3 | Search within favorites |
-| FR24 | Epic 3 | Quick access during search |
-| FR25 | Epic 3 | Auto-record searches |
-| FR26 | Epic 3 | View search history |
-| FR27 | Epic 3 | Re-execute from history |
-| FR28 | Epic 3 | See selected code in history |
-| FR29 | Epic 3 | Clear search history |
-| FR30 | Epic 2 | Create account |
-| FR31 | Epic 2 | Login |
-| FR32 | Epic 2 | Logout |
-| FR33 | Epic 2 | Password reset |
-| FR34 | Epic 2 | Persistent sessions |
-| FR35 | Epic 2 | Role assignment |
-| FR36 | Epic 5 | Upload tariff Excel |
-| FR37 | Epic 5 | Preview uploaded data |
-| FR38 | Epic 5 | Compare changes |
-| FR39 | Epic 5 | Activate new data |
-| FR40 | Epic 5 | Rollback to previous |
-| FR41 | Epic 5 | View upload history |
-| FR42 | Epic 5 | Validate Excel format |
+| FR19 | Epic 4 | Save to favorites |
+| FR20 | Epic 4 | Add notes to favorites |
+| FR21 | Epic 4 | View favorites list |
+| FR22 | Epic 4 | Remove from favorites |
+| FR23 | Epic 4 | Search within favorites |
+| FR24 | Epic 4 | Quick access during search |
+| FR25 | Epic 4 | Auto-record searches |
+| FR26 | Epic 4 | View search history |
+| FR27 | Epic 4 | Re-execute from history |
+| FR28 | Epic 4 | See selected code in history |
+| FR29 | Epic 4 | Clear search history |
+| FR30 | Epic 3 | Create account |
+| FR31 | Epic 3 | Login |
+| FR32 | Epic 3 | Logout |
+| FR33 | Epic 3 | Password reset |
+| FR34 | Epic 3 | Persistent sessions |
+| FR35 | Epic 3 | Role assignment |
+| FR36 | Epic 6 | Upload tariff Excel |
+| FR37 | Epic 6 | Preview uploaded data |
+| FR38 | Epic 6 | Compare changes |
+| FR39 | Epic 6 | Activate new data |
+| FR40 | Epic 6 | Rollback to previous |
+| FR41 | Epic 6 | View upload history |
+| FR42 | Epic 6 | Validate Excel format |
 | FR43 | Epic 1 | No results feedback |
-| FR44 | Epic 4 | Low-confidence suggestions |
-| FR45 | Epic 4 | Report data issues |
+| FR44 | Epic 5 | Low-confidence suggestions |
+| FR45 | Epic 5 | Report data issues |
 | FR46 | Epic 1 | System error messages |
 | FR47 | Epic 1 | Loading indicators |
 | FR48 | Epic 1 | Preserve HS code format |
@@ -257,6 +257,14 @@ This document provides the complete epic and story breakdown for Athena, decompo
 | FR51 | Epic 1 | Persist full lookup details |
 | FR52 | Epic 1 | View lookup history list |
 | FR53 | Epic 1 | View lookup details and correct |
+| FR54 | Epic 2 | Collapsible tariff tree with inline rates |
+| FR55 | Epic 2 | View export duty rates |
+| FR56 | Epic 2 | View special consumption tax |
+| FR57 | Epic 2 | View environmental tax |
+| FR58 | Epic 2 | View VAT reduction eligibility |
+| FR59 | Epic 2 | Search/filter within tariff browser |
+| FR60 | Epic 2 | Jump to chapter quick selector |
+| FR61 | Epic 2 | View section/chapter notes |
 
 ## Epic List
 
@@ -274,7 +282,20 @@ Users can search for HS codes in Vietnamese, English, or Chinese and view comple
 - **Stories 1-8, 1-9, 1-10 added (2026-02-10):** Knowledge base with human-in-the-loop correction system. Primary search via expert-verified KB, AI search as fallback. Expert correction interface for continuous improvement.
 - **Stories 1-11, 1-12, 1-13 added (2026-02-10):** Persist full lookup details (classification, notes, logs) and add lookup history list page + detail page with correction.
 
-### Epic 2: User Authentication & Sessions
+### Epic 2: Tariff Schedule Browser (ADDED 2026-02-11)
+Users can browse the full tariff schedule as a web-based replacement for the Excel file, with collapsible hierarchy, inline rates (import/export/FTA/taxes), search within browse, and section/chapter notes. Data import is expanded to capture all rate data from the Excel.
+
+**FRs covered:** FR8, FR54, FR55, FR56, FR57, FR58, FR59, FR60, FR61
+
+**Implementation Notes:**
+- **Sprint Change Proposal:** `sprint-change-proposal-2026-02-11.md`
+- Story 2-1: Expand tariff import (export rates, TTDB, BVMT, RCEP yearly, FTA conditions, export FTAs)
+- Story 2-2: Browse API endpoints (sections, chapters, chapter detail with rates, browse search)
+- Story 2-3: Tariff Schedule Browser page (collapsible tree, inline rates, search/filter, jump-to-chapter)
+- Schema migration: 4 new columns on hs_codes, 4 new columns on fta_rates
+- 3 new export FTA agreements imported (CPTPP-XK, EV-XK, UKV-XK)
+
+### Epic 3: User Authentication & Sessions (was Epic 2)
 Users can create accounts, log in securely, and maintain persistent sessions across browser sessions. Enables personalization features in subsequent epics.
 
 **FRs covered:** FR30, FR31, FR32, FR33, FR34, FR35
@@ -285,7 +306,7 @@ Users can create accounts, log in securely, and maintain persistent sessions acr
 - Role-based access (user/admin)
 - Password reset flow
 
-### Epic 3: Personalization - Favorites & History
+### Epic 4: Personalization - Favorites & History (was Epic 3)
 Users can save frequently-used HS codes to favorites with personal notes, and access their complete search history for quick re-lookups. Completes the daily workflow optimization.
 
 **FRs covered:** FR19, FR20, FR21, FR22, FR23, FR24, FR25, FR26, FR27, FR28, FR29
@@ -296,18 +317,18 @@ Users can save frequently-used HS codes to favorites with personal notes, and ac
 - Search within favorites
 - One-click history re-execution
 
-### Epic 4: Advanced Search & Discovery
-Users can browse HS codes hierarchically, filter by chapter, and receive guidance when search results have low confidence. Handles edge cases and ambiguous queries.
+### Epic 5: Advanced Search & Discovery (was Epic 4, remaining stories)
+Users can filter search results by chapter, receive guidance when search results have low confidence, and report data issues. Handles edge cases and ambiguous queries.
 
-**FRs covered:** FR8, FR9, FR44, FR45
+**FRs covered:** FR9, FR44, FR45
 
 **Implementation Notes:**
-- Hierarchical HS code browser (Section → Chapter → Heading)
 - Chapter filter on search results
 - Low-confidence guidance with alternative term suggestions
 - Feedback mechanism for reporting data issues
+- Note: Hierarchical browsing (FR8) moved to Epic 2
 
-### Epic 5: Admin Data Management
+### Epic 6: Admin Data Management (was Epic 5)
 Admins can upload new tariff data (Excel), preview changes, activate updates, and rollback if needed. Enables annual tariff updates.
 
 **FRs covered:** FR36, FR37, FR38, FR39, FR40, FR41, FR42
@@ -994,11 +1015,208 @@ So that **I can review the search analysis and submit corrections if the result 
 
 ---
 
-## Epic 2: User Authentication & Sessions
+## Epic 2: Tariff Schedule Browser (ADDED 2026-02-11)
+
+Users can browse the full tariff schedule as a web-based replacement for the Excel file, with collapsible hierarchy, inline rates, and search within browse.
+
+### Story 2.1: Expand Tariff Import with Export Rates, Taxes, and FTA Conditions
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-11.md`
+
+As a **developer**,
+I want **the tariff import to capture all rate data from the Excel including export rates, taxes, and FTA conditions**,
+So that **the tariff browser can display complete data and fully replace the Excel file**.
+
+**Background:**
+The current import captures import duty, VAT, 18 FTA import rates, and policy notes. Missing data includes: export duty rates, special consumption tax (TTDB), environmental protection tax (BVMT), VAT reduction indicators, RCEP year-by-year rates, FTA conditions, and export FTA rates (CPTPP-XK, EV-XK, UKV-XK).
+
+**Acceptance Criteria:**
+
+**Given** the database is running
+**When** I run the new migration
+**Then** the `hs_codes` table gains 4 new columns:
+- `export_duty_rate` (NUMERIC, nullable) — from Excel col CG (85)
+- `special_consumption_tax` (VARCHAR, nullable) — from Excel col CD (82)
+- `environmental_tax` (VARCHAR, nullable) — from Excel col CS (97)
+- `vat_reduction` (VARCHAR, nullable) — from Excel col CW (101)
+
+**Given** the database is running
+**When** I run the new migration
+**Then** the `fta_rates` table gains 4 new columns:
+- `rate_year` (INTEGER, nullable) — for RCEP yearly rates (2022-2027)
+- `is_export` (BOOLEAN, default false) — distinguish import vs export FTA
+- `legal_document` (VARCHAR, nullable) — e.g., "118/2022/NĐ-CP"
+- `effective_date` (VARCHAR, nullable) — e.g., "30/12/2022"
+
+**Given** the updated parser and Excel file
+**When** I run the data import script
+**Then** all HS codes include export_duty_rate, special_consumption_tax, environmental_tax, vat_reduction where present in Excel
+**And** FTA conditions field is populated (no longer always NULL)
+**And** RCEP yearly rates are stored with rate_year values (2022-2027)
+**And** Export FTA rates from CPTPP-XK, EV-XK, UKV-XK sheets are imported with is_export=true
+**And** Legal document and effective date are captured per FTA rate
+**And** All existing functionality is unchanged
+
+**Technical Tasks:**
+1. Create Alembic migration adding columns to `hs_codes` and `fta_rates`
+2. Update SQLAlchemy models with new columns
+3. Update `tariff_hierarchy_parser.py` to read Excel columns CD, CG, CJ-CR, CS, CW
+4. Update parser to populate FTA `conditions` field
+5. Add RCEP yearly rate parsing (columns BT-BX with year headers from row 7)
+6. Add export FTA sheet parsing (CPTPP-XK, EV-XK, UKV-XK sheets)
+7. Capture legal_document and effective_date per FTA rate
+8. Re-import all data
+9. Write tests for new columns and rate types
+
+**Definition of Done:**
+- [ ] Migration adds 4 columns to hs_codes and 4 columns to fta_rates
+- [ ] Parser reads all new Excel columns
+- [ ] FTA conditions populated where present
+- [ ] RCEP yearly rates stored with rate_year
+- [ ] Export FTA rates imported with is_export=true
+- [ ] Legal documents and effective dates captured
+- [ ] Full re-import completes successfully
+- [ ] Existing search and lookup features unchanged
+
+---
+
+### Story 2.2: Tariff Browse API Endpoints
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-11.md`
+
+As a **developer**,
+I want **dedicated API endpoints for browsing the tariff hierarchy with inline rate data**,
+So that **the frontend tariff browser page can efficiently load and display the schedule**.
+
+**Acceptance Criteria:**
+
+**Given** the API is running
+**When** I call GET /api/browse/sections
+**Then** I receive all 20 sections with section_number, section_roman, name_vn, name_en, and chapter_count
+**And** response follows envelope format `{success, data, error}`
+
+**Given** a section exists
+**When** I call GET /api/browse/chapters?section_id={id}
+**Then** I receive all chapters in that section with chapter_code, name_vn, name_en, heading_count, hs_code_count
+**And** section notes_vn and notes_en are included
+
+**Given** a chapter exists
+**When** I call GET /api/browse/chapters/{chapter_code}
+**Then** I receive the full chapter hierarchy: headings → subheadings → HS codes
+**And** each HS code includes: code, description_vn, description_en, unit, duty_rate, vat_rate, export_duty_rate, special_consumption_tax, environmental_tax, vat_reduction, policy_notes
+**And** each HS code includes nested FTA rates (all agreements with preferential_rate, conditions, rate_year, is_export)
+**And** chapter notes_vn and notes_en are included
+**And** response is paginated if chapter has >500 codes
+
+**Given** I want to search within the tariff browser
+**When** I call GET /api/browse/search?q={text}&chapter={code}
+**Then** I receive matching HS codes via pg_trgm text search on description_vn/description_en + exact code match
+**And** optional chapter filter narrows results
+**And** each result includes hierarchy path (section → chapter → heading) + inline rates
+
+**Technical Tasks:**
+1. Create route handler: `api/app/api/browse.py`
+2. Create service: `api/app/services/browse_service.py`
+3. Create repository: `api/app/repositories/browse_repository.py`
+4. Create response schemas in `api/app/schemas/browse.py`
+5. Register router in `api/app/main.py`
+6. Optimize queries with appropriate JOINs and eager loading
+7. Add pagination for large chapters
+8. Write tests for all endpoints
+
+**Definition of Done:**
+- [ ] GET /api/browse/sections returns all sections with counts
+- [ ] GET /api/browse/chapters returns chapters with counts and notes
+- [ ] GET /api/browse/chapters/{code} returns full hierarchy with inline rates
+- [ ] GET /api/browse/search returns filtered results with hierarchy path
+- [ ] Pagination works for large chapters
+- [ ] All endpoints follow envelope response format
+- [ ] Tests pass for all endpoints
+
+**Dependency:** Story 2-1 must be complete.
+
+---
+
+### Story 2.3: Tariff Schedule Browser Page
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-11.md`
+
+As a **user**,
+I want **a web page where I can browse the full tariff schedule with hierarchy and FTA rates**,
+So that **I no longer need to open the Excel file to find and explore HS codes**.
+
+**Acceptance Criteria:**
+
+**Given** I navigate to /browse
+**When** the page loads
+**Then** I see all 20 HS sections as expandable items showing section name (VN/EN) and chapter count
+
+**Given** I am viewing sections
+**When** I click/expand a section
+**Then** I see all chapters within that section with chapter code, name, and HS code count
+**And** section notes are displayed as expandable info panel
+
+**Given** I am viewing chapters
+**When** I click/expand a chapter
+**Then** I see the full hierarchy: headings → subheadings → 8-digit codes
+**And** chapter notes are displayed
+**And** each HS code row shows inline: code, description (VN), import duty, VAT, export duty
+
+**Given** I am viewing HS code rows
+**When** I click/expand an HS code
+**Then** I see the expanded detail: English description, unit, all FTA rates (grouped by import/export), special consumption tax, environmental tax, VAT reduction, policy notes
+
+**Given** I want to find a specific chapter quickly
+**When** I use the "Jump to chapter" dropdown
+**Then** I can select any of the 98 chapters and the browser scrolls/navigates to it
+
+**Given** I want to search within the tariff browser
+**When** I type in the browse search bar
+**Then** results are filtered in real-time matching code or description text
+**And** matching codes show their hierarchy path
+
+**Given** I am on a mobile/tablet device
+**When** I view the browse page
+**Then** the layout is responsive (stacked view on narrow screens, horizontal scroll for rate columns on tablet)
+
+**Given** a chapter has many HS codes
+**When** I expand it
+**Then** codes load progressively (lazy loading / virtual scroll) for smooth performance
+
+**Technical Tasks:**
+1. Build frontend page: `web/src/app/browse/page.tsx`
+2. Build SectionList component
+3. Build ChapterView component with collapsible tree
+4. Build HSCodeRow component with inline rates
+5. Build HSCodeDetail expandable panel with FTA rates table
+6. Build ChapterJumper dropdown component
+7. Build BrowseSearch component with pg_trgm-backed search
+8. Add /browse to sidebar/header navigation
+9. Implement lazy loading for large chapters
+10. Add keyboard navigation (arrow keys, Enter to expand/collapse)
+
+**Definition of Done:**
+- [ ] /browse page displays all 20 sections
+- [ ] Sections expand to show chapters with counts
+- [ ] Chapters expand to show full hierarchy with inline rates
+- [ ] HS code rows show import duty, VAT, export duty inline
+- [ ] HS code expansion shows all FTA rates, taxes, policy notes
+- [ ] Jump-to-chapter selector works
+- [ ] Search within browse works (code + description)
+- [ ] Responsive layout for desktop and tablet
+- [ ] Lazy loading for large chapters
+- [ ] Navigation link added to sidebar/header
+- [ ] Keyboard navigation functional
+
+**Dependency:** Story 2-2 must be complete.
+
+---
+
+## Epic 3: User Authentication & Sessions (was Epic 2)
 
 Users can create accounts, log in securely, and maintain persistent sessions across browser sessions.
 
-### Story 2.1: User Registration
+### Story 3.1: User Registration (was Story 2.1)
 
 As a **new user**,
 I want **to create an account with my email and password**,
@@ -1033,7 +1251,7 @@ So that **I can access personalized features like favorites and history**.
 
 ---
 
-### Story 2.2: User Login
+### Story 3.2: User Login (was Story 2.2)
 
 As a **registered user**,
 I want **to log in with my email and password**,
@@ -1068,7 +1286,7 @@ So that **I can access my personal favorites and search history**.
 
 ---
 
-### Story 2.3: User Logout
+### Story 3.3: User Logout (was Story 2.3)
 
 As a **logged-in user**,
 I want **to log out of the system**,
@@ -1092,7 +1310,7 @@ So that **I can secure my account on shared devices**.
 
 ---
 
-### Story 2.4: Password Reset
+### Story 3.4: Password Reset (was Story 2.4)
 
 As a **user who forgot my password**,
 I want **to reset my password via email**,
@@ -1126,7 +1344,7 @@ So that **I can regain access to my account**.
 
 ---
 
-### Story 2.5: Role-Based Access Control
+### Story 3.5: Role-Based Access Control (was Story 2.5)
 
 As an **administrator**,
 I want **to assign roles to users**,
@@ -1160,11 +1378,11 @@ So that **I can control who has admin access to data management**.
 
 ---
 
-## Epic 3: Personalization - Favorites & History
+## Epic 4: Personalization - Favorites & History (was Epic 3)
 
 Users can save frequently-used HS codes to favorites with personal notes, and access their complete search history for quick re-lookups.
 
-### Story 3.1: Save HS Code to Favorites
+### Story 4.1: Save HS Code to Favorites (was Story 3.1)
 
 As a **logged-in user**,
 I want **to save an HS code to my favorites**,
@@ -1194,7 +1412,7 @@ So that **I can quickly access frequently-used codes**.
 
 ---
 
-### Story 3.2: Add Notes to Favorites
+### Story 4.2: Add Notes to Favorites (was Story 3.2)
 
 As a **logged-in user**,
 I want **to add personal notes to my favorited HS codes**,
@@ -1223,7 +1441,7 @@ So that **I can remember why I saved them or add context**.
 
 ---
 
-### Story 3.3: View and Manage Favorites List
+### Story 4.3: View and Manage Favorites List (was Story 3.3)
 
 As a **logged-in user**,
 I want **to view and manage my complete favorites list**,
@@ -1257,7 +1475,7 @@ So that **I can quickly access my saved HS codes**.
 
 ---
 
-### Story 3.4: Search Within Favorites
+### Story 4.4: Search Within Favorites (was Story 3.4)
 
 As a **logged-in user**,
 I want **to search within my favorites**,
@@ -1285,7 +1503,7 @@ So that **I can quickly find a specific saved code**.
 
 ---
 
-### Story 3.5: Quick Favorites Access During Search
+### Story 4.5: Quick Favorites Access During Search (was Story 3.5)
 
 As a **logged-in user**,
 I want **to quickly access my favorites while searching**,
@@ -1310,7 +1528,7 @@ So that **I can reference saved codes without leaving the search workflow**.
 
 ---
 
-### Story 3.6: Automatic Search History Recording
+### Story 4.6: Automatic Search History Recording (was Story 3.6)
 
 As a **logged-in user**,
 I want **my searches to be recorded automatically**,
@@ -1341,7 +1559,7 @@ So that **I can review and re-use past searches**.
 
 ---
 
-### Story 3.7: View and Re-execute Search History
+### Story 4.7: View and Re-execute Search History (was Story 3.7)
 
 As a **logged-in user**,
 I want **to view my search history and re-execute past searches**,
@@ -1370,7 +1588,7 @@ So that **I can quickly repeat common lookups**.
 
 ---
 
-### Story 3.8: Clear Search History
+### Story 4.8: Clear Search History (was Story 3.8)
 
 As a **logged-in user**,
 I want **to clear my search history**,
@@ -1400,45 +1618,13 @@ So that **I can maintain privacy or remove clutter**.
 
 ---
 
-## Epic 4: Advanced Search & Discovery
+## Epic 5: Advanced Search & Discovery (was Epic 4)
 
-Users can browse HS codes hierarchically, filter by chapter, and receive guidance when search results have low confidence.
+Users can filter search results by chapter, receive guidance when search results have low confidence, and report data issues. Handles edge cases and ambiguous queries.
 
-### Story 4.1: Hierarchical HS Code Browser
+> **Note:** Story 4.1 (Hierarchical HS Code Browser) has been moved to Epic 2 as Stories 2.2 and 2.3 (Sprint Change 2026-02-11).
 
-As a **user**,
-I want **to browse HS codes by their hierarchical structure**,
-So that **I can navigate to the correct code when search doesn't work**.
-
-**Acceptance Criteria:**
-
-**Given** I navigate to the Browse page (`/browse`)
-**When** the page loads
-**Then** I see a list of HS code Sections (top level)
-**And** each section shows its name and code range
-
-**Given** I am viewing Sections
-**When** I click on a Section (e.g., "Section XVI: Machinery")
-**Then** I see the Chapters within that section (FR8)
-**And** breadcrumb navigation shows my path
-
-**Given** I am viewing Chapters
-**When** I click on a Chapter (e.g., "Chapter 85: Electrical machinery")
-**Then** I see the Headings within that chapter
-**And** I can continue drilling down
-
-**Given** I am viewing individual HS codes at the heading level
-**When** I click on an HS code
-**Then** TariffDetailPanel opens with full details
-
-**Given** I am deep in the hierarchy
-**When** I click on a breadcrumb link
-**Then** I navigate back to that level
-**And** my position in the hierarchy is maintained
-
----
-
-### Story 4.2: Chapter Filter on Search Results
+### Story 5.1: Chapter Filter on Search Results (was Story 4.2)
 
 As a **user**,
 I want **to filter search results by HS code chapter**,
@@ -1473,7 +1659,7 @@ So that **I can narrow down results when I know the general category**.
 
 ---
 
-### Story 4.3: Low-Confidence Search Guidance
+### Story 5.2: Low-Confidence Search Guidance (was Story 4.3)
 
 As a **user**,
 I want **to receive guidance when search results have low confidence**,
@@ -1509,7 +1695,7 @@ So that **I can refine my search or try alternative approaches**.
 
 ---
 
-### Story 4.4: Data Feedback Mechanism
+### Story 5.3: Data Feedback Mechanism (was Story 4.4)
 
 As a **user**,
 I want **to report incorrect or missing HS code data**,
@@ -1544,11 +1730,11 @@ So that **administrators can improve the data quality**.
 
 ---
 
-## Epic 5: Admin Data Management
+## Epic 6: Admin Data Management (was Epic 5)
 
 Admins can upload new tariff data (Excel), preview changes, activate updates, and rollback if needed.
 
-### Story 5.1: Tariff Data Upload
+### Story 6.1: Tariff Data Upload (was Story 5.1)
 
 As an **admin**,
 I want **to upload new tariff data files**,
@@ -1583,7 +1769,7 @@ So that **I can update the system with the latest Vietnam Customs data**.
 
 ---
 
-### Story 5.2: Preview Uploaded Data
+### Story 6.2: Preview Uploaded Data (was Story 5.2)
 
 As an **admin**,
 I want **to preview uploaded data before activation**,
@@ -1619,7 +1805,7 @@ So that **I can verify the data is correct**.
 
 ---
 
-### Story 5.3: Activate Tariff Data
+### Story 6.3: Activate Tariff Data (was Story 5.3)
 
 As an **admin**,
 I want **to activate uploaded tariff data to make it live**,
@@ -1656,7 +1842,7 @@ So that **users can search the new data**.
 
 ---
 
-### Story 5.4: Rollback to Previous Version
+### Story 6.4: Rollback to Previous Version (was Story 5.4)
 
 As an **admin**,
 I want **to rollback to the previous tariff data version**,
@@ -1687,7 +1873,7 @@ So that **I can recover from a bad data update**.
 
 ---
 
-### Story 5.5: Data Version History
+### Story 6.5: Data Version History (was Story 5.5)
 
 As an **admin**,
 I want **to view the history of data uploads and activations**,

@@ -682,7 +682,7 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 - **FR13:** Users can view the unit of measure for any HS code
 - **FR14:** Users can view the standard import duty rate for any HS code
 - **FR15:** Users can view the VAT rate for any HS code
-- **FR16:** Users can view FTA preferential rates for applicable trade agreements (CPTPP, EVFTA, RCEP, ACFTA, AKFTA, AJCEP, VKFTA, and others)
+- **FR16:** Users can view FTA preferential rates for all active import AND export trade agreements, including RCEP year-by-year rates (2022-2027) and export FTA rates (CPTPP-XK, EV-XK, UKV-XK)
 - **FR17:** Users can view policy notes and restrictions for any HS code
 - **FR18:** Users can view the current tariff data version and effective date
 
@@ -742,6 +742,17 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 - **FR52:** Users can view a paginated list of all past lookups with matched HS code, confidence, and verification status
 - **FR53:** Users can view full details of any past lookup including classification reasoning, practical notes, process logs, and submit corrections
 
+### Tariff Schedule Browser (ADDED 2026-02-11)
+
+- **FR54:** Users can browse the full tariff schedule as a collapsible tree (Section → Chapter → Heading → Subheading → 8-digit code) with inline rate data per row
+- **FR55:** Users can view export duty rates for any HS code
+- **FR56:** Users can view special consumption tax (TTDB) for applicable HS codes
+- **FR57:** Users can view environmental protection tax (BVMT) for applicable HS codes
+- **FR58:** Users can view VAT reduction eligibility for applicable HS codes
+- **FR59:** Users can search/filter within the tariff browser by code number or description text
+- **FR60:** Users can jump to a specific chapter via quick selector in the browser
+- **FR61:** Users can view section and chapter classification notes in the browser
+
 ---
 
 **FR Coverage Validation:**
@@ -757,6 +768,7 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 | Error handling (from domain risks) | FR43-FR47 |
 | Data integrity (from domain requirements) | FR48-FR50 |
 | Lookup history & details (from implementation) | FR51-FR53 |
+| Tariff schedule browser (from sprint change 2026-02-11) | FR54-FR61 |
 
 ---
 

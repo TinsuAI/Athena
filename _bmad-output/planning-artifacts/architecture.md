@@ -231,9 +231,11 @@ hs_subheadings (id, subheading_code, heading_id, name_vn, name_en, indent_level,
 
 -- National tariff line (8-digit Vietnam-specific codes)
 hs_codes (id, code, subheading_id, description_vn, description_en, unit, duty_rate, vat_rate,
+          export_duty_rate, special_consumption_tax, environmental_tax, vat_reduction,
           policy_notes, indent_level, embedding, data_version_id, created_at)
 
-fta_rates (id, hs_code_id, agreement_code, preferential_rate, conditions, created_at)
+fta_rates (id, hs_code_id, agreement_code, preferential_rate, conditions,
+           rate_year, is_export, legal_document, effective_date, created_at)
 
 data_versions (id, name, source_file, uploaded_at, activated_at, is_active)
 
@@ -317,6 +319,11 @@ DELETE /api/history           # Clear history
 
 GET  /api/lookups            # List all lookups (paginated, filterable by verified)
 GET  /api/lookups/{id}       # Full lookup detail with classification, notes, logs
+
+GET  /api/browse/sections                  # All sections with chapter counts
+GET  /api/browse/chapters?section_id={id}  # Chapters in section with counts + notes
+GET  /api/browse/chapters/{chapter_code}   # Full chapter: headings → subheadings → codes with inline rates
+GET  /api/browse/search?q={text}&chapter={code}  # Text search within browse (pg_trgm + exact code)
 
 POST /api/admin/data/upload   # Upload tariff Excel
 POST /api/admin/data/preview  # Preview changes
@@ -809,6 +816,15 @@ athena/
 │   │   │   │       └── components/
 │   │   │   │           ├── LookupDetail.tsx
 │   │   │   │           └── ProcessLogTimeline.tsx
+│   │   │   ├── browse/                       # Tariff Schedule Browser (Sprint Change 2026-02-11)
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── components/
+│   │   │   │       ├── SectionList.tsx
+│   │   │   │       ├── ChapterView.tsx
+│   │   │   │       ├── HSCodeRow.tsx
+│   │   │   │       ├── HSCodeDetail.tsx
+│   │   │   │       ├── ChapterJumper.tsx
+│   │   │   │       └── BrowseSearch.tsx
 │   │   │   ├── admin/
 │   │   │   │   ├── layout.tsx        # Admin layout with guard
 │   │   │   │   ├── page.tsx          # Admin dashboard
@@ -872,6 +888,8 @@ athena/
 │   │   │   ├── search_test.py
 │   │   │   ├── lookups.py
 │   │   │   ├── lookups_test.py
+│   │   │   ├── browse.py             # Tariff browse endpoints (Sprint Change 2026-02-11)
+│   │   │   ├── browse_test.py
 │   │   │   ├── hs_codes.py
 │   │   │   ├── hs_codes_test.py
 │   │   │   ├── favorites.py
@@ -891,11 +909,15 @@ athena/
 │   │   │   ├── excel_parser_service.py       # Basic flat Excel parsing
 │   │   │   ├── excel_parser_service_test.py
 │   │   │   ├── tariff_hierarchy_parser.py    # Full hierarchy extraction
+│   │   │   ├── browse_service.py             # Tariff browse business logic (Sprint Change 2026-02-11)
+│   │   │   ├── browse_service_test.py
 │   │   │   └── cache_service.py
 │   │   ├── repositories/
 │   │   │   ├── __init__.py
 │   │   │   ├── hs_code_repository.py
 │   │   │   ├── hs_code_repository_test.py
+│   │   │   ├── browse_repository.py          # Tariff browse data access (Sprint Change 2026-02-11)
+│   │   │   ├── browse_repository_test.py
 │   │   │   ├── favorites_repository.py
 │   │   │   ├── favorites_repository_test.py
 │   │   │   ├── history_repository.py
@@ -906,6 +928,7 @@ athena/
 │   │   │   ├── base.py               # Envelope response schemas
 │   │   │   ├── search.py
 │   │   │   ├── hs_code.py
+│   │   │   ├── browse.py             # Browse response schemas (Sprint Change 2026-02-11)
 │   │   │   ├── favorites.py
 │   │   │   ├── history.py
 │   │   │   ├── lookup.py
@@ -1006,6 +1029,15 @@ athena/
 - Models: `api/app/models/lookup_record.py` (extended with JSONB columns)
 - Schemas: `api/app/schemas/lookup.py`
 - Frontend: `web/src/app/lookups/`, `web/src/app/lookups/[id]/`
+
+**FR54-61: Tariff Schedule Browser (Sprint Change 2026-02-11)**
+- API: `api/app/api/browse.py`
+- Services: `api/app/services/browse_service.py`
+- Repository: `api/app/repositories/browse_repository.py`
+- Models: `api/app/models/hs_code.py` (expanded: export_duty_rate, special_consumption_tax, environmental_tax, vat_reduction), `fta_rate.py` (expanded: rate_year, is_export, legal_document, effective_date)
+- Schemas: `api/app/schemas/browse.py`
+- Frontend: `web/src/app/browse/` (SectionList, ChapterView, HSCodeRow, HSCodeDetail, ChapterJumper, BrowseSearch)
+- Parser: `api/app/services/tariff_hierarchy_parser.py` (expanded for Excel columns CD, CG, CJ-CR, CS, CW + export FTA sheets)
 
 **FR30-35: User Authentication**
 - Backend: `api/app/core/auth.py`, `api/app/repositories/user_repository.py`
@@ -1204,7 +1236,8 @@ All 50 functional requirements have explicit architectural support:
 | FTA Rates | 211,391 | 18 FTA agreements |
 
 **FTA Agreements Imported:**
-ACFTA, ATIGA, AJCEP, VJEPA, AKFTA, AANZFTA, AIFTA, VKFTA, VCFTA, VN-EAEU, CPTPP, AHKFTA, VNCU, EVFTA, UKVFTA, VN-LAO, VIFTA, RCEPT
+*Import:* ACFTA, ATIGA, AJCEP, VJEPA, AKFTA, AANZFTA, AIFTA, VKFTA, VCFTA, VN-EAEU, CPTPP, AHKFTA, VNCU, EVFTA, UKVFTA, VN-LAO, VIFTA, RCEPT
+*Export (pending Story 2-1):* CPTPP-XK, EV-XK, UKV-XK
 
 **Import Performance:**
 - Total import time: ~76 seconds
