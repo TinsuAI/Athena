@@ -3,7 +3,7 @@ stepsCompleted: [1, 2, 3, 4]
 status: complete
 completedAt: '2026-01-26'
 totalEpics: 5
-totalStories: 31  # Added Stories 1-8, 1-9, 1-10 (2026-02-10 Knowledge Base Sprint Change)
+totalStories: 34  # Added Stories 1-8, 1-9, 1-10 (KB), 1-11, 1-12, 1-13 (Lookup History) (2026-02-10)
 frCoverage: '50/50 (100%)'
 inputDocuments:
   - path: _bmad-output/planning-artifacts/prd.md
@@ -254,13 +254,16 @@ This document provides the complete epic and story breakdown for Athena, decompo
 | FR48 | Epic 1 | Preserve HS code format |
 | FR49 | Epic 1 | Preserve duty rate precision |
 | FR50 | Epic 1 | Display policy notes verbatim |
+| FR51 | Epic 1 | Persist full lookup details |
+| FR52 | Epic 1 | View lookup history list |
+| FR53 | Epic 1 | View lookup details and correct |
 
 ## Epic List
 
 ### Epic 1: Core HS Code Search Experience
 Users can search for HS codes in Vietnamese, English, or Chinese and view complete tariff details including duty rates, VAT, and FTA preferential rates. Search is powered by an expert-verified knowledge base with AI fallback for novel queries. This is the MVP - the fundamental value proposition of Athena.
 
-**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR10, FR11, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR43, FR46, FR47, FR48, FR49, FR50, FR51, FR52, FR53, FR54
+**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR10, FR11, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR43, FR46, FR47, FR48, FR49, FR50, FR51, FR52, FR53
 
 **Implementation Notes:**
 - Includes project scaffolding from Architecture starter template
@@ -269,6 +272,7 @@ Users can search for HS codes in Vietnamese, English, or Chinese and view comple
 - Implements 150ms debounced search with loading skeletons
 - **Story 1-2.1 added (2026-02-02):** Fix category context import (deprioritized, no longer blocking)
 - **Stories 1-8, 1-9, 1-10 added (2026-02-10):** Knowledge base with human-in-the-loop correction system. Primary search via expert-verified KB, AI search as fallback. Expert correction interface for continuous improvement.
+- **Stories 1-11, 1-12, 1-13 added (2026-02-10):** Persist full lookup details (classification, notes, logs) and add lookup history list page + detail page with correction.
 
 ### Epic 2: User Authentication & Sessions
 Users can create accounts, log in securely, and maintain persistent sessions across browser sessions. Enables personalization features in subsequent epics.
@@ -810,6 +814,183 @@ So that **the knowledge base improves with real-world feedback**.
 - [ ] No /expert/review page exists
 
 **Dependency:** Story 1-8, 1-9 must be complete.
+
+---
+
+### Story 1.11: Persist Full Lookup Details (ADDED 2026-02-10)
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-10-lookup-history.md`
+
+As a **developer**,
+I want **every search to persist classification reasoning, practical notes, and process logs alongside the lookup record**,
+So that **lookup history and detail pages can display the full search analysis without re-running LLM calls**.
+
+**Background:**
+Stories 1-8 through 1-10 built the knowledge base with lookup records, but only basic metadata is stored (query, matched code, confidence, method). The rich LLM-generated content — classification reasoning (material/function), practical notes, and process logs — is generated at search time and discarded after the response. This story persists that data for later retrieval.
+
+**Acceptance Criteria:**
+
+**Given** the `lookup_records` table
+**When** I run the migration
+**Then** three new columns are added:
+- `classification_data` (JSONB, nullable) — stores `{"material": "...", "function": "..."}`
+- `practical_notes` (JSONB, nullable) — stores `["note1", "note2", ...]`
+- `process_logs` (JSONB, nullable) — stores `[{"step": "...", "status": "...", "message": "...", "duration_ms": 123, "details": {...}}]`
+
+**Given** a user performs a search via POST /api/search
+**When** results are returned with classification analysis
+**Then** the lookup_record is created/updated with classification_data, practical_notes, and process_logs
+
+**Given** an existing lookup_record is deduplicated (same query within 24h)
+**When** the search completes
+**Then** the existing record's classification_data, practical_notes, and process_logs are updated with the latest values
+
+**Given** a lookup_record has stored data
+**When** I query it from the database
+**Then** I can retrieve the full classification reasoning, practical notes, and process logs as structured JSON
+
+**Technical Tasks:**
+1. Add JSONB columns to `lookup_records` via Alembic migration
+2. Update `LookupRecord` SQLAlchemy model with new mapped columns (JSON type)
+3. Update `_record_lookup()` in `api/app/api/search.py` to accept and store classification_data, practical_notes, process_logs
+4. Update all call sites of `_record_lookup()` (KB path, cache path, AI path, no-results path) to pass the new data
+5. Write tests for data persistence and dedup update
+
+**Definition of Done:**
+- [ ] Migration adds 3 JSONB columns to lookup_records
+- [ ] Every search persists classification_data, practical_notes, process_logs
+- [ ] Dedup updates overwrite previous LLM output with fresh data
+- [ ] Tests verify data round-trips correctly
+
+**Dependency:** Stories 1-8, 1-9, 1-10 must be complete.
+
+---
+
+### Story 1.12: Lookup History API & List Page (ADDED 2026-02-10)
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-10-lookup-history.md`
+
+As a **user**,
+I want **to view a paginated list of all past lookups**,
+So that **I can browse search history, see which queries have been verified, and navigate to individual lookup details**.
+
+**Acceptance Criteria:**
+
+**Given** lookup records exist in the database
+**When** I call GET /api/lookups?limit=20&offset=0
+**Then** I receive a paginated list of lookup records ordered by created_at DESC
+**And** each item includes: id, query_text, query_language, matched_hs_code (code + description_vn), confidence_score, search_method, is_verified, created_at
+**And** response follows envelope format `{success, data, error}`
+
+**Given** I want to filter lookups
+**When** I call GET /api/lookups?verified=true
+**Then** only verified (corrected) lookups are returned
+**When** I call GET /api/lookups?verified=false
+**Then** only unverified lookups are returned
+
+**Given** I navigate to /lookups in the frontend
+**When** the page loads
+**Then** I see a table/list of lookup records with columns: Query, Matched Code, Confidence, Status (verified/unverified badge), Date
+**And** each row is clickable to navigate to /lookups/[id]
+**And** I see pagination controls
+**And** I see a filter toggle for verified/unverified/all
+
+**Given** there are no lookup records
+**When** I view the /lookups page
+**Then** I see an empty state: "No lookups yet. Search for HS codes to start building history."
+
+**Technical Tasks:**
+1. Add `get_all_with_hs_codes(limit, offset, verified_filter)` method to `LookupRecordRepository`
+2. Add `count_all(verified_filter)` method to `LookupRecordRepository`
+3. Create API router: `api/app/api/lookups.py` with GET /api/lookups endpoint
+4. Create response schema in `api/app/schemas/lookup.py`
+5. Register router in `api/app/main.py`
+6. Build frontend page: `web/src/app/lookups/page.tsx`
+7. Build LookupList component: `web/src/app/lookups/components/LookupList.tsx`
+8. Add /lookups to sidebar/header navigation
+
+**Definition of Done:**
+- [ ] GET /api/lookups returns paginated results with HS code details
+- [ ] Filtering by verified status works
+- [ ] Frontend /lookups page displays lookup list with all columns
+- [ ] Pagination works correctly
+- [ ] Rows navigate to /lookups/[id] on click
+- [ ] Empty state displays correctly
+- [ ] Navigation link added to sidebar/header
+
+**Dependency:** Story 1-11 must be complete.
+
+---
+
+### Story 1.13: Lookup Detail Page (ADDED 2026-02-10)
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-10-lookup-history.md`
+
+As a **user**,
+I want **to view the full details of a past lookup including classification reasoning, practical notes, and process logs**,
+So that **I can review the search analysis and submit corrections if the result was wrong**.
+
+**Acceptance Criteria:**
+
+**Given** a lookup record exists with persisted data
+**When** I call GET /api/lookups/{id}
+**Then** I receive the full lookup record including:
+- query_text, query_language, created_at
+- matched HS code with code, description_vn, description_en, duty_rate, vat_rate
+- correct HS code (if corrected) with same fields
+- classification_data (material + function reasoning)
+- practical_notes (list of strings)
+- process_logs (list of step objects)
+- is_verified, verified_at, notes
+- confidence_score, search_method
+
+**Given** I navigate to /lookups/[id] in the frontend
+**When** the page loads
+**Then** I see the full lookup detail with sections:
+- **Query**: original search text with language badge
+- **Matched Result**: HS code, description, duty/VAT rates, confidence badge
+- **Classification Reasoning**: material and function analysis (rendered as readable text)
+- **Practical Notes**: list of import notes
+- **Process Log**: collapsible timeline of search steps with durations
+- **Correction**: status badge (verified/unverified) and correction button
+
+**Given** I am viewing an unverified lookup
+**When** I click "Suggest Correction"
+**Then** the CorrectionPanel opens (reuse existing component from search page)
+**And** I can submit a correction that immediately verifies the lookup
+
+**Given** I am viewing a verified (corrected) lookup
+**When** I see the correction section
+**Then** I see the correct HS code with description, verification date, and correction notes
+**And** the "Suggest Correction" button is disabled with tooltip "Already corrected"
+
+**Given** a lookup record does not exist
+**When** I call GET /api/lookups/99999
+**Then** I receive a 404 error following RFC 7807 format
+
+**Technical Tasks:**
+1. Add `find_by_id_with_details()` to `LookupRecordRepository` (eager load matched + correct HS codes with fta_rates)
+2. Add GET /api/lookups/{id} endpoint to `api/app/api/lookups.py`
+3. Create detail response schema with all fields including classification, notes, logs
+4. Build frontend page: `web/src/app/lookups/[id]/page.tsx`
+5. Build LookupDetail component with tabbed/sectioned layout
+6. Build ProcessLogTimeline component for visualizing search steps with durations
+7. Reuse CorrectionButton and CorrectionPanel from `web/src/app/search/components/`
+8. Add breadcrumb navigation (Lookups > Lookup #123)
+
+**Definition of Done:**
+- [ ] GET /api/lookups/{id} returns full detail with classification, notes, logs
+- [ ] 404 returned for missing lookup (RFC 7807)
+- [ ] Frontend /lookups/[id] displays all sections
+- [ ] Classification reasoning renders material + function analysis
+- [ ] Practical notes render as formatted list
+- [ ] Process logs render as collapsible timeline with durations
+- [ ] Correction flow works for unverified lookups (reuses existing components)
+- [ ] Verified lookups show correction details
+- [ ] Navigation from /lookups list to detail works
+- [ ] Breadcrumb navigation works
+
+**Dependency:** Stories 1-11, 1-12 must be complete.
 
 ---
 

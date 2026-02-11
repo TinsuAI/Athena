@@ -51,6 +51,9 @@ development_status:
   1-8-knowledge-base-schema-lookup-storage: done  # NEW: Sprint Change 2026-02-10 - KB foundation (Code review: 4 medium + 3 low issues fixed)
   1-9-knowledge-enhanced-search: review  # NEW: Sprint Change 2026-02-10 - KB as primary search, AI fallback
   1-10-expert-review-correction-interface: done  # NEW: Sprint Change 2026-02-10 - human-in-the-loop (Code review: 3 high + 3 medium + 2 low issues fixed)
+  1-11-persist-full-lookup-details: backlog       # NEW: Sprint Change 2026-02-10 - persist classification, notes, logs
+  1-12-lookup-history-api-list-page: backlog       # NEW: Sprint Change 2026-02-10 - lookup history list
+  1-13-lookup-detail-page: backlog                 # NEW: Sprint Change 2026-02-10 - lookup detail + correction
   epic-1-retrospective: optional
 
   # Epic 2: User Authentication & Sessions (5 stories)

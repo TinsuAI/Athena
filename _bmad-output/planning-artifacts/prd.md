@@ -736,6 +736,12 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 - **FR49:** The system preserves duty rate decimal precision from source data
 - **FR50:** The system displays policy notes verbatim from source data
 
+### Lookup History & Details
+
+- **FR51:** The system persists classification reasoning, practical notes, and process logs for every search lookup
+- **FR52:** Users can view a paginated list of all past lookups with matched HS code, confidence, and verification status
+- **FR53:** Users can view full details of any past lookup including classification reasoning, practical notes, process logs, and submit corrections
+
 ---
 
 **FR Coverage Validation:**
@@ -750,6 +756,7 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 | Admin data management (from journeys) | FR36-FR42 |
 | Error handling (from domain risks) | FR43-FR47 |
 | Data integrity (from domain requirements) | FR48-FR50 |
+| Lookup history & details (from implementation) | FR51-FR53 |
 
 ---
 

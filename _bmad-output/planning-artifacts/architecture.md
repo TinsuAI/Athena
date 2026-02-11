@@ -237,6 +237,12 @@ fta_rates (id, hs_code_id, agreement_code, preferential_rate, conditions, create
 
 data_versions (id, name, source_file, uploaded_at, activated_at, is_active)
 
+lookup_records (id, query_text, query_hash, query_language, matched_hs_code_id,
+               correct_hs_code_id, is_verified, verified_by_user_id, verified_at,
+               confidence_score, search_method, notes,
+               classification_data JSONB, practical_notes JSONB, process_logs JSONB,
+               created_at, updated_at)
+
 users (id, email, password_hash, role, created_at)
 
 favorites (id, user_id, hs_code_id, notes, created_at)
@@ -308,6 +314,9 @@ DELETE /api/favorites/{id}    # Remove favorite
 
 GET  /api/history             # Search history
 DELETE /api/history           # Clear history
+
+GET  /api/lookups            # List all lookups (paginated, filterable by verified)
+GET  /api/lookups/{id}       # Full lookup detail with classification, notes, logs
 
 POST /api/admin/data/upload   # Upload tariff Excel
 POST /api/admin/data/preview  # Preview changes
@@ -793,6 +802,13 @@ athena/
 │   │   │   │   ├── page.tsx
 │   │   │   │   └── components/
 │   │   │   │       └── HistoryList.tsx
+│   │   │   ├── lookups/
+│   │   │   │   ├── page.tsx          # Lookup history list
+│   │   │   │   └── [id]/
+│   │   │   │       ├── page.tsx      # Lookup detail view
+│   │   │   │       └── components/
+│   │   │   │           ├── LookupDetail.tsx
+│   │   │   │           └── ProcessLogTimeline.tsx
 │   │   │   ├── admin/
 │   │   │   │   ├── layout.tsx        # Admin layout with guard
 │   │   │   │   ├── page.tsx          # Admin dashboard
@@ -854,6 +870,8 @@ athena/
 │   │   │   ├── deps.py               # Dependency injection
 │   │   │   ├── search.py
 │   │   │   ├── search_test.py
+│   │   │   ├── lookups.py
+│   │   │   ├── lookups_test.py
 │   │   │   ├── hs_codes.py
 │   │   │   ├── hs_codes_test.py
 │   │   │   ├── favorites.py
@@ -890,6 +908,7 @@ athena/
 │   │   │   ├── hs_code.py
 │   │   │   ├── favorites.py
 │   │   │   ├── history.py
+│   │   │   ├── lookup.py
 │   │   │   ├── user.py
 │   │   │   └── admin.py
 │   │   ├── models/
@@ -980,6 +999,13 @@ athena/
 - API: `api/app/api/favorites.py`, `history.py`
 - Repository: `api/app/repositories/favorites_repository.py`, `history_repository.py`
 - Frontend: `web/src/app/favorites/`, `web/src/app/history/`
+
+**FR51-53: Lookup History & Details**
+- API: `api/app/api/lookups.py`
+- Repository: `api/app/repositories/lookup_record_repository.py`
+- Models: `api/app/models/lookup_record.py` (extended with JSONB columns)
+- Schemas: `api/app/schemas/lookup.py`
+- Frontend: `web/src/app/lookups/`, `web/src/app/lookups/[id]/`
 
 **FR30-35: User Authentication**
 - Backend: `api/app/core/auth.py`, `api/app/repositories/user_repository.py`
