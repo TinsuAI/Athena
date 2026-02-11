@@ -368,6 +368,70 @@ class TestLookupRecordRepository:
 
         assert result is None
 
+    # --- Tests for JSONB field round-trip (Story 1-11) ---
+
+    @pytest.mark.asyncio
+    async def test_create_record_with_jsonb_fields(self):
+        """Test creating a LookupRecord with JSONB fields (classification_data, practical_notes, process_logs)."""
+        mock_session = AsyncMock()
+        repo = LookupRecordRepository(session=mock_session)
+
+        classification_data = {"material": "Copper alloy", "function": "Bathroom fixture"}
+        practical_notes = ["Note 1", "Note 2"]
+        process_logs = [
+            {"step": "init", "status": "completed", "message": "Started", "duration_ms": 1, "details": None},
+            {"step": "search", "status": "completed", "message": "Found", "duration_ms": 50, "details": {"candidates": 5}},
+        ]
+
+        record = self._make_record(
+            classification_data=classification_data,
+            practical_notes=practical_notes,
+            process_logs=process_logs,
+        )
+
+        result = await repo.create(record)
+
+        mock_session.add.assert_called_once_with(record)
+        mock_session.flush.assert_awaited_once()
+        assert result.classification_data == classification_data
+        assert result.practical_notes == practical_notes
+        assert result.process_logs == process_logs
+
+    @pytest.mark.asyncio
+    async def test_create_record_with_none_jsonb_fields(self):
+        """Test creating a LookupRecord with None JSONB fields (no-results path)."""
+        mock_session = AsyncMock()
+        repo = LookupRecordRepository(session=mock_session)
+
+        record = self._make_record(
+            classification_data=None,
+            practical_notes=None,
+            process_logs=None,
+        )
+
+        result = await repo.create(record)
+
+        assert result.classification_data is None
+        assert result.practical_notes is None
+        assert result.process_logs is None
+
+    @pytest.mark.asyncio
+    async def test_update_preserves_jsonb_field_changes(self):
+        """Test that update flushes session with modified JSONB fields."""
+        mock_session = AsyncMock()
+        repo = LookupRecordRepository(session=mock_session)
+
+        record = self._make_record()
+        record.classification_data = {"material": "Updated", "function": "Updated"}
+        record.practical_notes = ["New note"]
+        record.process_logs = [{"step": "init", "status": "completed", "message": "Re-search", "duration_ms": 1, "details": None}]
+
+        result = await repo.update(record)
+
+        mock_session.flush.assert_awaited_once()
+        assert result.classification_data == {"material": "Updated", "function": "Updated"}
+        assert result.practical_notes == ["New note"]
+
     # --- Tests for apply_correction (Story 1-10, Task 2.3) ---
 
     @pytest.mark.asyncio

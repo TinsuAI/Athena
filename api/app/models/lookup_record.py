@@ -1,9 +1,10 @@
 """Knowledge base lookup record model for expert correction."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -42,6 +43,9 @@ class LookupRecord(Base):
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     search_method: Mapped[str] = mapped_column(String(20), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    classification_data: Mapped[dict[str, str] | None] = mapped_column(JSONB, nullable=True)
+    practical_notes: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    process_logs: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

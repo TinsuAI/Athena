@@ -85,6 +85,9 @@ async def _record_lookup(
     matched_hs_code_id: int | None,
     confidence_score: float | None,
     search_method: str,
+    classification_data: dict | None = None,
+    practical_notes: list[str] | None = None,
+    process_logs: list[dict] | None = None,
 ) -> int | None:
     """Record a search lookup for the knowledge base (best-effort, failures logged).
 
@@ -98,7 +101,11 @@ async def _record_lookup(
         # Dedup: check if same query hash exists within 24h
         existing = await repo.find_by_query_hash(query_hash)
         if existing:
-            await repo.touch_updated_at(existing.id)
+            # Update JSONB fields with fresh data
+            existing.classification_data = classification_data
+            existing.practical_notes = practical_notes
+            existing.process_logs = process_logs
+            await repo.update(existing)
             return existing.id
 
         # Detect query language
@@ -112,6 +119,9 @@ async def _record_lookup(
             is_verified=False,
             confidence_score=confidence_score,
             search_method=search_method,
+            classification_data=classification_data,
+            practical_notes=practical_notes,
+            process_logs=process_logs,
         )
         created = await repo.create(record)
         return created.id
@@ -306,6 +316,9 @@ async def search_hs_codes(
                         matched_hs_code_id=hs_code_obj.id,
                         confidence_score=kb_result.confidence,
                         search_method="knowledge_base",
+                        classification_data={"material": analysis.material, "function": analysis.function},
+                        practical_notes=analysis.practical_notes,
+                        process_logs=[log.model_dump() for log in process_logs],
                     )
                     response_data.lookup_id = lookup_id
 
@@ -405,6 +418,9 @@ async def search_hs_codes(
                         matched_hs_code_id=hs_code_obj.id,
                         confidence_score=best_cached.confidence,
                         search_method="exact" if best_cached.is_exact_match else "vector",
+                        classification_data={"material": analysis.material, "function": analysis.function},
+                        practical_notes=analysis.practical_notes,
+                        process_logs=[log.model_dump() for log in process_logs],
                     )
                     response_data.lookup_id = lookup_id
 
@@ -475,6 +491,9 @@ async def search_hs_codes(
                 matched_hs_code_id=None,
                 confidence_score=None,
                 search_method="vector",
+                classification_data=None,
+                practical_notes=None,
+                process_logs=[log.model_dump() for log in process_logs],
             )
 
             return error_response(
@@ -620,6 +639,9 @@ async def search_hs_codes(
             matched_hs_code_id=hs_code_id,
             confidence_score=best_result.confidence,
             search_method="exact" if best_result.is_exact_match else "vector",
+            classification_data={"material": analysis.material, "function": analysis.function},
+            practical_notes=analysis.practical_notes,
+            process_logs=[log.model_dump() for log in process_logs],
         )
         response_data.lookup_id = lookup_id
 

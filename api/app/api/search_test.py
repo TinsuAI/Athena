@@ -289,7 +289,7 @@ class TestRecordLookup:
 
     @pytest.mark.asyncio
     async def test_deduplicates_within_24h_window(self):
-        """Test that duplicate query within 24h updates timestamp instead of creating."""
+        """Test that duplicate query within 24h updates existing record instead of creating."""
         mock_db = AsyncMock()
         existing_record = MagicMock()
         existing_record.id = 99
@@ -307,7 +307,7 @@ class TestRecordLookup:
                 search_method="vector",
             )
 
-            mock_repo.touch_updated_at.assert_awaited_once_with(99)
+            mock_repo.update.assert_awaited_once_with(existing_record)
             mock_repo.create.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -396,6 +396,170 @@ class TestRecordLookup:
 
             created_record = mock_repo.create.call_args[0][0]
             assert created_record.query_language == "vi"
+
+
+class TestRecordLookupJSONBPersistence:
+    """Tests for JSONB field persistence in _record_lookup (Story 1-11)."""
+
+    @pytest.mark.asyncio
+    async def test_stores_classification_data_on_new_record(self):
+        """AC2: New record stores classification_data, practical_notes, process_logs."""
+        mock_db = AsyncMock()
+
+        with patch("app.api.search.LookupRecordRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_by_query_hash.return_value = None
+            mock_repo_class.return_value = mock_repo
+
+            classification = {"material": "Copper alloy", "function": "Bathroom fixture"}
+            notes = ["Note about import duty", "Note about classification"]
+            logs = [{"step": "init", "status": "completed", "message": "Started", "duration_ms": 1, "details": None}]
+
+            await _record_lookup(
+                db=mock_db,
+                query="copper towel rack",
+                matched_hs_code_id=42,
+                confidence_score=85.0,
+                search_method="vector",
+                classification_data=classification,
+                practical_notes=notes,
+                process_logs=logs,
+            )
+
+            mock_repo.create.assert_awaited_once()
+            created_record = mock_repo.create.call_args[0][0]
+            assert created_record.classification_data == classification
+            assert created_record.practical_notes == notes
+            assert created_record.process_logs == logs
+
+    @pytest.mark.asyncio
+    async def test_dedup_updates_jsonb_fields(self):
+        """AC3: Dedup updates classification_data, practical_notes, process_logs on existing record."""
+        mock_db = AsyncMock()
+        existing_record = MagicMock()
+        existing_record.id = 99
+
+        with patch("app.api.search.LookupRecordRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_by_query_hash.return_value = existing_record
+            mock_repo_class.return_value = mock_repo
+
+            classification = {"material": "Updated material", "function": "Updated function"}
+            notes = ["Updated note"]
+            logs = [{"step": "init", "status": "completed", "message": "Re-search", "duration_ms": 2, "details": None}]
+
+            result = await _record_lookup(
+                db=mock_db,
+                query="copper towel rack",
+                matched_hs_code_id=42,
+                confidence_score=85.0,
+                search_method="vector",
+                classification_data=classification,
+                practical_notes=notes,
+                process_logs=logs,
+            )
+
+            assert result == 99
+            # Should update JSONB fields on existing record
+            assert existing_record.classification_data == classification
+            assert existing_record.practical_notes == notes
+            assert existing_record.process_logs == logs
+            # Should call repo.update (not touch_updated_at)
+            mock_repo.update.assert_awaited_once_with(existing_record)
+            mock_repo.touch_updated_at.assert_not_awaited()
+            mock_repo.create.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_no_results_stores_none_classification(self):
+        """AC5: No-results path stores None for classification_data and practical_notes."""
+        mock_db = AsyncMock()
+
+        with patch("app.api.search.LookupRecordRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_by_query_hash.return_value = None
+            mock_repo_class.return_value = mock_repo
+
+            logs = [{"step": "search", "status": "completed", "message": "No results", "duration_ms": 50, "details": None}]
+
+            await _record_lookup(
+                db=mock_db,
+                query="nonexistent product",
+                matched_hs_code_id=None,
+                confidence_score=None,
+                search_method="vector",
+                classification_data=None,
+                practical_notes=None,
+                process_logs=logs,
+            )
+
+            created_record = mock_repo.create.call_args[0][0]
+            assert created_record.classification_data is None
+            assert created_record.practical_notes is None
+            assert created_record.process_logs == logs
+
+    @pytest.mark.asyncio
+    async def test_jsonb_preserves_nested_structure(self):
+        """AC4: JSONB data preserves nested dicts, lists of strings, lists of dicts."""
+        mock_db = AsyncMock()
+
+        with patch("app.api.search.LookupRecordRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_by_query_hash.return_value = None
+            mock_repo_class.return_value = mock_repo
+
+            classification = {"material": "San pham bang dong", "function": "Thiet bi nha tam"}
+            notes = ["Note 1", "Note 2", "Note 3"]
+            logs = [
+                {"step": "init", "status": "completed", "message": "Started", "duration_ms": 1, "details": {"query_language": "vi"}},
+                {"step": "kb_exact_lookup", "status": "completed", "message": "KB match found", "duration_ms": 12, "details": {"match_type": "exact", "confidence": 100}},
+            ]
+
+            await _record_lookup(
+                db=mock_db,
+                query="thanh treo khan dong",
+                matched_hs_code_id=42,
+                confidence_score=100.0,
+                search_method="knowledge_base",
+                classification_data=classification,
+                practical_notes=notes,
+                process_logs=logs,
+            )
+
+            created_record = mock_repo.create.call_args[0][0]
+            # Verify dict structure preserved
+            assert created_record.classification_data["material"] == "San pham bang dong"
+            assert created_record.classification_data["function"] == "Thiet bi nha tam"
+            # Verify list of strings preserved
+            assert len(created_record.practical_notes) == 3
+            assert created_record.practical_notes[0] == "Note 1"
+            # Verify list of dicts with nested dicts preserved
+            assert len(created_record.process_logs) == 2
+            assert created_record.process_logs[0]["step"] == "init"
+            assert created_record.process_logs[0]["details"]["query_language"] == "vi"
+            assert created_record.process_logs[1]["details"]["match_type"] == "exact"
+
+    @pytest.mark.asyncio
+    async def test_backward_compatible_without_jsonb_params(self):
+        """Verify _record_lookup still works when JSONB params are not provided (backward compat)."""
+        mock_db = AsyncMock()
+
+        with patch("app.api.search.LookupRecordRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_by_query_hash.return_value = None
+            mock_repo_class.return_value = mock_repo
+
+            await _record_lookup(
+                db=mock_db,
+                query="copper towel rack",
+                matched_hs_code_id=42,
+                confidence_score=85.0,
+                search_method="vector",
+            )
+
+            created_record = mock_repo.create.call_args[0][0]
+            assert created_record.classification_data is None
+            assert created_record.practical_notes is None
+            assert created_record.process_logs is None
 
 
 class TestKBSearchIntegration:
