@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import DECIMAL
 
@@ -31,6 +31,10 @@ class FTARate(Base):
     )
     preferential_rate: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False)
     conditions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rate_year: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    is_export: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False, index=True)
+    legal_document: Mapped[str | None] = mapped_column(String, nullable=True)
+    effective_date: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

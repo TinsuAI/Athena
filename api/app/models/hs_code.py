@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import DECIMAL
 
@@ -39,6 +39,10 @@ class HSCode(Base):
     unit: Mapped[str | None] = mapped_column(Text, nullable=True)
     duty_rate: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False)
     vat_rate: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False)
+    export_duty_rate: Mapped[str | None] = mapped_column(String, nullable=True)
+    special_consumption_tax: Mapped[str | None] = mapped_column(String, nullable=True)
+    environmental_tax: Mapped[str | None] = mapped_column(String, nullable=True)
+    vat_reduction: Mapped[str | None] = mapped_column(String, nullable=True)
     policy_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     indent_level: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True)  # Number of leading dashes
     embedding: Mapped[list[float] | None] = mapped_column(
