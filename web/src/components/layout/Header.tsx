@@ -13,6 +13,9 @@ export function Header() {
           <Link href="/search" className="text-sm font-medium">
             Search
           </Link>
+          <Link href="/browse" className="text-sm font-medium">
+            Browse
+          </Link>
           <Link href="/lookups" className="text-sm font-medium">
             Lookups
           </Link>

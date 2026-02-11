@@ -71,6 +71,73 @@ class ApiClient {
 export const apiClient = new ApiClient(API_URL);
 export type { ApiResponse, ApiError };
 
+// Browse API
+import type {
+  BrowseSectionItem,
+  BrowseChaptersResponse,
+  BrowseChapterDetailResponse,
+  PaginatedBrowseSearchResponse,
+} from "@/types/browse";
+
+export async function getBrowseSections(): Promise<BrowseSectionItem[]> {
+  const response = await apiClient.get<BrowseSectionItem[]>(
+    "/api/browse/sections"
+  );
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.detail || "Failed to fetch sections");
+  }
+  return response.data;
+}
+
+export async function getBrowseChapters(
+  sectionId: number
+): Promise<BrowseChaptersResponse> {
+  const response = await apiClient.get<BrowseChaptersResponse>(
+    `/api/browse/chapters?section_id=${sectionId}`
+  );
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.detail || "Failed to fetch chapters");
+  }
+  return response.data;
+}
+
+export async function getBrowseChapterDetail(
+  chapterCode: string
+): Promise<BrowseChapterDetailResponse> {
+  const response = await apiClient.get<BrowseChapterDetailResponse>(
+    `/api/browse/chapters/${chapterCode}`
+  );
+  if (!response.success || !response.data) {
+    throw new Error(
+      response.error?.detail || "Failed to fetch chapter detail"
+    );
+  }
+  return response.data;
+}
+
+export async function searchBrowse(
+  query: string,
+  chapter?: string,
+  limit: number = 50,
+  offset: number = 0
+): Promise<PaginatedBrowseSearchResponse> {
+  const params = new URLSearchParams({
+    q: query,
+    limit: String(limit),
+    offset: String(offset),
+  });
+  if (chapter) {
+    params.set("chapter", chapter);
+  }
+  const response = await apiClient.get<PaginatedBrowseSearchResponse>(
+    `/api/browse/search?${params.toString()}`
+  );
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.detail || "Failed to search tariff codes");
+  }
+  return response.data;
+}
+
 // Lookup History API
 import type {
   LookupDetail,
