@@ -87,13 +87,13 @@ export function CorrectionPanel({
 
   const handleSelectHsCode = (item: HSCodeAutocompleteItem) => {
     setSelectedHsCode(item);
-    setSearchQuery(`${item.code} - ${item.description_en}`);
+    setSearchQuery(`${item.code} - ${item.description_vn || item.description_en}`);
     setSuggestions([]);
   };
 
   const handleSubmitClick = () => {
     if (!selectedHsCode) {
-      setError("Please select the correct HS code");
+      setError("Vui lòng chọn mã HS đúng");
       return;
     }
     setShowConfirm(true);
@@ -118,17 +118,17 @@ export function CorrectionPanel({
         }, 2000);
       } else if (response.error) {
         if (response.error.status === 429) {
-          setError("Rate limit reached - please try again later");
+          setError("Đã vượt quá giới hạn - vui lòng thử lại sau");
         } else if (response.error.status === 409) {
-          setError("This lookup has already been corrected");
+          setError("Kết quả này đã được sửa đổi rồi");
         } else if (response.error.status === 400 && response.error.detail?.includes("same as the current match")) {
-          setError("Please select a different HS code - this is the same as the current match");
+          setError("Vui lòng chọn mã HS khác - mã này giống với kết quả hiện tại");
         } else {
-          setError(response.error.detail || "Failed to submit correction");
+          setError(response.error.detail || "Không thể gửi đề xuất sửa đổi");
         }
       }
     } catch {
-      setError("Failed to submit correction. Please try again.");
+      setError("Không thể gửi đề xuất sửa đổi. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
     }
@@ -149,7 +149,7 @@ export function CorrectionPanel({
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">Suggest Correction</h2>
+            <h2 className="text-lg font-semibold">Đề xuất sửa đổi</h2>
             <button
               type="button"
               onClick={onClose}
@@ -162,13 +162,13 @@ export function CorrectionPanel({
           {/* Success toast */}
           {showSuccess && (
             <div className="mb-4 p-3 bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-200 rounded-lg text-sm">
-              Thanks! Your correction will help improve search quality
+              Cảm ơn! Đề xuất của bạn sẽ giúp cải thiện chất lượng tìm kiếm
             </div>
           )}
 
           {/* Current suggestion (read-only) */}
           <div className="mb-6 p-4 rounded-lg bg-muted/50 border">
-            <p className="text-xs text-muted-foreground mb-1">Current suggestion</p>
+            <p className="text-xs text-muted-foreground mb-1">Kết quả hiện tại</p>
             <p className="font-mono font-bold text-primary">{currentHsCode}</p>
             <p className="text-sm text-muted-foreground mt-1">{currentDescription}</p>
           </div>
@@ -176,14 +176,14 @@ export function CorrectionPanel({
           {/* HS Code autocomplete search */}
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">
-              Correct HS Code
+              Mã HS đúng
             </label>
             <div className="relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Search by code or description..."
+                placeholder="Tìm theo mã hoặc mô tả..."
                 className="w-full px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
                 disabled={showSuccess}
               />
@@ -208,7 +208,7 @@ export function CorrectionPanel({
                       {item.code}
                     </span>
                     <p className="text-xs text-muted-foreground truncate">
-                      {item.description_en}
+                      {item.description_vn || item.description_en}
                     </p>
                   </button>
                 ))}
@@ -217,7 +217,7 @@ export function CorrectionPanel({
 
             {selectedHsCode && (
               <p className="mt-1 text-xs text-green-600 dark:text-green-400">
-                Selected: {selectedHsCode.code}
+                Đã chọn: {selectedHsCode.code}
               </p>
             )}
           </div>
@@ -225,12 +225,12 @@ export function CorrectionPanel({
           {/* Optional notes */}
           <div className="mb-6">
             <label className="block text-sm font-medium mb-2">
-              Notes (optional)
+              Ghi chú (không bắt buộc)
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value.slice(0, 200))}
-              placeholder="Why this correction is needed..."
+              placeholder="Lý do cần sửa đổi..."
               className="w-full px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
               rows={3}
               maxLength={200}
@@ -255,7 +255,7 @@ export function CorrectionPanel({
             disabled={!selectedHsCode || isSubmitting || showSuccess}
             className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? "Submitting..." : "Submit Correction"}
+            {isSubmitting ? "Đang gửi..." : "Gửi đề xuất sửa đổi"}
           </button>
         </div>
 
@@ -263,14 +263,14 @@ export function CorrectionPanel({
         {showConfirm && selectedHsCode && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-background border rounded-lg shadow-xl max-w-md w-full p-6">
-              <h3 className="text-lg font-semibold mb-3">Confirm Correction</h3>
+              <h3 className="text-lg font-semibold mb-3">Xác nhận sửa đổi</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Are you sure you want to submit this correction? This will permanently mark the lookup as verified.
+                Bạn có chắc chắn muốn gửi đề xuất sửa đổi này không? Thao tác này sẽ đánh dấu kết quả tra cứu là đã xác minh.
               </p>
               <div className="bg-muted/50 rounded p-3 mb-4">
-                <p className="text-xs text-muted-foreground mb-1">New HS code:</p>
+                <p className="text-xs text-muted-foreground mb-1">Mã HS mới:</p>
                 <p className="font-mono font-bold">{selectedHsCode.code}</p>
-                <p className="text-sm text-muted-foreground mt-1">{selectedHsCode.description_en}</p>
+                <p className="text-sm text-muted-foreground mt-1">{selectedHsCode.description_vn || selectedHsCode.description_en}</p>
               </div>
               <div className="flex gap-3">
                 <button
@@ -278,14 +278,14 @@ export function CorrectionPanel({
                   onClick={() => setShowConfirm(false)}
                   className="flex-1 px-4 py-2 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  Cancel
+                  Hủy
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmedSubmit}
                   className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
-                  Confirm
+                  Xác nhận
                 </button>
               </div>
             </div>

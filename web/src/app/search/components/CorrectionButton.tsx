@@ -21,11 +21,11 @@ export function CorrectionButton({
       className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       title={
         lookupId
-          ? `Suggest a correction for ${matchedHsCode}`
-          : "Correction unavailable for this result"
+          ? `Đề xuất sửa đổi cho ${matchedHsCode}`
+          : "Không thể đề xuất sửa đổi cho kết quả này"
       }
     >
-      Suggest Correction
+      Đề xuất sửa đổi
     </button>
   );
 }
