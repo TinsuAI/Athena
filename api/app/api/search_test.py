@@ -452,7 +452,8 @@ class TestKBSearchIntegration:
              patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
              patch("app.api.search._record_lookup") as mock_record, \
              patch("app.api.search.get_settings") as mock_get_settings:
-            
+
+            mock_record.return_value = 1
             mock_settings = MagicMock()
             mock_settings.openrouter_api_key = None
             mock_settings.enable_query_enhancement = False
@@ -486,6 +487,7 @@ class TestKBSearchIntegration:
         assert response["data"]["verified_by"] == "5"
         assert response["data"]["verified_at"] is not None
         assert response["data"]["hs_code"] == "7418.20.00"
+        assert response["data"]["lookup_id"] == 1
 
         # Verify KB lookup was called
         mock_kb.lookup.assert_awaited_once_with("copper towel rack")
@@ -517,9 +519,9 @@ class TestKBSearchIntegration:
 
         with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
              patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
-             patch("app.api.search._record_lookup"), \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=1)), \
              patch("app.api.search.get_settings") as mock_get_settings:
-            
+
             mock_settings = MagicMock()
             mock_settings.openrouter_api_key = None
             mock_settings.enable_query_enhancement = False
@@ -579,9 +581,9 @@ class TestKBSearchIntegration:
              patch("app.api.search.SearchService") as mock_search_class, \
              patch("app.api.search.SearchCacheService") as mock_cache_class, \
              patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
-             patch("app.api.search._record_lookup"), \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=2)), \
              patch("app.api.search.get_settings") as mock_get_settings:
-            
+
             mock_settings = MagicMock()
             mock_settings.openrouter_api_key = None
             mock_settings.enable_query_enhancement = False
@@ -649,9 +651,9 @@ class TestKBSearchIntegration:
              patch("app.api.search.SearchCacheService") as mock_cache_class, \
              patch("app.api.search.SearchService") as mock_search_class, \
              patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
-             patch("app.api.search._record_lookup"), \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=1)), \
              patch("app.api.search.get_settings") as mock_get_settings:
-            
+
             mock_settings = MagicMock()
             mock_settings.openrouter_api_key = None
             mock_settings.enable_query_enhancement = False
@@ -717,9 +719,9 @@ class TestKBSearchIntegration:
              patch("app.api.search.SearchService") as mock_search_class, \
              patch("app.api.search.SearchCacheService") as mock_cache_class, \
              patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
-             patch("app.api.search._record_lookup"), \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=3)), \
              patch("app.api.search.get_settings") as mock_get_settings:
-            
+
             mock_settings = MagicMock()
             mock_settings.openrouter_api_key = None
             mock_settings.enable_query_enhancement = False
@@ -784,7 +786,8 @@ class TestKBSearchIntegration:
              patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
              patch("app.api.search._record_lookup") as mock_record, \
              patch("app.api.search.get_settings") as mock_get_settings:
-            
+
+            mock_record.return_value = 1
             mock_settings = MagicMock()
             mock_settings.openrouter_api_key = None
             mock_settings.enable_query_enhancement = False

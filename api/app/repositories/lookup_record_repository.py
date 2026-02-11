@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.lookup_record import LookupRecord
 
@@ -109,6 +110,58 @@ class LookupRecordRepository:
         )
         rows = result.all()
         return [(row.LookupRecord, row.similarity) for row in rows]
+
+    async def get_unverified_with_hs_codes(
+        self, limit: int = 20, offset: int = 0
+    ) -> list[LookupRecord]:
+        """Get unverified lookup records with matched HS code eagerly loaded.
+
+        Returns unverified records joined with HS code data
+        (code, description_vn, description_en), ordered by newest first.
+        """
+        result = await self.session.execute(
+            select(LookupRecord)
+            .where(LookupRecord.is_verified == False)  # noqa: E712
+            .options(selectinload(LookupRecord.matched_hs_code))
+            .order_by(LookupRecord.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(result.scalars().all())
+
+    async def find_by_id(self, record_id: int) -> LookupRecord | None:
+        """Find a lookup record by its primary key ID."""
+        result = await self.session.execute(
+            select(LookupRecord).where(LookupRecord.id == record_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def apply_correction(
+        self,
+        record_id: int,
+        correct_hs_code_id: int,
+        notes: str | None = None,
+    ) -> LookupRecord:
+        """Apply a correction to a lookup record.
+
+        Sets correct_hs_code_id, is_verified=True, verified_at=now(), and notes.
+        """
+        now = datetime.now(timezone.utc)
+        await self.session.execute(
+            update(LookupRecord)
+            .where(LookupRecord.id == record_id)
+            .values(
+                correct_hs_code_id=correct_hs_code_id,
+                is_verified=True,
+                verified_at=now,
+                notes=notes,
+            )
+        )
+        # Re-fetch the updated record
+        result = await self.session.execute(
+            select(LookupRecord).where(LookupRecord.id == record_id)
+        )
+        return result.scalar_one()
 
     async def touch_updated_at(self, record_id: int) -> None:
         """Update only the updated_at timestamp for deduplication."""

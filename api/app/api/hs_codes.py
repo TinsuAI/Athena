@@ -1,14 +1,41 @@
 """HS code API endpoints."""
 
-from fastapi import APIRouter, Depends, status
+from typing import Any
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.schemas.base import ApiResponse, error_response, success_response
-from app.schemas.hs_code import HSCodeSchema
+from app.schemas.hs_code import HSCodeAutocompleteItem, HSCodeSchema
 from app.services.hs_code_service import HSCodeService
 
 router = APIRouter(prefix="/api/hs-codes", tags=["hs-codes"])
+
+
+@router.get(
+    "/autocomplete",
+    response_model=ApiResponse[list[HSCodeAutocompleteItem]],
+    summary="Autocomplete HS codes",
+    description="Search HS codes by code prefix or description substring for autocomplete.",
+)
+async def autocomplete_hs_codes(
+    q: str = Query(default="", max_length=200, description="Search query"),
+    limit: int = Query(default=10, ge=1, le=50, description="Maximum results"),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Search HS codes for autocomplete by code prefix or description."""
+    if not q.strip():
+        return success_response([])
+
+    service = HSCodeService(db)
+    results = await service.autocomplete(q.strip(), limit=limit)
+
+    items = [
+        HSCodeAutocompleteItem.model_validate(r).model_dump() for r in results
+    ]
+
+    return success_response(items)
 
 
 @router.get("/{code}", response_model=ApiResponse[HSCodeSchema])

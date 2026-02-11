@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from app.api.corrections import router as corrections_router
 from app.api.hs_codes import router as hs_codes_router
 from app.api.search import router as search_router
 from app.core.config import get_settings
@@ -47,6 +48,10 @@ app.add_middleware(
 )
 
 # Register routers
+# NOTE: Correction system is anonymous/public (no expert role required)
+# When user auth is added in Epic 2, only "user" and "admin" roles should exist
+# No "expert" role should be created (Story 1.10 AC7)
+app.include_router(corrections_router)
 app.include_router(hs_codes_router)
 app.include_router(search_router)
 

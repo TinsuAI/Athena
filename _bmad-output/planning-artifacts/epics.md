@@ -756,59 +756,60 @@ So that **I get accurate HS codes based on real expert knowledge, not just AI gu
 
 ---
 
-### Story 1.10: Expert Review & Correction Interface (ADDED 2026-02-10)
+### Story 1.10: Anonymous Correction Interface (ADDED 2026-02-10, MODIFIED 2026-02-10)
 
-**Sprint Change Proposal:** `sprint-change-proposal-2026-02-10.md`
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-10-story-1-10-anonymous-corrections.md`
 
-As an **HS code expert**,
-I want **to review user lookups and correct the HS code classifications**,
-So that **the knowledge base grows with verified, accurate mappings**.
+As **anyone using the search**,
+I want **to submit corrections when the system suggests the wrong HS code**,
+So that **the knowledge base improves with real-world feedback**.
 
 **Acceptance Criteria:**
 
-**Given** I am logged in as a user with "expert" role
-**When** I navigate to /expert/review
-**Then** I see a paginated list of unverified lookup records (query text, suggested HS code, timestamp)
+**Given** I am on the search results page
+**When** I see an incorrect HS code suggestion
+**Then** I can click "Suggest Correction" without logging in
 
-**Given** I am reviewing a lookup where the system's suggestion is correct
-**When** I click "Mark Correct"
-**Then** the record is verified in one click (correct_hs_code_id = matched_hs_code_id, is_verified = true)
-
-**Given** I am reviewing a lookup where the system's suggestion is wrong
-**When** I search for the correct HS code via autocomplete or hierarchy browser
-**Then** I can select the correct code and submit the correction with optional notes
+**Given** I click "Suggest Correction"
+**When** the correction panel opens
+**Then** I can search for the correct HS code and submit with optional notes
 
 **Given** I submit a correction
-**When** the correction is saved
-**Then** the correction is immediately available for future searches
+**When** the submission succeeds
+**Then** I see "Thanks! Your correction will help improve search quality"
+**And** the correction is immediately available in the knowledge base
 
-**Given** the expert review page
-**When** I view statistics
-**Then** I see: total unverified, total verified today, total verified all-time
+**Given** I try to submit multiple corrections quickly
+**When** I exceed 10 corrections per hour
+**Then** I see "Rate limit reached - please try again later"
 
 **API Endpoints:**
-- GET /api/expert/lookups?verified=false&page=1
-- GET /api/expert/lookups/:id
-- PATCH /api/expert/lookups/:id/verify
-- GET /api/expert/stats
+- GET /api/corrections/lookups         # Public, rate-limited
+- POST /api/corrections                 # Public, rate-limited
+  Body: { lookup_id, correct_hs_code_id, notes? }
 
 **Technical Tasks:**
-1. Add "expert" role to user model and auth middleware
-2. Create API router: `api/app/api/expert.py`
-3. Create Pydantic schemas: `api/app/schemas/expert.py`
-4. Build frontend: ExpertReviewQueue component (table with filter/sort/pagination)
-5. Build frontend: ExpertCorrectionPanel (split view: lookup details + HS code selector)
-6. Add "Review Queue" tab for expert role users with unverified count badge
+1. Create API router: `api/app/api/corrections.py` (public endpoints)
+2. Add rate limiting: 10 corrections per IP per hour
+3. Remove expert role from user model (keep user/admin only)
+4. Build CorrectionButton component (inline on ResultCard)
+5. Build CorrectionPanel component (slide-in from search page)
+6. Auto-verify corrections for MVP (is_verified = true)
+7. Delete `/expert/review` page and components
+
+**Frontend Integration:**
+- Add "Suggest Correction" to each ResultCard
+- CorrectionPanel with HS code autocomplete
+- Success toast notification
 
 **Definition of Done:**
-- [ ] Expert role exists and is enforced on review endpoints
-- [ ] Expert can view unverified lookups list
-- [ ] Expert can "Mark Correct" in one click
-- [ ] Expert can select a different correct HS code
-- [ ] Corrections immediately available in knowledge base
-- [ ] Statistics displayed on review page
+- [ ] Anyone can submit corrections without login
+- [ ] Corrections rate-limited (10/hour per IP)
+- [ ] Corrections immediately improve search
+- [ ] No expert role in database or auth system
+- [ ] No /expert/review page exists
 
-**Dependency:** Story 1-8 must be complete. Story 1-9 recommended but not required.
+**Dependency:** Story 1-8, 1-9 must be complete.
 
 ---
 

@@ -2,6 +2,8 @@
 
 import { useRef, useCallback, useState } from "react";
 import { SearchBar } from "./components/SearchBar";
+import { CorrectionButton } from "./components/CorrectionButton";
+import { CorrectionPanel } from "./components/CorrectionPanel";
 import { ModelSelect } from "@/components/ui/ModelSelect";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
 import { useStore } from "@/lib/store";
@@ -17,6 +19,7 @@ export default function SearchPage() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [showLogs, setShowLogs] = useState(true);
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
+  const [correctionPanelOpen, setCorrectionPanelOpen] = useState(false);
 
   // Zustand store selectors
   const searchQuery = useStore((state) => state.searchQuery);
@@ -186,8 +189,29 @@ export default function SearchPage() {
                   </ul>
                 </div>
               )}
+
+              {/* Correction button */}
+              <div className="border-t pt-4 mt-4 flex justify-end">
+                <CorrectionButton
+                  lookupId={searchResult.lookup_id ?? null}
+                  matchedHsCode={searchResult.hs_code}
+                  matchedDescription={searchResult.description}
+                  onCorrect={() => setCorrectionPanelOpen(true)}
+                />
+              </div>
             </div>
           </div>
+        )}
+
+        {/* Correction Panel */}
+        {searchResult && (
+          <CorrectionPanel
+            isOpen={correctionPanelOpen}
+            onClose={() => setCorrectionPanelOpen(false)}
+            lookupId={searchResult.lookup_id ?? 0}
+            currentHsCode={searchResult.hs_code}
+            currentDescription={searchResult.description}
+          />
         )}
 
         {/* Empty state - only show when no query and no result */}

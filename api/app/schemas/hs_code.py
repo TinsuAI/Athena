@@ -39,3 +39,14 @@ class HSCodeResponseData(BaseModel):
     """Response data wrapper for HS code endpoint."""
 
     hs_code: HSCodeSchema = Field(description="HS code with FTA rates")
+
+
+class HSCodeAutocompleteItem(BaseModel):
+    """Lightweight HS code result for autocomplete."""
+
+    id: int = Field(description="HS code ID")
+    code: str = Field(description="8-digit HS code")
+    description_vn: str = Field(description="Vietnamese description")
+    description_en: str = Field(description="English description")
+
+    model_config = {"from_attributes": True}

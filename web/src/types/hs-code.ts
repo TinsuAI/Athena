@@ -41,6 +41,11 @@ export interface SearchResult {
   practical_notes: string[];
   confidence: number;
   process_logs?: ProcessLogEntry[];
+  source?: string;
+  is_verified?: boolean;
+  verified_by?: string | null;
+  verified_at?: string | null;
+  lookup_id?: number | null;
 }
 
 /**

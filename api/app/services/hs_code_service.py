@@ -50,6 +50,22 @@ class HSCodeService:
         """Get total number of HS codes in the system."""
         return await self.repository.count_all()
 
+    async def autocomplete(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> list[HSCode]:
+        """Search HS codes for autocomplete by code prefix or description.
+
+        Args:
+            query: Search query (code prefix or description substring)
+            limit: Maximum number of results
+
+        Returns:
+            List of matching HS codes
+        """
+        return await self.repository.autocomplete(query=query, limit=limit)
+
     async def search_by_description(
         self,
         query: str,

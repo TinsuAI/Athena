@@ -85,8 +85,12 @@ async def _record_lookup(
     matched_hs_code_id: int | None,
     confidence_score: float | None,
     search_method: str,
-) -> None:
-    """Record a search lookup for the knowledge base (best-effort, failures logged)."""
+) -> int | None:
+    """Record a search lookup for the knowledge base (best-effort, failures logged).
+
+    Returns:
+        The lookup record ID, or None if recording failed.
+    """
     try:
         repo = LookupRecordRepository(session=db)
         query_hash = compute_query_hash(query)
@@ -95,7 +99,7 @@ async def _record_lookup(
         existing = await repo.find_by_query_hash(query_hash)
         if existing:
             await repo.touch_updated_at(existing.id)
-            return
+            return existing.id
 
         # Detect query language
         query_language = _detect_query_language(query)
@@ -109,7 +113,8 @@ async def _record_lookup(
             confidence_score=confidence_score,
             search_method=search_method,
         )
-        await repo.create(record)
+        created = await repo.create(record)
+        return created.id
     except Exception as e:
         logger.warning(
             "Failed to record lookup",
@@ -120,6 +125,7 @@ async def _record_lookup(
             },
             exc_info=True,
         )
+        return None
 
 
 @router.post(
@@ -294,13 +300,14 @@ async def search_hs_codes(
                     )
 
                     # Record lookup with search_method="knowledge_base"
-                    await _record_lookup(
+                    lookup_id = await _record_lookup(
                         db=db,
                         query=body.query,
                         matched_hs_code_id=hs_code_obj.id,
                         confidence_score=kb_result.confidence,
                         search_method="knowledge_base",
                     )
+                    response_data.lookup_id = lookup_id
 
                     return success_response(response_data.model_dump())
                 else:
@@ -392,13 +399,14 @@ async def search_hs_codes(
                     )
 
                     # Record lookup for knowledge base
-                    await _record_lookup(
+                    lookup_id = await _record_lookup(
                         db=db,
                         query=body.query,
                         matched_hs_code_id=hs_code_obj.id,
                         confidence_score=best_cached.confidence,
                         search_method="exact" if best_cached.is_exact_match else "vector",
                     )
+                    response_data.lookup_id = lookup_id
 
                     return success_response(response_data.model_dump())
         else:
@@ -460,6 +468,7 @@ async def search_hs_codes(
             add_log("complete", "failed", "Search completed with no results")
 
             # Record lookup even for no-results (valuable for KB)
+            # No lookup_id returned in error responses
             await _record_lookup(
                 db=db,
                 query=body.query,
@@ -605,13 +614,14 @@ async def search_hs_codes(
         hs_code_id = None
         if best_result.hs_code_full and hasattr(best_result.hs_code_full, "id"):
             hs_code_id = best_result.hs_code_full.id
-        await _record_lookup(
+        lookup_id = await _record_lookup(
             db=db,
             query=body.query,
             matched_hs_code_id=hs_code_id,
             confidence_score=best_result.confidence,
             search_method="exact" if best_result.is_exact_match else "vector",
         )
+        response_data.lookup_id = lookup_id
 
         return success_response(response_data.model_dump())
 

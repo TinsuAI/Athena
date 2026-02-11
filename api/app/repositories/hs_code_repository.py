@@ -1,6 +1,6 @@
 """Repository for HS code data access."""
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -44,6 +44,31 @@ class HSCodeRepository:
             .limit(limit)
             .offset(offset)
             .order_by(HSCode.code)
+        )
+        return list(result.scalars().all())
+
+    async def autocomplete(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> list[HSCode]:
+        """Search HS codes by code prefix or description substring.
+
+        Matches against code prefix (digits only) or Vietnamese/English descriptions.
+        """
+        # Strip dots for code prefix search
+        code_query = query.replace(".", "")
+        result = await self.session.execute(
+            select(HSCode)
+            .where(
+                or_(
+                    HSCode.code.startswith(code_query),
+                    HSCode.description_vn.ilike(f"%{query}%"),
+                    HSCode.description_en.ilike(f"%{query}%"),
+                )
+            )
+            .order_by(HSCode.code)
+            .limit(limit)
         )
         return list(result.scalars().all())
 
