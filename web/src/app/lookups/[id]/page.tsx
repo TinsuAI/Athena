@@ -11,14 +11,14 @@ import type { LookupDetail } from "@/types/lookup";
 function ConfidenceBadge({ score }: { score: number | null }) {
   if (score === null) return null;
   const rounded = Math.round(score);
-  let colorClass = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+  let colorClass = "bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-900/20 dark:text-red-300 dark:ring-red-800";
   if (rounded >= 80) {
-    colorClass = "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+    colorClass = "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-800";
   } else if (rounded >= 50) {
-    colorClass = "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
+    colorClass = "bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-800";
   }
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${colorClass}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${colorClass}`}>
       {rounded}%
     </span>
   );
@@ -27,17 +27,36 @@ function ConfidenceBadge({ score }: { score: number | null }) {
 function LanguageBadge({ lang }: { lang: string | null }) {
   if (!lang) return null;
   return (
-    <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2.5 py-0.5 text-xs font-medium">
+    <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:ring-blue-800 px-3 py-1 text-xs font-semibold tracking-wide">
       {lang.toUpperCase()}
     </span>
   );
 }
 
 function StatusIcon({ status }: { status: string }) {
-  if (status === "completed") return <span className="text-green-600">&#10003;</span>;
-  if (status === "failed") return <span className="text-red-600">&#10007;</span>;
-  if (status === "skipped") return <span className="text-gray-400">&#8212;</span>;
-  return <span className="text-blue-500">&#9679;</span>;
+  if (status === "completed")
+    return (
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+      </span>
+    );
+  if (status === "failed")
+    return (
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </span>
+    );
+  if (status === "skipped")
+    return (
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>
+      </span>
+    );
+  return (
+    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400">
+      <span className="h-2 w-2 rounded-full bg-current" />
+    </span>
+  );
 }
 
 export default function LookupDetailPage() {
@@ -90,9 +109,9 @@ export default function LookupDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto max-w-4xl px-4 py-8">
-        <div className="flex items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+      <div className="mx-auto max-w-4xl px-6 py-10">
+        <div className="flex items-center justify-center py-16">
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-emerald-200 border-t-emerald-600 dark:border-emerald-800 dark:border-t-emerald-400" />
         </div>
       </div>
     );
@@ -100,14 +119,14 @@ export default function LookupDetailPage() {
 
   if (error || !lookup) {
     return (
-      <div className="container mx-auto max-w-4xl px-4 py-8">
-        <div className="rounded-lg border bg-card p-8 text-center">
+      <div className="mx-auto max-w-4xl px-6 py-10">
+        <div className="rounded-xl border border-border bg-card p-10 text-center shadow-sm">
           <p className="text-lg text-muted-foreground">
             {error || "Không tìm thấy bản ghi tra cứu"}
           </p>
           <Link
             href="/lookups"
-            className="mt-4 inline-block text-sm text-primary hover:underline"
+            className="mt-4 inline-block text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
           >
             Quay lại danh sách
           </Link>
@@ -117,34 +136,34 @@ export default function LookupDetailPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-4xl px-6 py-10">
       {/* Refetching indicator */}
       {isRefetching && (
-        <div className="fixed top-4 right-4 rounded-lg border bg-card px-4 py-2 shadow-lg flex items-center gap-2">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
-          <span className="text-sm text-muted-foreground">Đang tải lại...</span>
+        <div className="fixed top-4 right-4 z-50 rounded-xl border border-border bg-card px-4 py-2.5 shadow-md flex items-center gap-2.5">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600 dark:border-emerald-800 dark:border-t-emerald-400" />
+          <span className="text-sm font-medium text-muted-foreground">Đang tải lại...</span>
         </div>
       )}
 
       {/* Breadcrumb */}
-      <nav className="mb-6 text-sm text-muted-foreground" aria-label="Breadcrumb">
-        <Link href="/lookups" className="hover:text-foreground transition-colors">
+      <nav className="mb-8 flex items-center gap-2 text-sm" aria-label="Breadcrumb">
+        <Link href="/lookups" className="font-medium text-emerald-600 hover:text-emerald-700 transition-colors dark:text-emerald-400 dark:hover:text-emerald-300">
           Tra cứu
         </Link>
-        <span className="mx-2" aria-hidden="true">&gt;</span>
-        <span className="text-foreground">Chi tiết #{lookup.id}</span>
+        <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">/</span>
+        <span className="font-medium text-foreground">Chi tiết #{lookup.id}</span>
       </nav>
 
       {/* Query Section */}
-      <div className="mb-6 rounded-lg border bg-card p-6">
-        <h2 className="text-sm font-medium text-muted-foreground mb-3">
+      <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
           Truy vấn tìm kiếm
         </h2>
-        <div className="flex items-start gap-3">
-          <blockquote className="flex-1 border-l-4 border-primary/30 pl-4 text-lg italic">
+        <div className="flex items-start gap-4">
+          <blockquote className="flex-1 border-l-4 border-emerald-500 pl-5 text-lg italic text-foreground dark:border-emerald-400">
             {lookup.query_text}
           </blockquote>
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-2.5">
             <LanguageBadge lang={lookup.query_language} />
             <span className="text-xs text-muted-foreground">
               {new Date(lookup.created_at).toLocaleDateString("vi-VN", {
@@ -161,17 +180,17 @@ export default function LookupDetailPage() {
 
       {/* Matched Result Section */}
       {lookup.matched_hs_code && (
-        <div className="mb-6 rounded-lg border bg-card p-6">
-          <h2 className="text-sm font-medium text-muted-foreground mb-3">
+        <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+          <h2 className="mb-4 text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
             Kết quả phù hợp
           </h2>
           <div className="flex items-start justify-between">
             <div>
-              <p className="font-mono text-2xl font-bold text-primary">
+              <p className="font-mono text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
                 {lookup.matched_hs_code.code}
               </p>
               {lookup.matched_hs_code.description_vn && (
-                <p className="mt-1 text-sm">{lookup.matched_hs_code.description_vn}</p>
+                <p className="mt-1.5 text-sm font-medium text-foreground">{lookup.matched_hs_code.description_vn}</p>
               )}
               {lookup.matched_hs_code.description_en && (
                 <p className="mt-0.5 text-sm text-muted-foreground">
@@ -179,25 +198,25 @@ export default function LookupDetailPage() {
                 </p>
               )}
             </div>
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-col items-end gap-2.5">
               <ConfidenceBadge score={lookup.confidence_score} />
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                 {lookup.search_method}
               </span>
             </div>
           </div>
-          <div className="mt-4 flex gap-6 text-sm">
+          <div className="mt-5 flex gap-4 text-sm">
             {lookup.matched_hs_code.duty_rate && (
-              <div>
-                <span className="text-muted-foreground">Thuế NK:</span>{" "}
-                <span className="font-medium">{lookup.matched_hs_code.duty_rate}</span>
-              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 font-mono text-xs font-semibold text-blue-700 ring-1 ring-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:ring-blue-800">
+                <span className="font-sans font-medium opacity-70">NK</span>
+                {lookup.matched_hs_code.duty_rate}
+              </span>
             )}
             {lookup.matched_hs_code.vat_rate && (
-              <div>
-                <span className="text-muted-foreground">VAT:</span>{" "}
-                <span className="font-medium">{lookup.matched_hs_code.vat_rate}</span>
-              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 font-mono text-xs font-semibold text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-800">
+                <span className="font-sans font-medium opacity-70">VAT</span>
+                {lookup.matched_hs_code.vat_rate}
+              </span>
             )}
           </div>
         </div>
@@ -205,22 +224,22 @@ export default function LookupDetailPage() {
 
       {/* Classification Reasoning Section */}
       {lookup.classification_data && (
-        <div className="mb-6 rounded-lg border bg-card p-6">
-          <h2 className="text-sm font-medium text-muted-foreground mb-3">
+        <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+          <h2 className="mb-5 text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
             Phân tích phân loại
           </h2>
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-1">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-lg border border-border bg-secondary/50 p-4 dark:bg-muted/30">
+              <h3 className="mb-2 text-[10px] font-bold uppercase tracking-[0.8px] text-muted-foreground">
                 Chất liệu
               </h3>
-              <p className="text-sm">{lookup.classification_data.material}</p>
+              <p className="text-sm font-medium text-foreground">{lookup.classification_data.material}</p>
             </div>
-            <div>
-              <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-1">
+            <div className="rounded-lg border border-border bg-secondary/50 p-4 dark:bg-muted/30">
+              <h3 className="mb-2 text-[10px] font-bold uppercase tracking-[0.8px] text-muted-foreground">
                 Công dụng
               </h3>
-              <p className="text-sm">{lookup.classification_data.function}</p>
+              <p className="text-sm font-medium text-foreground">{lookup.classification_data.function}</p>
             </div>
           </div>
         </div>
@@ -228,13 +247,16 @@ export default function LookupDetailPage() {
 
       {/* Practical Notes Section */}
       {lookup.practical_notes && lookup.practical_notes.length > 0 && (
-        <div className="mb-6 rounded-lg border bg-card p-6">
-          <h2 className="text-sm font-medium text-muted-foreground mb-3">
+        <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+          <h2 className="mb-4 text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
             Ghi chú thực tế
           </h2>
-          <ul className="list-disc list-inside space-y-1 text-sm">
+          <ul className="space-y-2">
             {lookup.practical_notes.map((note, i) => (
-              <li key={i}>{note}</li>
+              <li key={i} className="flex items-start gap-2.5 text-sm">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                <span className="text-foreground">{note}</span>
+              </li>
             ))}
           </ul>
         </div>
@@ -242,31 +264,45 @@ export default function LookupDetailPage() {
 
       {/* Process Log Section */}
       {lookup.process_logs && lookup.process_logs.length > 0 && (
-        <div className="mb-6 rounded-lg border bg-card p-6">
+        <div className="mb-6 rounded-xl border border-border bg-card shadow-sm">
           <button
             type="button"
             onClick={() => setShowProcessLogs(!showProcessLogs)}
-            className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground"
+            className="flex w-full items-center justify-between p-6 text-left"
             aria-expanded={showProcessLogs}
             aria-label={`Nhật ký xử lý, ${lookup.process_logs.length} bước, ${showProcessLogs ? "thu gọn" : "mở rộng"}`}
           >
-            <span>Nhật ký xử lý ({lookup.process_logs.length} bước)</span>
-            <span className="text-xs" aria-hidden="true">{showProcessLogs ? "Thu gọn" : "Mở rộng"}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
+                Nhật ký xử lý
+              </span>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                {lookup.process_logs.length} bước
+              </span>
+            </div>
+            <svg
+              className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${showProcessLogs ? "rotate-180" : ""}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
           </button>
           {showProcessLogs && (
-            <div className="mt-4 space-y-2">
+            <div className="border-t border-border">
               {lookup.process_logs.map((log, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm"
+                  className={`flex items-center gap-3 px-6 py-3 text-sm ${
+                    i % 2 === 0 ? "bg-slate-50/50 dark:bg-muted/20" : ""
+                  } ${i < (lookup.process_logs?.length ?? 0) - 1 ? "border-b border-border/50" : ""}`}
                 >
                   <StatusIcon status={log.status} />
-                  <span className="font-medium min-w-[120px]">{log.step}</span>
-                  <span className="flex-1 text-muted-foreground truncate">
+                  <span className="min-w-[120px] font-semibold text-foreground">{log.step}</span>
+                  <span className="flex-1 truncate text-muted-foreground">
                     {log.message}
                   </span>
                   {typeof log.duration_ms === "number" && (
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
                       {log.duration_ms}ms
                     </span>
                   )}
@@ -278,21 +314,22 @@ export default function LookupDetailPage() {
       )}
 
       {/* Correction Section */}
-      <div className="mb-6 rounded-lg border bg-card p-6">
-        <h2 className="text-sm font-medium text-muted-foreground mb-3">
+      <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
           Hiệu chỉnh
         </h2>
         {lookup.is_verified && lookup.correct_hs_code ? (
           <div>
-            <span className="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-3 py-1 text-sm font-medium mb-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-800 px-3 py-1 text-sm font-semibold mb-4">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
               Đã hiệu chỉnh
             </span>
-            <div className="mt-2 rounded-md bg-muted/50 p-4">
-              <p className="font-mono text-lg font-bold text-primary">
+            <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/50 p-5 dark:border-emerald-800 dark:bg-emerald-900/10">
+              <p className="font-mono text-lg font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
                 {lookup.correct_hs_code.code}
               </p>
               {lookup.correct_hs_code.description_vn && (
-                <p className="mt-1 text-sm">
+                <p className="mt-1.5 text-sm font-medium text-foreground">
                   {lookup.correct_hs_code.description_vn}
                 </p>
               )}
@@ -301,22 +338,22 @@ export default function LookupDetailPage() {
                   {lookup.correct_hs_code.description_en}
                 </p>
               )}
-              <div className="mt-3 flex gap-6 text-sm">
+              <div className="mt-4 flex gap-3 text-sm">
                 {lookup.correct_hs_code.duty_rate && (
-                  <div>
-                    <span className="text-muted-foreground">Thuế NK:</span>{" "}
-                    <span className="font-medium">{lookup.correct_hs_code.duty_rate}</span>
-                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 font-mono text-xs font-semibold text-blue-700 ring-1 ring-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:ring-blue-800">
+                    <span className="font-sans font-medium opacity-70">NK</span>
+                    {lookup.correct_hs_code.duty_rate}
+                  </span>
                 )}
                 {lookup.correct_hs_code.vat_rate && (
-                  <div>
-                    <span className="text-muted-foreground">VAT:</span>{" "}
-                    <span className="font-medium">{lookup.correct_hs_code.vat_rate}</span>
-                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 font-mono text-xs font-semibold text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-800">
+                    <span className="font-sans font-medium opacity-70">VAT</span>
+                    {lookup.correct_hs_code.vat_rate}
+                  </span>
                 )}
               </div>
               {lookup.verified_at && (
-                <p className="mt-3 text-xs text-muted-foreground">
+                <p className="mt-4 text-xs text-muted-foreground">
                   Ngày xác minh:{" "}
                   {new Date(lookup.verified_at).toLocaleDateString("vi-VN", {
                     year: "numeric",

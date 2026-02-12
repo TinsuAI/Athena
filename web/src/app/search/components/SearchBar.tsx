@@ -2,8 +2,6 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { Search, X, Loader2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface SearchBarProps {
@@ -33,17 +31,14 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
   ) {
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Expose the input ref to parent components
     useImperativeHandle(ref, () => inputRef.current!, []);
 
-    // Auto-focus on mount
     useEffect(() => {
       if (autoFocus && inputRef.current) {
         inputRef.current.focus();
       }
     }, [autoFocus]);
 
-    // Handle keyboard events
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
         onClear();
@@ -66,48 +61,42 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
     };
 
     return (
-      <div className={cn("flex gap-2", className)}>
+      <div className={cn("flex gap-3", className)}>
         <div className="relative flex-1">
-          {/* Search icon */}
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            <Search className="h-5 w-5" aria-hidden="true" />
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+            <Search className="h-[18px] w-[18px]" aria-hidden="true" />
           </div>
 
-          {/* Search input */}
-          <Input
+          <input
             ref={inputRef}
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="h-12 pl-10 pr-10 text-base md:text-lg"
+            className="w-full h-12 pl-11 pr-10 text-[15px] font-medium bg-white border-[1.5px] border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 placeholder:font-normal transition-all duration-200 outline-none focus:border-emerald-500 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.1)]"
             aria-label="Search HS codes"
             data-testid="search-input"
           />
 
-          {/* Clear button - only visible when there's text */}
           {value && (
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
               onClick={handleClearClick}
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
               aria-label="Clear search"
               data-testid="clear-button"
             >
               <X className="h-4 w-4" />
-            </Button>
+            </button>
           )}
         </div>
 
-        {/* Search button */}
-        <Button
+        <button
           type="button"
           onClick={handleSearchClick}
           disabled={!value.trim() || isLoading}
-          className="h-12 px-6"
+          className="h-12 px-7 bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-semibold rounded-lg transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md active:scale-[0.98]"
           data-testid="search-button"
         >
           {isLoading ? (
@@ -119,7 +108,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           ) : (
             "Search"
           )}
-        </Button>
+        </button>
       </div>
     );
   }

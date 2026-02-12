@@ -198,7 +198,7 @@ export function ModelSelect({ value, onChange, placeholder = "Search models..." 
         onFocus={handleFocus}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full px-3 py-2 border rounded-md bg-background text-sm pr-8"
+        className="w-full px-3 py-2.5 border-[1.5px] border-slate-200 rounded-lg bg-white text-[13px] font-medium text-slate-900 pr-8 outline-none transition-all duration-200 focus:border-emerald-500 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.1)]"
       />
       {/* Dropdown arrow / loading indicator */}
       <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
@@ -218,7 +218,7 @@ export function ModelSelect({ value, onChange, placeholder = "Search models..." 
       {isOpen && (filteredModels.length > 0 || isCustomModel) && (
         <div
           ref={dropdownRef}
-          className="absolute z-50 w-full mt-1 py-1 bg-popover border rounded-md shadow-lg max-h-72 overflow-y-auto"
+          className="absolute z-50 w-full mt-1 py-1 bg-white border border-slate-200 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.06)] max-h-72 overflow-y-auto"
         >
           {filteredModels.map((model, index) => (
             <button
@@ -226,10 +226,10 @@ export function ModelSelect({ value, onChange, placeholder = "Search models..." 
               type="button"
               onClick={() => handleSelect(model.value)}
               onMouseEnter={() => setHighlightedIndex(index)}
-              className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+              className={`w-full px-3 py-2 text-left text-[13px] transition-colors duration-150 ${
                 highlightedIndex === index
-                  ? "bg-accent text-accent-foreground"
-                  : "hover:bg-accent/50"
+                  ? "bg-emerald-50 text-emerald-900"
+                  : "hover:bg-slate-50"
               } ${value === model.value ? "font-medium" : ""}`}
             >
               <div className="flex items-center justify-between">
@@ -244,7 +244,7 @@ export function ModelSelect({ value, onChange, placeholder = "Search models..." 
                     </span>
                   )}
                   {value === model.value && (
-                    <span className="text-primary">✓</span>
+                    <span className="text-emerald-600 font-bold">✓</span>
                   )}
                 </div>
               </div>
@@ -261,10 +261,10 @@ export function ModelSelect({ value, onChange, placeholder = "Search models..." 
                 type="button"
                 onClick={() => handleSelect(searchQuery.trim())}
                 onMouseEnter={() => setHighlightedIndex(filteredModels.length)}
-                className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+                className={`w-full px-3 py-2 text-left text-[13px] transition-colors duration-150 ${
                   highlightedIndex === filteredModels.length
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent/50"
+                    ? "bg-emerald-50 text-emerald-900"
+                    : "hover:bg-slate-50"
                 }`}
               >
                 <span className="text-muted-foreground">Use custom: </span>

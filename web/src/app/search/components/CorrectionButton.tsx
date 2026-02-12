@@ -18,7 +18,7 @@ export function CorrectionButton({
       type="button"
       onClick={onCorrect}
       disabled={!lookupId}
-      className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      className="text-[12.5px] font-medium text-slate-400 hover:text-emerald-600 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
       title={
         lookupId
           ? `Đề xuất sửa đổi cho ${matchedHsCode}`

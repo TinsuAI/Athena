@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tariff Schedule Browser — Minimal Zen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ═══════════════════════════════════════════
+     RESET & FOUNDATION
+     ═══════════════════════════════════════════ */
+  *, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  :root {
+    --white: #ffffff;
+    --snow: #fafafa;
+    --silk: #f5f5f5;
+    --mist: #ebebeb;
+    --silver: #d4d4d4;
+    --stone: #a3a3a3;
+    --ash: #737373;
+    --slate: #525252;
+    --charcoal: #333333;
+    --ink: #171717;
+    --amber: #d97706;
+    --amber-light: #fef3c7;
+    --amber-soft: rgba(217, 119, 6, 0.08);
+
+    --font-serif: 'Cormorant Garamond', 'Georgia', serif;
+    --font-sans: 'Inter', -apple-system, sans-serif;
+
+    --sidebar-width: 320px;
+    --header-height: 88px;
+  }
+
+  html {
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--charcoal);
+    background: var(--white);
+    line-height: 1.65;
+    letter-spacing: -0.01em;
+  }
+
+  /* ═══════════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════════ */
+  .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    height: var(--header-height);
+    background: var(--white);
+    border-bottom: 1px solid var(--mist);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+  }
+
+  .header-title {
+    font-family: var(--font-serif);
+    font-size: 1.65rem;
+    font-weight: 400;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .header-subtitle {
+    font-size: 0.8rem;
+    color: var(--stone);
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+
+  .jump-btn {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--ash);
+    background: none;
+    border: 1px solid var(--mist);
+    padding: 7px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.2s ease, border-color 0.2s ease;
+    letter-spacing: 0.02em;
+  }
+
+  .jump-btn:hover {
+    color: var(--charcoal);
+    border-color: var(--silver);
+  }
+
+  .jump-btn svg {
+    width: 10px;
+    height: 10px;
+    opacity: 0.5;
+  }
+
+  /* ═══════════════════════════════════════════
+     LAYOUT
+     ═══════════════════════════════════════════ */
+  .layout {
+    display: flex;
+    margin-top: var(--header-height);
+    min-height: calc(100vh - var(--header-height));
+  }
+
+  /* ═══════════════════════════════════════════
+     SIDEBAR
+     ═══════════════════════════════════════════ */
+  .sidebar {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    border-right: 1px solid var(--mist);
+    background: var(--white);
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    bottom: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    width: 0;
+  }
+
+  .search-area {
+    padding: 28px 28px 0;
+  }
+
+  .search-label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--stone);
+    margin-bottom: 16px;
+  }
+
+  .search-field {
+    position: relative;
+    margin-bottom: 16px;
+  }
+
+  .search-field svg {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    color: var(--silver);
+  }
+
+  .search-field input {
+    width: 100%;
+    font-family: var(--font-sans);
+    font-size: 0.87rem;
+    color: var(--charcoal);
+    border: none;
+    border-bottom: 1px solid var(--mist);
+    padding: 8px 0 8px 26px;
+    background: transparent;
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .search-field input::placeholder {
+    color: var(--silver);
+    font-weight: 300;
+  }
+
+  .search-field input:focus {
+    border-bottom-color: var(--amber);
+  }
+
+  .search-field input[value] {
+    border-bottom-color: var(--silver);
+  }
+
+  .search-meta {
+    font-size: 0.72rem;
+    color: var(--stone);
+    margin-top: 4px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--silk);
+  }
+
+  .search-meta strong {
+    font-weight: 500;
+    color: var(--ash);
+  }
+
+  /* Search Results */
+  .search-results {
+    flex: 1;
+    padding: 0 28px;
+  }
+
+  .result-item {
+    padding: 18px 0;
+    border-bottom: 1px solid var(--silk);
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .result-item:last-child {
+    border-bottom: none;
+  }
+
+  .result-item:hover .result-code {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .result-breadcrumb {
+    font-size: 0.68rem;
+    color: var(--stone);
+    letter-spacing: 0.03em;
+    margin-bottom: 6px;
+  }
+
+  .result-code {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--amber);
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+    transition: color 0.15s ease;
+  }
+
+  .result-desc {
+    font-size: 0.82rem;
+    color: var(--slate);
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .result-rates {
+    display: flex;
+    gap: 16px;
+    font-size: 0.7rem;
+    color: var(--stone);
+    letter-spacing: 0.02em;
+  }
+
+  .result-rates span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .result-rates .rate-label {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.6rem;
+    color: var(--silver);
+  }
+
+  .result-rates .rate-value {
+    font-weight: 500;
+    color: var(--ash);
+  }
+
+  /* Pagination */
+  .pagination {
+    padding: 20px 28px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    border-top: 1px solid var(--silk);
+  }
+
+  .pagination a {
+    color: var(--ash);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+
+  .pagination a:hover {
+    color: var(--amber);
+  }
+
+  .pagination .disabled {
+    color: var(--silver);
+    pointer-events: none;
+  }
+
+  .pagination .page-info {
+    color: var(--stone);
+    font-size: 0.7rem;
+  }
+
+  /* ═══════════════════════════════════════════
+     MAIN CONTENT
+     ═══════════════════════════════════════════ */
+  .main {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    padding: 48px 56px 80px;
+    max-width: calc(100vw - var(--sidebar-width));
+  }
+
+  /* ═══════════════════════════════════════════
+     SECTIONS
+     ═══════════════════════════════════════════ */
+  .section-item {
+    margin-bottom: 8px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    padding: 20px 0;
+    cursor: pointer;
+    border-bottom: 1px solid var(--silk);
+    transition: border-color 0.2s ease;
+    position: relative;
+  }
+
+  .section-header:hover {
+    border-bottom-color: var(--silver);
+  }
+
+  .section-header:hover .section-name {
+    color: var(--ink);
+  }
+
+  .section-chevron {
+    width: 10px;
+    height: 10px;
+    color: var(--silver);
+    flex-shrink: 0;
+    transition: transform 0.25s ease, color 0.2s ease;
+    margin-top: 4px;
+  }
+
+  .section-item.expanded > .section-header .section-chevron {
+    transform: rotate(90deg);
+    color: var(--ash);
+  }
+
+  .section-numeral {
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    font-weight: 400;
+    color: var(--stone);
+    min-width: 36px;
+    letter-spacing: 0.02em;
+  }
+
+  .section-name {
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    font-weight: 400;
+    color: var(--charcoal);
+    flex: 1;
+    transition: color 0.15s ease;
+    line-height: 1.4;
+  }
+
+  .section-count {
+    font-size: 0.72rem;
+    color: var(--stone);
+    white-space: nowrap;
+    font-weight: 400;
+  }
+
+  .section-children {
+    display: none;
+    padding-left: 12px;
+  }
+
+  .section-item.expanded > .section-children {
+    display: block;
+  }
+
+  /* ═══════════════════════════════════════════
+     CHAPTERS
+     ═══════════════════════════════════════════ */
+  .chapter-item {
+    margin-left: 24px;
+  }
+
+  .chapter-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px 0;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+
+  .chapter-header:hover .chapter-name {
+    color: var(--ink);
+  }
+
+  .chapter-chevron {
+    width: 8px;
+    height: 8px;
+    color: var(--silver);
+    flex-shrink: 0;
+    transition: transform 0.25s ease, color 0.2s ease;
+    margin-top: 3px;
+  }
+
+  .chapter-item.expanded > .chapter-header .chapter-chevron {
+    transform: rotate(90deg);
+    color: var(--ash);
+  }
+
+  .chapter-code {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--amber);
+    letter-spacing: 0.03em;
+    min-width: 28px;
+  }
+
+  .chapter-name {
+    font-size: 0.92rem;
+    color: var(--slate);
+    flex: 1;
+    transition: color 0.15s ease;
+    font-weight: 400;
+  }
+
+  .chapter-count {
+    font-size: 0.68rem;
+    color: var(--stone);
+    white-space: nowrap;
+  }
+
+  .chapter-children {
+    display: none;
+    padding-left: 16px;
+  }
+
+  .chapter-item.expanded > .chapter-children {
+    display: block;
+  }
+
+  /* ═══════════════════════════════════════════
+     HEADINGS
+     ═══════════════════════════════════════════ */
+  .heading-item {
+    margin-left: 28px;
+    margin-top: 6px;
+  }
+
+  .heading-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 10px 0 6px;
+  }
+
+  .heading-code {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ash);
+    letter-spacing: 0.02em;
+    min-width: 42px;
+  }
+
+  .heading-name {
+    font-family: var(--font-serif);
+    font-size: 1.02rem;
+    font-weight: 500;
+    color: var(--charcoal);
+    font-style: italic;
+  }
+
+  /* ═══════════════════════════════════════════
+     SUBHEADINGS
+     ═══════════════════════════════════════════ */
+  .subheading-item {
+    margin-left: 36px;
+    margin-top: 2px;
+  }
+
+  .subheading-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 6px 0 4px;
+  }
+
+  .subheading-code {
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: var(--ash);
+    letter-spacing: 0.02em;
+    min-width: 54px;
+  }
+
+  .subheading-name {
+    font-size: 0.85rem;
+    color: var(--slate);
+    font-weight: 400;
+  }
+
+  /* ═══════════════════════════════════════════
+     HS CODE ROWS
+     ═══════════════════════════════════════════ */
+  .hs-codes-area {
+    margin-left: 44px;
+  }
+
+  .rate-header-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 0 6px;
+    margin-bottom: 2px;
+  }
+
+  .rate-header-row .code-col {
+    flex: 0 0 110px;
+  }
+
+  .rate-header-row .desc-col {
+    flex: 1;
+  }
+
+  .rate-header-row .rate-col {
+    flex: 0 0 72px;
+    text-align: right;
+    font-size: 0.58rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--stone);
+  }
+
+  .hs-row {
+    display: flex;
+    align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+
+  .hs-row:hover {
+    border-bottom-color: var(--mist);
+  }
+
+  .hs-row:hover .hs-code-num {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .hs-row .code-col {
+    flex: 0 0 110px;
+  }
+
+  .hs-code-num {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--amber);
+    letter-spacing: 0.03em;
+    transition: color 0.15s ease;
+  }
+
+  .hs-row .desc-col {
+    flex: 1;
+    font-size: 0.84rem;
+    color: var(--slate);
+    padding-right: 16px;
+  }
+
+  .hs-row .rate-col {
+    flex: 0 0 72px;
+    text-align: right;
+    font-size: 0.8rem;
+    color: var(--ash);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hs-row .rate-col.dash {
+    color: var(--silver);
+  }
+
+  /* ═══════════════════════════════════════════
+     HS CODE DETAIL PANEL
+     ═══════════════════════════════════════════ */
+  .hs-detail {
+    margin-left: 0;
+    padding: 24px 0 24px 24px;
+    border-left: 2px solid var(--amber);
+    margin-top: 4px;
+    margin-bottom: 12px;
+    animation: detailFadeIn 0.3s ease;
+  }
+
+  @keyframes detailFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 20px;
+    margin-bottom: 24px;
+  }
+
+  .detail-label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--stone);
+    padding-top: 2px;
+  }
+
+  .detail-value {
+    font-size: 0.85rem;
+    color: var(--charcoal);
+    line-height: 1.6;
+  }
+
+  .detail-value.en {
+    font-style: italic;
+    color: var(--slate);
+  }
+
+  .fta-section-title {
+    font-size: 0.65rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--stone);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--silk);
+  }
+
+  .fta-table {
+    width: 100%;
+    max-width: 620px;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  .fta-table thead th {
+    font-size: 0.6rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--stone);
+    text-align: left;
+    padding: 0 0 10px 0;
+    border-bottom: 1px solid var(--mist);
+  }
+
+  .fta-table thead th:not(:first-child) {
+    padding-left: 20px;
+  }
+
+  .fta-table tbody td {
+    padding: 10px 0;
+    color: var(--slate);
+    border-bottom: 1px solid var(--silk);
+    vertical-align: top;
+  }
+
+  .fta-table tbody td:not(:first-child) {
+    padding-left: 20px;
+  }
+
+  .fta-table tbody td:first-child {
+    font-weight: 500;
+    color: var(--charcoal);
+    letter-spacing: 0.02em;
+  }
+
+  .fta-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .hs-row.active {
+    border-bottom-color: var(--mist);
+  }
+
+  .hs-row.active .hs-code-num {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* ═══════════════════════════════════════════
+     ANIMATIONS & MICRO-INTERACTIONS
+     ═══════════════════════════════════════════ */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .section-item {
+    animation: fadeInUp 0.4s ease both;
+  }
+
+  .section-item:nth-child(1) { animation-delay: 0.05s; }
+  .section-item:nth-child(2) { animation-delay: 0.1s; }
+  .section-item:nth-child(3) { animation-delay: 0.15s; }
+  .section-item:nth-child(4) { animation-delay: 0.2s; }
+
+  .result-item {
+    animation: fadeInUp 0.35s ease both;
+  }
+
+  .result-item:nth-child(1) { animation-delay: 0.05s; }
+  .result-item:nth-child(2) { animation-delay: 0.1s; }
+  .result-item:nth-child(3) { animation-delay: 0.15s; }
+
+  /* ═══════════════════════════════════════════
+     SCROLLBAR
+     ═══════════════════════════════════════════ */
+  .main::-webkit-scrollbar,
+  .sidebar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .main::-webkit-scrollbar-track,
+  .sidebar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .main::-webkit-scrollbar-thumb,
+  .sidebar::-webkit-scrollbar-thumb {
+    background: var(--mist);
+  }
+
+  .main::-webkit-scrollbar-thumb:hover,
+  .sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--silver);
+  }
+
+  /* ═══════════════════════════════════════════
+     RESPONSIVE FINE-TUNING
+     ═══════════════════════════════════════════ */
+  @media (max-width: 1200px) {
+    .sidebar {
+      width: 280px;
+      min-width: 280px;
+    }
+    .main {
+      margin-left: 280px;
+      padding: 36px 40px 60px;
+    }
+    :root {
+      --sidebar-width: 280px;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ════════════════════════════════════════
+       HEADER
+       ════════════════════════════════════════ -->
+  <header class="header">
+    <div class="header-left">
+      <h1 class="header-title">Tariff Schedule Browser</h1>
+      <span class="header-subtitle">Browse the Vietnamese Harmonized System tariff schedule</span>
+    </div>
+    <button class="jump-btn">
+      Jump to chapter
+      <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 4l2 2 2-2"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="layout">
+
+    <!-- ════════════════════════════════════════
+         SIDEBAR — SEARCH
+         ════════════════════════════════════════ -->
+    <aside class="sidebar">
+      <div class="search-area">
+        <div class="search-label">Search</div>
+
+        <div class="search-field">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="6.5" cy="6.5" r="5"/>
+            <path d="M10.5 10.5L14.5 14.5"/>
+          </svg>
+          <input type="text" placeholder="Search HS codes or descriptions..." value="ngựa">
+        </div>
+
+        <div class="search-field">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="3" width="12" height="10" rx="1"/>
+            <path d="M5 1v4M11 1v4"/>
+          </svg>
+          <input type="text" placeholder="Filter by chapter...">
+        </div>
+
+        <div class="search-meta">
+          <strong>3</strong> results for "<strong>ngựa</strong>"
+        </div>
+      </div>
+
+      <div class="search-results">
+        <!-- Result 1 -->
+        <div class="result-item">
+          <div class="result-breadcrumb">I &rsaquo; Ch.01 &rsaquo; 01.01</div>
+          <div class="result-code">0101.21.00</div>
+          <div class="result-desc">Ngựa thuần chủng để nhân giống</div>
+          <div class="result-rates">
+            <span><span class="rate-label">Import</span> <span class="rate-value">0%</span></span>
+            <span><span class="rate-label">VAT</span> <span class="rate-value">10%</span></span>
+          </div>
+        </div>
+
+        <!-- Result 2 -->
+        <div class="result-item">
+          <div class="result-breadcrumb">I &rsaquo; Ch.01 &rsaquo; 01.01</div>
+          <div class="result-code">0101.29.10</div>
+          <div class="result-desc">Ngựa để đua</div>
+          <div class="result-rates">
+            <span><span class="rate-label">Import</span> <span class="rate-value">5%</span></span>
+            <span><span class="rate-label">VAT</span> <span class="rate-value">10%</span></span>
+          </div>
+        </div>
+
+        <!-- Result 3 -->
+        <div class="result-item">
+          <div class="result-breadcrumb">I &rsaquo; Ch.01 &rsaquo; 01.02</div>
+          <div class="result-code">0102.21.00</div>
+          <div class="result-desc">Trâu, bò thuần chủng để nhân giống</div>
+          <div class="result-rates">
+            <span><span class="rate-label">Import</span> <span class="rate-value">0%</span></span>
+            <span><span class="rate-label">VAT</span> <span class="rate-value">5%</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pagination">
+        <a class="disabled">&larr; Previous</a>
+        <span class="page-info">1 of 1</span>
+        <a class="disabled">Next &rarr;</a>
+      </div>
+    </aside>
+
+    <!-- ════════════════════════════════════════
+         MAIN CONTENT — TREE BROWSER
+         ════════════════════════════════════════ -->
+    <main class="main">
+
+      <!-- ──── SECTION I (EXPANDED) ──── -->
+      <div class="section-item expanded">
+        <div class="section-header">
+          <svg class="section-chevron" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M3.5 1.5l3.5 3.5-3.5 3.5"/>
+          </svg>
+          <span class="section-numeral">I</span>
+          <span class="section-name">Động vật sống; sản phẩm từ động vật</span>
+          <span class="section-count">5 chapters</span>
+        </div>
+
+        <div class="section-children">
+
+          <!-- Chapter 01 (EXPANDED) -->
+          <div class="chapter-item expanded">
+            <div class="chapter-header">
+              <svg class="chapter-chevron" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M3.5 1.5l3.5 3.5-3.5 3.5"/>
+              </svg>
+              <span class="chapter-code">01</span>
+              <span class="chapter-name">Động vật sống</span>
+              <span class="chapter-count">52 codes</span>
+            </div>
+
+            <div class="chapter-children">
+
+              <!-- Heading 01.01 -->
+              <div class="heading-item">
+                <div class="heading-header">
+                  <span class="heading-code">01.01</span>
+                  <span class="heading-name">Ngựa, lừa, la sống</span>
+                </div>
+
+                <!-- Subheading 0101.21 -->
+                <div class="subheading-item">
+                  <div class="subheading-header">
+                    <span class="subheading-code">0101.21</span>
+                    <span class="subheading-name">Ngựa thuần chủng để nhân giống</span>
+                  </div>
+
+                  <div class="hs-codes-area">
+                    <div class="rate-header-row">
+                      <div class="code-col"></div>
+                      <div class="desc-col"></div>
+                      <div class="rate-col">Import</div>
+                      <div class="rate-col">VAT</div>
+                      <div class="rate-col">Export</div>
+                    </div>
+
+                    <!-- HS Code 0101.21.00 — ACTIVE / EXPANDED -->
+                    <div class="hs-row active">
+                      <div class="code-col"><span class="hs-code-num">0101.21.00</span></div>
+                      <div class="desc-col">Ngựa thuần chủng để nhân giống</div>
+                      <div class="rate-col">0%</div>
+                      <div class="rate-col">10%</div>
+                      <div class="rate-col dash">&mdash;</div>
+                    </div>
+
+                    <!-- Detail Panel for 0101.21.00 -->
+                    <div class="hs-detail">
+                      <div class="detail-grid">
+                        <span class="detail-label">English</span>
+                        <span class="detail-value en">Pure-bred breeding horses</span>
+                        <span class="detail-label">Unit</span>
+                        <span class="detail-value">con (head)</span>
+                        <span class="detail-label">HS Code</span>
+                        <span class="detail-value">0101.21.00</span>
+                      </div>
+
+                      <div class="fta-section-title">FTA Preferential Import Rates</div>
+                      <table class="fta-table">
+                        <thead>
+                          <tr>
+                            <th>Agreement</th>
+                            <th>Rate</th>
+                            <th>Conditions</th>
+                            <th>Year</th>
+                            <th>Legal Document</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>ATIGA</td>
+                            <td>0%</td>
+                            <td style="color: var(--silver)">&mdash;</td>
+                            <td>2024</td>
+                            <td>1/2024/TT-BTC</td>
+                          </tr>
+                          <tr>
+                            <td>ACFTA</td>
+                            <td>0%</td>
+                            <td style="color: var(--silver)">&mdash;</td>
+                            <td>2024</td>
+                            <td>2/2024/TT-BTC</td>
+                          </tr>
+                          <tr>
+                            <td>VKFTA</td>
+                            <td>0%</td>
+                            <td>C/O form KV</td>
+                            <td>2024</td>
+                            <td>3/2024/TT-BTC</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Subheading 0101.29 -->
+                <div class="subheading-item">
+                  <div class="subheading-header">
+                    <span class="subheading-code">0101.29</span>
+                    <span class="subheading-name">Loại khác</span>
+                  </div>
+
+                  <div class="hs-codes-area">
+                    <div class="rate-header-row">
+                      <div class="code-col"></div>
+                      <div class="desc-col"></div>
+                      <div class="rate-col">Import</div>
+                      <div class="rate-col">VAT</div>
+                      <div class="rate-col">Export</div>
+                    </div>
+
+                    <div class="hs-row">
+                      <div class="code-col"><span class="hs-code-num">0101.29.10</span></div>
+                      <div class="desc-col">Ngựa để đua</div>
+                      <div class="rate-col">5%</div>
+                      <div class="rate-col">10%</div>
+                      <div class="rate-col dash">&mdash;</div>
+                    </div>
+
+                    <div class="hs-row">
+                      <div class="code-col"><span class="hs-code-num">0101.29.90</span></div>
+                      <div class="desc-col">Loại khác</div>
+                      <div class="rate-col">5%</div>
+                      <div class="rate-col">10%</div>
+                      <div class="rate-col dash">&mdash;</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Heading 01.02 -->
+              <div class="heading-item">
+                <div class="heading-header">
+                  <span class="heading-code">01.02</span>
+                  <span class="heading-name">Động vật sống họ trâu bò</span>
+                </div>
+
+                <!-- Subheading 0102.21 -->
+                <div class="subheading-item">
+                  <div class="subheading-header">
+                    <span class="subheading-code">0102.21</span>
+                    <span class="subheading-name">Trâu, bò thuần chủng để nhân giống</span>
+                  </div>
+
+                  <div class="hs-codes-area">
+                    <div class="rate-header-row">
+                      <div class="code-col"></div>
+                      <div class="desc-col"></div>
+                      <div class="rate-col">Import</div>
+                      <div class="rate-col">VAT</div>
+                      <div class="rate-col">Export</div>
+                    </div>
+
+                    <div class="hs-row">
+                      <div class="code-col"><span class="hs-code-num">0102.21.00</span></div>
+                      <div class="desc-col">Trâu, bò thuần chủng để nhân giống</div>
+                      <div class="rate-col">0%</div>
+                      <div class="rate-col">5%</div>
+                      <div class="rate-col dash">&mdash;</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Chapter 02 (collapsed) -->
+          <div class="chapter-item">
+            <div class="chapter-header">
+              <svg class="chapter-chevron" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M3.5 1.5l3.5 3.5-3.5 3.5"/>
+              </svg>
+              <span class="chapter-code">02</span>
+              <span class="chapter-name">Thịt và phụ phẩm dạng thịt ăn được sau giết mổ</span>
+              <span class="chapter-count">87 codes</span>
+            </div>
+          </div>
+
+          <!-- Chapter 03 (collapsed) -->
+          <div class="chapter-item">
+            <div class="chapter-header">
+              <svg class="chapter-chevron" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M3.5 1.5l3.5 3.5-3.5 3.5"/>
+              </svg>
+              <span class="chapter-code">03</span>
+              <span class="chapter-name">Cá và động vật giáp xác</span>
+              <span class="chapter-count">142 codes</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ──── SECTION II (collapsed) ──── -->
+      <div class="section-item">
+        <div class="section-header">
+          <svg class="section-chevron" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M3.5 1.5l3.5 3.5-3.5 3.5"/>
+          </svg>
+          <span class="section-numeral">II</span>
+          <span class="section-name">Sản phẩm thực vật</span>
+          <span class="section-count">9 chapters</span>
+        </div>
+      </div>
+
+      <!-- ──── SECTION III (collapsed) ──── -->
+      <div class="section-item">
+        <div class="section-header">
+          <svg class="section-chevron" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M3.5 1.5l3.5 3.5-3.5 3.5"/>
+          </svg>
+          <span class="section-numeral">III</span>
+          <span class="section-name">Mỡ và dầu động vật hoặc thực vật</span>
+          <span class="section-count">1 chapter</span>
+        </div>
+      </div>
+
+      <!-- ──── SECTION IV (collapsed) ──── -->
+      <div class="section-item">
+        <div class="section-header">
+          <svg class="section-chevron" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M3.5 1.5l3.5 3.5-3.5 3.5"/>
+          </svg>
+          <span class="section-numeral">IV</span>
+          <span class="section-name">Thực phẩm chế biến; đồ uống, rượu</span>
+          <span class="section-count">9 chapters</span>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+</body>
+</html>

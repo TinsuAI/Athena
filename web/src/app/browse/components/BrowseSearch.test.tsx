@@ -58,13 +58,8 @@ describe("BrowseSearch", () => {
     expect(screen.getByTestId("browse-search-input")).toBeInTheDocument();
   });
 
-  it("renders chapter filter when callback provided", () => {
-    render(
-      <BrowseSearch
-        chapterFilter=""
-        onChapterFilterChange={vi.fn()}
-      />
-    );
+  it("renders chapter filter", () => {
+    render(<BrowseSearch />);
     expect(screen.getByTestId("browse-chapter-filter")).toBeInTheDocument();
   });
 
@@ -124,7 +119,8 @@ describe("BrowseSearch", () => {
     await vi.advanceTimersByTimeAsync(400);
 
     await waitFor(() => {
-      expect(screen.getAllByText(/XV > Ch\.74 > 7418/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/XV/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Ch\.74/).length).toBeGreaterThan(0);
     });
   });
 
@@ -197,9 +193,11 @@ describe("BrowseSearch", () => {
 
     await waitFor(() => {
       const result = screen.getByTestId("search-result-74181000");
-      expect(result).toHaveTextContent("Import: 30%");
-      expect(result).toHaveTextContent("VAT: 10%");
-      expect(result).toHaveTextContent("Export: —");
+      expect(result).toHaveTextContent("NK");
+      expect(result).toHaveTextContent("30%");
+      expect(result).toHaveTextContent("VAT");
+      expect(result).toHaveTextContent("10%");
+      expect(result).toHaveTextContent("XK");
     });
   });
 });

@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tariff Schedule Browser — Corporate Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ========== RESET & BASE ========== */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-page: #f1f5f9;
+    --bg-surface: #ffffff;
+    --bg-surface-alt: #f8fafc;
+    --bg-stripe: #f8fafc;
+    --bg-hover: #f0fdf4;
+    --bg-accent: #ecfdf5;
+    --bg-accent-strong: #059669;
+    --bg-sidebar: #ffffff;
+    --bg-header: #0f172a;
+    --bg-header-sub: #1e293b;
+
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-tertiary: #94a3b8;
+    --text-inverse: #ffffff;
+    --text-accent: #059669;
+    --text-accent-light: #10b981;
+
+    --border-default: #e2e8f0;
+    --border-light: #f1f5f9;
+    --border-accent: #059669;
+    --border-accent-light: #a7f3d0;
+
+    --accent-50: #ecfdf5;
+    --accent-100: #d1fae5;
+    --accent-200: #a7f3d0;
+    --accent-500: #10b981;
+    --accent-600: #059669;
+    --accent-700: #047857;
+    --accent-800: #065f46;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+    --header-h: 64px;
+    --sidebar-w: 340px;
+    --container-max: 1600px;
+  }
+
+  html { font-size: 14px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg-page);
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ========== SUBTLE BACKGROUND PATTERN ========== */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 0%, rgba(16,185,129,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(5,150,105,0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ========== HEADER ========== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-header);
+    height: var(--header-h);
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+
+  .header-inner {
+    max-width: var(--container-max);
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-logo-icon {
+    width: 34px;
+    height: 34px;
+    background: linear-gradient(135deg, var(--accent-500), var(--accent-700));
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 800;
+    font-size: 15px;
+    font-family: var(--font-mono);
+    letter-spacing: -1px;
+    box-shadow: 0 2px 8px rgba(5,150,105,0.3);
+  }
+
+  .header-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-inverse);
+    letter-spacing: -0.3px;
+  }
+
+  .header-subtitle {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .header-divider {
+    width: 1px;
+    height: 28px;
+    background: rgba(255,255,255,0.1);
+  }
+
+  .header-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+  }
+
+  .header-breadcrumb a {
+    color: rgba(255,255,255,0.5);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .header-breadcrumb a:hover { color: var(--accent-500); }
+  .header-breadcrumb .active { color: rgba(255,255,255,0.85); font-weight: 600; }
+  .header-breadcrumb .sep { color: rgba(255,255,255,0.2); font-size: 11px; }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn-jump {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-md);
+    color: rgba(255,255,255,0.75);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-jump:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.18);
+    color: white;
+  }
+  .btn-jump .kbd {
+    font-size: 10px;
+    padding: 2px 5px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    color: rgba(255,255,255,0.4);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: rgba(16,185,129,0.12);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    color: var(--accent-500);
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .header-status .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-500);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ========== LAYOUT ========== */
+  .layout {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: 20px 28px 40px;
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    gap: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ========== SIDEBAR ========== */
+  .sidebar {
+    position: sticky;
+    top: calc(var(--header-h) + 20px);
+    height: calc(100vh - var(--header-h) - 40px);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--bg-sidebar);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border-default);
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 18px 18px 0;
+  }
+
+  .sidebar-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .sidebar-title::before {
+    content: '';
+    width: 3px;
+    height: 12px;
+    background: var(--accent-600);
+    border-radius: 2px;
+  }
+
+  .search-box {
+    position: relative;
+    margin-bottom: 10px;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 10px 12px 10px 36px;
+    border: 1.5px solid var(--border-default);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-family: var(--font-body);
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--bg-surface);
+    transition: all 0.2s;
+    outline: none;
+  }
+  .search-box input:focus {
+    border-color: var(--accent-500);
+    box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
+  }
+  .search-box input::placeholder { color: var(--text-tertiary); font-weight: 400; }
+
+  .search-box .search-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary);
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 0;
+  }
+
+  .filter-row input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border-default);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    font-family: var(--font-body);
+    color: var(--text-primary);
+    background: var(--bg-surface);
+    outline: none;
+    transition: all 0.2s;
+  }
+  .filter-row input:focus {
+    border-color: var(--accent-500);
+    box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
+  }
+
+  .filter-row .filter-btn {
+    padding: 8px 12px;
+    border: 1.5px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-body);
+    white-space: nowrap;
+  }
+  .filter-row .filter-btn:hover {
+    background: var(--bg-accent);
+    color: var(--accent-600);
+    border-color: var(--border-accent-light);
+  }
+
+  .sidebar-results-header {
+    padding: 14px 18px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .results-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .results-sort {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .sidebar-results {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 12px 12px;
+  }
+
+  .sidebar-results::-webkit-scrollbar { width: 4px; }
+  .sidebar-results::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-results::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 4px; }
+
+  /* Search result cards */
+  .result-card {
+    padding: 14px 14px 12px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-default);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: var(--bg-surface);
+  }
+  .result-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: transparent;
+    transition: background 0.2s;
+  }
+  .result-card:hover {
+    border-color: var(--border-accent-light);
+    background: var(--bg-hover);
+    box-shadow: var(--shadow-sm);
+  }
+  .result-card:hover::before {
+    background: var(--accent-500);
+  }
+  .result-card.active {
+    border-color: var(--accent-500);
+    background: var(--accent-50);
+    box-shadow: 0 0 0 3px rgba(16,185,129,0.08);
+  }
+  .result-card.active::before {
+    background: var(--accent-600);
+  }
+
+  .result-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .result-code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-700);
+    letter-spacing: -0.3px;
+  }
+
+  .result-breadcrumb {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .result-breadcrumb .bc-sep { font-size: 8px; opacity: 0.5; }
+
+  .result-desc {
+    font-size: 12.5px;
+    color: var(--text-primary);
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+
+  .result-rates {
+    display: flex;
+    gap: 6px;
+  }
+
+  .rate-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 10.5px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+  .rate-pill .rate-label {
+    font-family: var(--font-body);
+    font-weight: 500;
+    color: inherit;
+    opacity: 0.7;
+    font-size: 10px;
+  }
+  .rate-pill.import { background: #dbeafe; color: #1e40af; }
+  .rate-pill.vat { background: #fef3c7; color: #92400e; }
+  .rate-pill.export { background: var(--bg-stripe); color: var(--text-tertiary); }
+
+  /* Pagination */
+  .sidebar-pagination {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .pagination-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: all 0.15s;
+  }
+  .pagination-btn:hover:not(:disabled) {
+    background: var(--bg-accent);
+    color: var(--accent-600);
+    border-color: var(--border-accent-light);
+  }
+  .pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .pagination-info {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+  }
+
+  /* ========== MAIN CONTENT ========== */
+  .main {
+    min-width: 0;
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    border: 1px solid var(--border-default);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .stat-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .stat-icon.sections { background: #ede9fe; color: #7c3aed; }
+  .stat-icon.chapters { background: #dbeafe; color: #2563eb; }
+  .stat-icon.codes { background: var(--accent-50); color: var(--accent-600); }
+  .stat-icon.fta { background: #fef3c7; color: #d97706; }
+
+  .stat-info { display: flex; flex-direction: column; }
+  .stat-value {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  /* Tree container */
+  .tree-container {
+    background: var(--bg-surface);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-default);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+
+  .tree-toolbar {
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-surface-alt);
+  }
+
+  .tree-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .tree-toolbar-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .tree-toolbar-badge {
+    padding: 3px 8px;
+    background: var(--accent-50);
+    color: var(--accent-700);
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 20px;
+    font-family: var(--font-mono);
+  }
+
+  .tree-toolbar-right {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tree-toolbar-btn {
+    padding: 5px 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: all 0.15s;
+  }
+  .tree-toolbar-btn:hover {
+    background: var(--bg-accent);
+    color: var(--accent-600);
+    border-color: var(--border-accent-light);
+  }
+
+  /* ========== SECTION ROW ========== */
+  .section-row {
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+    gap: 14px;
+  }
+  .section-header:hover { background: var(--bg-stripe); }
+
+  .section-toggle {
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border-default);
+    background: var(--bg-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+  .section-header:hover .section-toggle {
+    border-color: var(--accent-500);
+    color: var(--accent-600);
+  }
+  .section-row.expanded > .section-header .section-toggle {
+    background: var(--accent-600);
+    border-color: var(--accent-600);
+    color: white;
+    transform: rotate(90deg);
+  }
+
+  .section-numeral {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-700);
+    background: var(--accent-50);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    min-width: 52px;
+    text-align: center;
+    letter-spacing: 0.3px;
+  }
+
+  .section-name {
+    flex: 1;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .section-count {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 4px 10px;
+    background: var(--bg-stripe);
+    border-radius: var(--radius-sm);
+  }
+
+  .section-children {
+    border-top: 1px solid var(--border-light);
+  }
+
+  /* ========== CHAPTER ROW ========== */
+  .chapter-row {
+    border-bottom: 1px solid var(--border-light);
+  }
+  .chapter-row:last-child { border-bottom: none; }
+
+  .chapter-header {
+    display: flex;
+    align-items: center;
+    padding: 11px 20px 11px 52px;
+    cursor: pointer;
+    transition: all 0.15s;
+    gap: 12px;
+    position: relative;
+  }
+  .chapter-header::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: transparent;
+    transition: background 0.15s;
+  }
+  .chapter-header:hover { background: var(--bg-stripe); }
+  .chapter-header:hover::before { background: var(--accent-200); }
+  .chapter-row.expanded > .chapter-header::before { background: var(--accent-500); }
+
+  .chapter-toggle {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1.5px solid var(--border-default);
+    background: var(--bg-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    color: var(--text-tertiary);
+    font-size: 9px;
+  }
+  .chapter-row.expanded > .chapter-header .chapter-toggle {
+    background: var(--accent-600);
+    border-color: var(--accent-600);
+    color: white;
+    transform: rotate(90deg);
+  }
+
+  .chapter-code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 32px;
+  }
+
+  .chapter-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .chapter-count {
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    color: var(--text-tertiary);
+    font-weight: 500;
+    padding: 3px 8px;
+    background: var(--bg-stripe);
+    border-radius: var(--radius-sm);
+  }
+
+  .chapter-children {
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-surface-alt);
+  }
+
+  /* ========== HEADING ROW ========== */
+  .heading-row {
+    border-bottom: 1px solid var(--border-light);
+  }
+  .heading-row:last-child { border-bottom: none; }
+
+  .heading-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px 10px 82px;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .heading-header:hover { background: rgba(16,185,129,0.03); }
+
+  .heading-code {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent-700);
+    min-width: 48px;
+  }
+
+  .heading-name {
+    flex: 1;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .heading-children { }
+
+  /* ========== SUBHEADING ROW ========== */
+  .subheading-row {
+    border-bottom: 1px solid var(--border-light);
+  }
+  .subheading-row:last-child { border-bottom: none; }
+
+  .subheading-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 20px 8px 108px;
+    gap: 12px;
+  }
+
+  .subheading-code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 64px;
+  }
+
+  .subheading-name {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+
+  /* ========== HS CODE ROW ========== */
+  .hscode-row {
+    border-bottom: 1px solid var(--border-light);
+  }
+  .hscode-row:last-child { border-bottom: none; }
+  .hscode-row:nth-child(even) > .hscode-header { background: rgba(248,250,252,0.5); }
+
+  .hscode-header {
+    display: grid;
+    grid-template-columns: 1fr 90px 70px 70px 36px;
+    align-items: center;
+    padding: 9px 20px 9px 134px;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .hscode-header::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: transparent;
+    transition: background 0.15s;
+  }
+  .hscode-header:hover {
+    background: var(--bg-hover) !important;
+  }
+  .hscode-header:hover::before {
+    background: var(--accent-500);
+  }
+  .hscode-row.expanded > .hscode-header {
+    background: var(--accent-50) !important;
+  }
+  .hscode-row.expanded > .hscode-header::before {
+    background: var(--accent-600);
+  }
+
+  .hscode-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .hscode-code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-700);
+    white-space: nowrap;
+    letter-spacing: -0.2px;
+  }
+
+  .hscode-desc {
+    font-size: 12px;
+    color: var(--text-primary);
+    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hscode-rate {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    padding: 3px 0;
+    border-radius: var(--radius-sm);
+  }
+  .hscode-rate.import-rate { color: #1e40af; background: #eff6ff; }
+  .hscode-rate.vat-rate { color: #92400e; background: #fffbeb; }
+  .hscode-rate.export-rate { color: var(--text-tertiary); background: transparent; }
+  .hscode-rate.zero { color: var(--accent-700); background: var(--accent-50); }
+
+  .hscode-expand-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    font-size: 11px;
+    transition: all 0.2s;
+  }
+  .hscode-row.expanded .hscode-expand-icon {
+    color: var(--accent-600);
+    transform: rotate(180deg);
+  }
+
+  /* Column headers for HS code grid */
+  .hscode-col-headers {
+    display: grid;
+    grid-template-columns: 1fr 90px 70px 70px 36px;
+    align-items: center;
+    padding: 6px 20px 6px 134px;
+    gap: 8px;
+    background: var(--bg-surface-alt);
+    border-bottom: 2px solid var(--border-default);
+    border-top: 1px solid var(--border-light);
+  }
+
+  .col-header {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    text-align: center;
+  }
+  .col-header:first-child { text-align: left; }
+
+  /* ========== HS CODE DETAIL PANEL ========== */
+  .hscode-detail {
+    background: linear-gradient(to bottom, var(--accent-50), var(--bg-surface));
+    border-top: 1px solid var(--border-accent-light);
+    padding: 20px 20px 20px 134px;
+    animation: slideDown 0.25s ease-out;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .detail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .detail-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .detail-value {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    padding: 8px 12px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-default);
+  }
+  .detail-value.mono {
+    font-family: var(--font-mono);
+  }
+
+  .detail-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .detail-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-default);
+  }
+
+  /* FTA Table */
+  .fta-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    font-size: 12px;
+  }
+
+  .fta-table thead th {
+    background: var(--bg-header);
+    color: rgba(255,255,255,0.85);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 2px solid var(--accent-600);
+  }
+
+  .fta-table tbody tr {
+    transition: background 0.15s;
+  }
+  .fta-table tbody tr:hover { background: var(--bg-hover); }
+  .fta-table tbody tr:nth-child(even) { background: var(--bg-stripe); }
+  .fta-table tbody tr:nth-child(even):hover { background: var(--bg-hover); }
+
+  .fta-table tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary);
+  }
+
+  .fta-table tbody tr:last-child td { border-bottom: none; }
+
+  .fta-agreement {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--accent-700);
+    font-size: 11.5px;
+    letter-spacing: 0.3px;
+  }
+
+  .fta-rate-cell {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--accent-600);
+  }
+
+  .fta-doc {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .fta-condition {
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+  }
+
+  .fta-condition .has-condition {
+    color: var(--text-primary);
+    font-weight: 500;
+    padding: 2px 6px;
+    background: #fef3c7;
+    border-radius: 3px;
+    font-size: 10.5px;
+  }
+
+  /* ========== RESPONSIVE ========== */
+  @media (max-width: 1200px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+    .sidebar {
+      position: static;
+      height: auto;
+      max-height: 400px;
+    }
+  }
+
+  /* ========== ANIMATIONS ========== */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-row { animation: fadeInUp 0.35s ease-out backwards; }
+  .section-row:nth-child(1) { animation-delay: 0.05s; }
+  .section-row:nth-child(2) { animation-delay: 0.1s; }
+  .section-row:nth-child(3) { animation-delay: 0.15s; }
+  .section-row:nth-child(4) { animation-delay: 0.2s; }
+
+  .stat-card { animation: fadeInUp 0.4s ease-out backwards; }
+  .stat-card:nth-child(1) { animation-delay: 0s; }
+  .stat-card:nth-child(2) { animation-delay: 0.05s; }
+  .stat-card:nth-child(3) { animation-delay: 0.1s; }
+  .stat-card:nth-child(4) { animation-delay: 0.15s; }
+
+  .result-card { animation: fadeInUp 0.3s ease-out backwards; }
+  .result-card:nth-child(1) { animation-delay: 0.1s; }
+  .result-card:nth-child(2) { animation-delay: 0.17s; }
+  .result-card:nth-child(3) { animation-delay: 0.24s; }
+
+  /* ========== FOCUS/ACCESSIBILITY ========== */
+  *:focus-visible {
+    outline: 2px solid var(--accent-500);
+    outline-offset: 2px;
+  }
+
+  /* ========== SCROLL BARS ========== */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+</style>
+</head>
+<body>
+
+<!-- ========== HEADER ========== -->
+<header class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-logo">
+        <div class="header-logo-icon">HS</div>
+        <div>
+          <div class="header-title">Tariff Schedule Browser</div>
+          <div class="header-subtitle">Vietnam Customs &middot; 2024 Edition</div>
+        </div>
+      </div>
+      <div class="header-divider"></div>
+      <nav class="header-breadcrumb" aria-label="Breadcrumb">
+        <a href="#">Dashboard</a>
+        <span class="sep">&#9656;</span>
+        <a href="#">Tariff Database</a>
+        <span class="sep">&#9656;</span>
+        <span class="active">Browse Schedule</span>
+      </nav>
+    </div>
+    <div class="header-right">
+      <div class="header-status">
+        <span class="dot"></span>
+        Data synced
+      </div>
+      <button class="btn-jump" aria-label="Jump to chapter">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Jump to chapter
+        <span class="kbd">Ctrl+K</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ========== LAYOUT ========== -->
+<div class="layout">
+
+  <!-- ========== SIDEBAR ========== -->
+  <aside class="sidebar" aria-label="Search panel">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Quick Search</div>
+      <div class="search-box">
+        <span class="search-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input type="text" placeholder="Search HS codes, descriptions..." value="ngựa" aria-label="Search HS codes">
+      </div>
+      <div class="filter-row">
+        <input type="text" placeholder="Filter by chapter (01-97)" value="01" aria-label="Chapter filter">
+        <button class="filter-btn">Clear</button>
+      </div>
+    </div>
+
+    <div class="sidebar-results-header">
+      <span class="results-count">3 results found</span>
+      <span class="results-sort">
+        Relevance
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </span>
+    </div>
+
+    <div class="sidebar-results">
+      <!-- Result 1 (active) -->
+      <div class="result-card active" tabindex="0" role="button" aria-label="HS Code 0101.21.00">
+        <div class="result-card-header">
+          <span class="result-code">0101.21.00</span>
+          <span class="result-breadcrumb">I <span class="bc-sep">&#9656;</span> Ch.01 <span class="bc-sep">&#9656;</span> 01.01</span>
+        </div>
+        <div class="result-desc">Ngựa thuần chủng để nhân giống</div>
+        <div class="result-rates">
+          <span class="rate-pill import"><span class="rate-label">NK</span> 0%</span>
+          <span class="rate-pill vat"><span class="rate-label">VAT</span> 10%</span>
+          <span class="rate-pill export"><span class="rate-label">XK</span> —</span>
+        </div>
+      </div>
+
+      <!-- Result 2 -->
+      <div class="result-card" tabindex="0" role="button" aria-label="HS Code 0101.29.10">
+        <div class="result-card-header">
+          <span class="result-code">0101.29.10</span>
+          <span class="result-breadcrumb">I <span class="bc-sep">&#9656;</span> Ch.01 <span class="bc-sep">&#9656;</span> 01.01</span>
+        </div>
+        <div class="result-desc">Ngựa để đua</div>
+        <div class="result-rates">
+          <span class="rate-pill import"><span class="rate-label">NK</span> 5%</span>
+          <span class="rate-pill vat"><span class="rate-label">VAT</span> 10%</span>
+          <span class="rate-pill export"><span class="rate-label">XK</span> —</span>
+        </div>
+      </div>
+
+      <!-- Result 3 -->
+      <div class="result-card" tabindex="0" role="button" aria-label="HS Code 0102.21.00">
+        <div class="result-card-header">
+          <span class="result-code">0102.21.00</span>
+          <span class="result-breadcrumb">I <span class="bc-sep">&#9656;</span> Ch.01 <span class="bc-sep">&#9656;</span> 01.02</span>
+        </div>
+        <div class="result-desc">Trâu, bò thuần chủng để nhân giống</div>
+        <div class="result-rates">
+          <span class="rate-pill import"><span class="rate-label">NK</span> 0%</span>
+          <span class="rate-pill vat"><span class="rate-label">VAT</span> 5%</span>
+          <span class="rate-pill export"><span class="rate-label">XK</span> —</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-pagination">
+      <button class="pagination-btn" disabled aria-label="Previous page">&larr; Previous</button>
+      <span class="pagination-info">Page 1 of 1</span>
+      <button class="pagination-btn" disabled aria-label="Next page">Next &rarr;</button>
+    </div>
+  </aside>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <main class="main">
+
+    <!-- Stats bar -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-icon sections">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">21</span>
+          <span class="stat-label">Sections</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon chapters">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">97</span>
+          <span class="stat-label">Chapters</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon codes">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">11,234</span>
+          <span class="stat-label">HS Codes</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon fta">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">16</span>
+          <span class="stat-label">FTA Agreements</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tree -->
+    <div class="tree-container">
+
+      <div class="tree-toolbar">
+        <div class="tree-toolbar-left">
+          <span class="tree-toolbar-title">Tariff Schedule</span>
+          <span class="tree-toolbar-badge">2024</span>
+        </div>
+        <div class="tree-toolbar-right">
+          <button class="tree-toolbar-btn">Expand All</button>
+          <button class="tree-toolbar-btn">Collapse All</button>
+          <button class="tree-toolbar-btn">Export CSV</button>
+        </div>
+      </div>
+
+      <!-- ===== SECTION I (Expanded) ===== -->
+      <div class="section-row expanded">
+        <div class="section-header" role="button" tabindex="0" aria-expanded="true">
+          <span class="section-toggle">&#9656;</span>
+          <span class="section-numeral">I</span>
+          <span class="section-name">Động vật sống; sản phẩm từ động vật</span>
+          <span class="section-count">5 chapters</span>
+        </div>
+        <div class="section-children">
+
+          <!-- Chapter 01 (Expanded) -->
+          <div class="chapter-row expanded">
+            <div class="chapter-header" role="button" tabindex="0" aria-expanded="true">
+              <span class="chapter-toggle">&#9656;</span>
+              <span class="chapter-code">01</span>
+              <span class="chapter-name">Động vật sống</span>
+              <span class="chapter-count">52 codes</span>
+            </div>
+            <div class="chapter-children">
+
+              <!-- Column headers -->
+              <div class="hscode-col-headers">
+                <span class="col-header" style="text-align:left;">HS Code &amp; Description</span>
+                <span class="col-header">Import</span>
+                <span class="col-header">VAT</span>
+                <span class="col-header">Export</span>
+                <span class="col-header"></span>
+              </div>
+
+              <!-- Heading 01.01 -->
+              <div class="heading-row">
+                <div class="heading-header" tabindex="0">
+                  <span class="heading-code">01.01</span>
+                  <span class="heading-name">Ngựa, lừa, la sống</span>
+                </div>
+                <div class="heading-children">
+
+                  <!-- Subheading 0101.21 -->
+                  <div class="subheading-row">
+                    <div class="subheading-header">
+                      <span class="subheading-code">0101.21</span>
+                      <span class="subheading-name">Ngựa thuần chủng để nhân giống</span>
+                    </div>
+                    <div>
+                      <!-- HS Code 0101.21.00 (Expanded with detail) -->
+                      <div class="hscode-row expanded">
+                        <div class="hscode-header" role="button" tabindex="0" aria-expanded="true">
+                          <div class="hscode-info">
+                            <span class="hscode-code">0101.21.00</span>
+                            <span class="hscode-desc">Ngựa thuần chủng để nhân giống</span>
+                          </div>
+                          <span class="hscode-rate import-rate zero">0%</span>
+                          <span class="hscode-rate vat-rate">10%</span>
+                          <span class="hscode-rate export-rate">—</span>
+                          <span class="hscode-expand-icon">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                          </span>
+                        </div>
+                        <!-- Detail Panel -->
+                        <div class="hscode-detail">
+                          <div class="detail-grid">
+                            <div class="detail-field">
+                              <span class="detail-label">English Description</span>
+                              <div class="detail-value">Pure-bred breeding horses</div>
+                            </div>
+                            <div class="detail-field">
+                              <span class="detail-label">Unit of Measurement</span>
+                              <div class="detail-value mono">con (head)</div>
+                            </div>
+                          </div>
+                          <div class="detail-section-title">FTA Preferential Import Rates</div>
+                          <table class="fta-table">
+                            <thead>
+                              <tr>
+                                <th>Agreement</th>
+                                <th>Rate</th>
+                                <th>Conditions</th>
+                                <th>Year</th>
+                                <th>Legal Document</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td><span class="fta-agreement">ATIGA</span></td>
+                                <td><span class="fta-rate-cell">0%</span></td>
+                                <td><span class="fta-condition">—</span></td>
+                                <td>2024</td>
+                                <td><span class="fta-doc">1/2024/TT-BTC</span></td>
+                              </tr>
+                              <tr>
+                                <td><span class="fta-agreement">ACFTA</span></td>
+                                <td><span class="fta-rate-cell">0%</span></td>
+                                <td><span class="fta-condition">—</span></td>
+                                <td>2024</td>
+                                <td><span class="fta-doc">2/2024/TT-BTC</span></td>
+                              </tr>
+                              <tr>
+                                <td><span class="fta-agreement">VKFTA</span></td>
+                                <td><span class="fta-rate-cell">0%</span></td>
+                                <td><span class="fta-condition"><span class="has-condition">C/O form KV</span></span></td>
+                                <td>2024</td>
+                                <td><span class="fta-doc">3/2024/TT-BTC</span></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Subheading 0101.29 -->
+                  <div class="subheading-row">
+                    <div class="subheading-header">
+                      <span class="subheading-code">0101.29</span>
+                      <span class="subheading-name">Loại khác</span>
+                    </div>
+                    <div>
+                      <!-- HS Code 0101.29.10 -->
+                      <div class="hscode-row">
+                        <div class="hscode-header" role="button" tabindex="0" aria-expanded="false">
+                          <div class="hscode-info">
+                            <span class="hscode-code">0101.29.10</span>
+                            <span class="hscode-desc">Ngựa để đua</span>
+                          </div>
+                          <span class="hscode-rate import-rate">5%</span>
+                          <span class="hscode-rate vat-rate">10%</span>
+                          <span class="hscode-rate export-rate">—</span>
+                          <span class="hscode-expand-icon">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                          </span>
+                        </div>
+                      </div>
+                      <!-- HS Code 0101.29.90 -->
+                      <div class="hscode-row">
+                        <div class="hscode-header" role="button" tabindex="0" aria-expanded="false">
+                          <div class="hscode-info">
+                            <span class="hscode-code">0101.29.90</span>
+                            <span class="hscode-desc">Loại khác</span>
+                          </div>
+                          <span class="hscode-rate import-rate">5%</span>
+                          <span class="hscode-rate vat-rate">10%</span>
+                          <span class="hscode-rate export-rate">—</span>
+                          <span class="hscode-expand-icon">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Heading 01.02 -->
+              <div class="heading-row">
+                <div class="heading-header" tabindex="0">
+                  <span class="heading-code">01.02</span>
+                  <span class="heading-name">Động vật sống họ trâu bò</span>
+                </div>
+                <div class="heading-children">
+                  <div class="subheading-row">
+                    <div class="subheading-header">
+                      <span class="subheading-code">0102.21</span>
+                      <span class="subheading-name">Trâu, bò thuần chủng để nhân giống</span>
+                    </div>
+                    <div>
+                      <div class="hscode-row">
+                        <div class="hscode-header" role="button" tabindex="0" aria-expanded="false">
+                          <div class="hscode-info">
+                            <span class="hscode-code">0102.21.00</span>
+                            <span class="hscode-desc">Trâu, bò thuần chủng để nhân giống</span>
+                          </div>
+                          <span class="hscode-rate import-rate zero">0%</span>
+                          <span class="hscode-rate vat-rate">5%</span>
+                          <span class="hscode-rate export-rate">—</span>
+                          <span class="hscode-expand-icon">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chapter 02 (Collapsed) -->
+          <div class="chapter-row">
+            <div class="chapter-header" role="button" tabindex="0" aria-expanded="false">
+              <span class="chapter-toggle">&#9656;</span>
+              <span class="chapter-code">02</span>
+              <span class="chapter-name">Thịt và phụ phẩm dạng thịt ăn được sau giết mổ</span>
+              <span class="chapter-count">87 codes</span>
+            </div>
+          </div>
+
+          <!-- Chapter 03 (Collapsed) -->
+          <div class="chapter-row">
+            <div class="chapter-header" role="button" tabindex="0" aria-expanded="false">
+              <span class="chapter-toggle">&#9656;</span>
+              <span class="chapter-code">03</span>
+              <span class="chapter-name">Cá và động vật giáp xác</span>
+              <span class="chapter-count">142 codes</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ===== SECTION II (Collapsed) ===== -->
+      <div class="section-row">
+        <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+          <span class="section-toggle">&#9656;</span>
+          <span class="section-numeral">II</span>
+          <span class="section-name">Sản phẩm thực vật</span>
+          <span class="section-count">9 chapters</span>
+        </div>
+      </div>
+
+      <!-- ===== SECTION III (Collapsed) ===== -->
+      <div class="section-row">
+        <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+          <span class="section-toggle">&#9656;</span>
+          <span class="section-numeral">III</span>
+          <span class="section-name">Mỡ và dầu động vật hoặc thực vật</span>
+          <span class="section-count">1 chapter</span>
+        </div>
+      </div>
+
+      <!-- ===== SECTION IV (Collapsed) ===== -->
+      <div class="section-row">
+        <div class="section-header" role="button" tabindex="0" aria-expanded="false">
+          <span class="section-toggle">&#9656;</span>
+          <span class="section-numeral">IV</span>
+          <span class="section-name">Thực phẩm chế biến; đồ uống, rượu</span>
+          <span class="section-count">9 chapters</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

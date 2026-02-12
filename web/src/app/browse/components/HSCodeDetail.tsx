@@ -23,33 +23,48 @@ function FTARateTable({
 
   return (
     <div>
-      <h4 className="mb-1 text-sm font-semibold">{label}</h4>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm" data-testid={`fta-table-${label.toLowerCase().replace(/\s+/g, "-")}`}>
+      <div className="flex items-center gap-2 mb-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+        {label}
+        <span className="flex-1 h-px bg-border" />
+      </div>
+      <div className="overflow-x-auto rounded-md border border-border overflow-hidden">
+        <table className="w-full text-xs" data-testid={`fta-table-${label.toLowerCase().replace(/\s+/g, "-")}`}>
           <thead>
-            <tr className="border-b text-left text-muted-foreground">
-              <th className="px-2 py-1.5 font-medium">Agreement</th>
-              <th className="px-2 py-1.5 font-medium">Rate</th>
-              <th className="px-2 py-1.5 font-medium">Conditions</th>
-              <th className="px-2 py-1.5 font-medium">Year</th>
-              <th className="px-2 py-1.5 font-medium">Legal Document</th>
+            <tr className="bg-slate-900 text-white/85">
+              <th className="px-3.5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider border-b-2 border-primary">Hiệp định</th>
+              <th className="px-3.5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider border-b-2 border-primary">Thuế suất</th>
+              <th className="px-3.5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider border-b-2 border-primary">Điều kiện</th>
+              <th className="px-3.5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider border-b-2 border-primary">Năm</th>
+              <th className="px-3.5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider border-b-2 border-primary">Văn bản pháp lý</th>
             </tr>
           </thead>
           <tbody>
             {rates.map((rate, idx) => (
-              <tr key={idx} className="border-b last:border-b-0">
-                <td className="px-2 py-1.5 font-medium">
-                  {rate.agreement_code}
+              <tr key={idx} className="border-b border-border/50 last:border-b-0 hover:bg-emerald-50/50 even:bg-secondary/50 transition-colors">
+                <td className="px-3.5 py-2.5">
+                  <span className="font-mono font-bold text-accent-foreground text-[11.5px] tracking-wide">
+                    {rate.agreement_code}
+                  </span>
                 </td>
-                <td className="px-2 py-1.5">
-                  {formatRate(rate.preferential_rate)}
+                <td className="px-3.5 py-2.5">
+                  <span className="font-mono font-bold text-primary">
+                    {formatRate(rate.preferential_rate)}
+                  </span>
                 </td>
-                <td className="px-2 py-1.5 text-muted-foreground">
-                  {rate.conditions || "—"}
+                <td className="px-3.5 py-2.5 text-muted-foreground text-[11.5px]">
+                  {rate.conditions ? (
+                    <span className="font-medium text-foreground bg-amber-100 px-1.5 py-0.5 rounded text-[10.5px]">
+                      {rate.conditions}
+                    </span>
+                  ) : (
+                    "\u2014"
+                  )}
                 </td>
-                <td className="px-2 py-1.5">{rate.rate_year ?? "—"}</td>
-                <td className="px-2 py-1.5 text-muted-foreground">
-                  {rate.legal_document || "—"}
+                <td className="px-3.5 py-2.5">{rate.rate_year ?? "\u2014"}</td>
+                <td className="px-3.5 py-2.5">
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {rate.legal_document || "\u2014"}
+                  </span>
                 </td>
               </tr>
             ))}
@@ -66,60 +81,64 @@ export function HSCodeDetail({ hsCode }: HSCodeDetailProps) {
 
   return (
     <div
-      className="space-y-3 border-t bg-muted/30 px-4 py-3"
+      className="bg-gradient-to-b from-accent to-card border-t border-primary/20 px-5 py-5 pl-[134px] space-y-4 animate-in slide-in-from-top-2 duration-250"
       data-testid="hs-code-detail"
     >
-      {hsCode.description_en && (
-        <div>
-          <span className="text-xs font-medium text-muted-foreground">EN: </span>
-          <span className="text-sm">{hsCode.description_en}</span>
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+      {/* Detail fields grid */}
+      <div className="grid grid-cols-2 gap-4">
+        {hsCode.description_en && (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mô tả tiếng Anh</span>
+            <div className="text-[13px] font-medium text-foreground px-3 py-2 bg-card rounded-md border border-border">
+              {hsCode.description_en}
+            </div>
+          </div>
+        )}
         {hsCode.unit && (
-          <div>
-            <span className="font-medium text-muted-foreground">Unit: </span>
-            {hsCode.unit}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Đơn vị tính</span>
+            <div className="text-[13px] font-medium text-foreground px-3 py-2 bg-card rounded-md border border-border font-mono">
+              {hsCode.unit}
+            </div>
           </div>
         )}
         {hsCode.special_consumption_tax && (
-          <div>
-            <span className="font-medium text-muted-foreground">
-              Special Consumption Tax:{" "}
-            </span>
-            {hsCode.special_consumption_tax}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Thuế tiêu thụ đặc biệt</span>
+            <div className="text-[13px] font-medium text-foreground px-3 py-2 bg-card rounded-md border border-border">
+              {hsCode.special_consumption_tax}
+            </div>
           </div>
         )}
         {hsCode.environmental_tax && (
-          <div>
-            <span className="font-medium text-muted-foreground">
-              Environmental Tax:{" "}
-            </span>
-            {hsCode.environmental_tax}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Thuế bảo vệ môi trường</span>
+            <div className="text-[13px] font-medium text-foreground px-3 py-2 bg-card rounded-md border border-border">
+              {hsCode.environmental_tax}
+            </div>
           </div>
         )}
         {hsCode.vat_reduction && (
-          <div>
-            <span className="font-medium text-muted-foreground">
-              VAT Reduction:{" "}
-            </span>
-            {hsCode.vat_reduction}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Giảm thuế GTGT</span>
+            <div className="text-[13px] font-medium text-foreground px-3 py-2 bg-card rounded-md border border-border">
+              {hsCode.vat_reduction}
+            </div>
           </div>
         )}
       </div>
 
       {hsCode.policy_notes && (
-        <div>
-          <span className="text-xs font-medium text-muted-foreground">
-            Policy Notes:{" "}
-          </span>
-          <span className="text-sm">{hsCode.policy_notes}</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Ghi chú chính sách</span>
+          <div className="text-[13px] text-foreground px-3 py-2 bg-card rounded-md border border-border">
+            {hsCode.policy_notes}
+          </div>
         </div>
       )}
 
-      <FTARateTable rates={importRates} label="Import FTA Rates" />
-      <FTARateTable rates={exportRates} label="Export FTA Rates" />
+      <FTARateTable rates={importRates} label="Thuế ưu đãi NK theo FTA" />
+      <FTARateTable rates={exportRates} label="Thuế ưu đãi XK theo FTA" />
     </div>
   );
 }

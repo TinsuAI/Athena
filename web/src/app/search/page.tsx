@@ -87,17 +87,19 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold mb-2">Athena</h1>
-          <p className="text-muted-foreground text-lg">
-            HS Code Lookup Tool - Search by product description
+    <div className="min-h-screen bg-[var(--background)]">
+      <div className="mx-auto px-7 py-10 max-w-4xl">
+        {/* Header area */}
+        <div className="mb-10 text-center">
+          <h1 className="text-[32px] font-extrabold text-slate-900 tracking-tight mb-1.5">
+            Athena
+          </h1>
+          <p className="text-[14px] text-slate-400 font-medium">
+            HS Code Lookup Tool &mdash; Search by product description
           </p>
         </div>
 
-        {/* Search bar with button */}
+        {/* Search bar */}
         <div className="mb-8">
           <SearchBar
             ref={inputRef}
@@ -108,14 +110,14 @@ export default function SearchPage() {
             isLoading={isSearching}
             autoFocus
           />
-          <p className="text-sm text-muted-foreground mt-2 text-center">
+          <p className="text-[12px] text-slate-400 mt-2.5 text-center font-medium">
             Press Enter or click Search to find HS codes
           </p>
         </div>
 
-        {/* Model selector for testing */}
-        <div className="mb-8 p-4 border rounded-lg bg-muted/30">
-          <label className="block text-sm font-medium mb-2">
+        {/* Model selector */}
+        <div className="mb-8 p-4 bg-white border border-slate-200 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)]">
+          <label className="block text-[12px] font-semibold text-slate-600 mb-2">
             LLM Model (for classification reasoning)
           </label>
           <ModelSelect
@@ -123,7 +125,7 @@ export default function SearchPage() {
             onChange={setLlmModel}
             placeholder="Search or enter model..."
           />
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-[11px] text-slate-400 mt-1.5">
             Type to search models or enter any OpenRouter model ID
           </p>
         </div>
@@ -131,67 +133,81 @@ export default function SearchPage() {
         {/* Error message */}
         {searchError && (
           <div
-            className="mb-4 p-4 bg-destructive/10 text-destructive rounded-lg"
+            className="mb-6 p-4 bg-red-50 text-red-700 border border-red-100 rounded-xl text-[13px] font-medium"
             role="alert"
           >
             {searchError}
           </div>
         )}
 
-        {/* Search result - single best match */}
+        {/* Search result card */}
         {searchResult && (
           <div className="space-y-4">
-            <div className="border rounded-lg p-6 bg-card">
-              <div className="flex items-start justify-between mb-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)]">
+              <div className="flex items-start justify-between mb-5">
                 <div>
-                  <h2 className="text-2xl font-mono font-bold text-primary">
+                  <h2 className="text-[22px] font-mono font-bold text-emerald-700 tracking-tight leading-tight">
                     {searchResult.hs_code}
                   </h2>
-                  <p className="text-muted-foreground mt-1">
+                  <p className="text-[13.5px] text-slate-500 mt-1.5 font-medium leading-snug">
                     {searchResult.description}
                   </p>
                 </div>
-                <div className="text-right">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary">
-                    {searchResult.confidence}% match
-                  </span>
-                </div>
+                <span className="inline-flex items-center px-3.5 py-1 rounded-full text-[12px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0 ml-4">
+                  {searchResult.confidence}% match
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <span className="text-sm text-muted-foreground">Duty Rate</span>
-                  <p className="font-semibold">{searchResult.duty_rate}</p>
-                </div>
-                <div>
-                  <span className="text-sm text-muted-foreground">VAT Rate</span>
-                  <p className="font-semibold">{searchResult.vat_rate}</p>
-                </div>
+              {/* Rate pills */}
+              <div className="flex gap-2.5 mb-5">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-blue-50 text-blue-800 border border-blue-100">
+                  <span className="font-sans font-medium text-[10px] opacity-70">Import</span>
+                  {searchResult.duty_rate}
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-amber-50 text-amber-800 border border-amber-100">
+                  <span className="font-sans font-medium text-[10px] opacity-70">VAT</span>
+                  {searchResult.vat_rate}
+                </span>
               </div>
 
+              {/* Classification reasoning */}
               {searchResult.classification && (
-                <div className="border-t pt-4 mt-4">
-                  <h3 className="text-sm font-semibold mb-2">Classification Reasoning</h3>
-                  <div className="space-y-2 text-sm">
-                    <p><span className="text-muted-foreground">Material:</span> {searchResult.classification.material}</p>
-                    <p><span className="text-muted-foreground">Function:</span> {searchResult.classification.function}</p>
+                <div className="border-t border-slate-100 pt-4 mt-4">
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                    Classification Reasoning
+                  </h3>
+                  <div className="space-y-2.5">
+                    <div className="flex gap-3">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 pt-0.5 shrink-0">Material</span>
+                      <span className="text-[13px] text-slate-700 font-medium">{searchResult.classification.material}</span>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 pt-0.5 shrink-0">Function</span>
+                      <span className="text-[13px] text-slate-700 font-medium">{searchResult.classification.function}</span>
+                    </div>
                   </div>
                 </div>
               )}
 
+              {/* Practical notes */}
               {searchResult.practical_notes && searchResult.practical_notes.length > 0 && (
-                <div className="border-t pt-4 mt-4">
-                  <h3 className="text-sm font-semibold mb-2">Practical Notes</h3>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                <div className="border-t border-slate-100 pt-4 mt-4">
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                    Practical Notes
+                  </h3>
+                  <ul className="space-y-1.5">
                     {searchResult.practical_notes.map((note, index) => (
-                      <li key={index}>{note}</li>
+                      <li key={index} className="text-[12.5px] text-slate-500 font-medium flex gap-2">
+                        <span className="text-emerald-500 shrink-0">•</span>
+                        {note}
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
 
               {/* Correction button */}
-              <div className="border-t pt-4 mt-4 flex justify-end">
+              <div className="border-t border-slate-100 pt-4 mt-4 flex justify-end">
                 <CorrectionButton
                   lookupId={searchResult.lookup_id ?? null}
                   matchedHsCode={searchResult.hs_code}
@@ -214,11 +230,11 @@ export default function SearchPage() {
           />
         )}
 
-        {/* Empty state - only show when no query and no result */}
+        {/* Empty state */}
         {!searchQuery && !isSearching && !searchResult && !searchError && (
-          <div className="text-center py-12 text-muted-foreground">
-            <p className="mb-2">Enter a product description to search</p>
-            <p className="text-sm">
+          <div className="text-center py-16">
+            <p className="text-[14px] text-slate-400 font-medium mb-1.5">Enter a product description to search</p>
+            <p className="text-[12.5px] text-slate-300">
               Try: &quot;coffee beans&quot;, &quot;máy xay&quot;, or an HS code like &quot;0901&quot;
             </p>
           </div>
@@ -226,25 +242,25 @@ export default function SearchPage() {
 
         {/* Process Logs Panel */}
         {searchResult?.process_logs && searchResult.process_logs.length > 0 && (
-          <div className="mt-8 border rounded-lg bg-card">
+          <div className="mt-6 bg-white border border-slate-200 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)] overflow-hidden">
             <button
               onClick={() => setShowLogs(!showLogs)}
-              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-muted/50 transition-colors"
+              className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors duration-150"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">Process Logs</span>
-                <span className="text-xs text-muted-foreground">
-                  ({searchResult.process_logs.length} steps)
+              <div className="flex items-center gap-2.5">
+                <span className="text-[12px] font-bold text-slate-600 tracking-tight">Process Logs</span>
+                <span className="text-[11px] font-mono font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                  {searchResult.process_logs.length} steps
                 </span>
               </div>
-              <span className="text-muted-foreground">
+              <span className="text-slate-400 text-[11px]">
                 {showLogs ? "▼" : "▶"}
               </span>
             </button>
 
             {showLogs && (
-              <div className="border-t">
-                <div className="p-4 space-y-2 max-h-[500px] overflow-y-auto font-mono text-xs">
+              <div className="border-t border-slate-100">
+                <div className="p-4 space-y-1 max-h-[500px] overflow-y-auto font-mono text-[11px]">
                   {searchResult.process_logs.map((log, idx) => (
                     <LogEntry
                       key={idx}
@@ -282,9 +298,9 @@ function LogEntry({
 }) {
   const statusColors: Record<string, string> = {
     started: "text-blue-500",
-    completed: "text-green-500",
+    completed: "text-emerald-600",
     failed: "text-red-500",
-    skipped: "text-yellow-500",
+    skipped: "text-amber-500",
   };
 
   const statusIcons: Record<string, string> = {
@@ -297,34 +313,33 @@ function LogEntry({
   const hasDetails = log.details && Object.keys(log.details).length > 0;
 
   return (
-    <div className="border-l-2 border-muted pl-3 py-1">
+    <div className="border-l-2 border-slate-200 pl-3 py-1.5">
       <div
-        className={`flex items-start gap-2 ${hasDetails ? "cursor-pointer hover:bg-muted/30 -ml-3 pl-3 -mr-1 pr-1 rounded" : ""}`}
+        className={`flex items-start gap-2 ${hasDetails ? "cursor-pointer hover:bg-slate-50 -ml-3 pl-3 -mr-1 pr-1 rounded-md transition-colors duration-150" : ""}`}
         onClick={hasDetails ? onToggle : undefined}
       >
-        <span className={statusColors[log.status] || "text-muted-foreground"}>
+        <span className={statusColors[log.status] || "text-slate-400"}>
           {statusIcons[log.status] || "•"}
         </span>
-        <span className="text-muted-foreground uppercase w-24 shrink-0">
+        <span className="text-slate-400 uppercase w-24 shrink-0 text-[10px] font-semibold tracking-wider">
           [{log.step}]
         </span>
-        <span className="flex-1">{log.message}</span>
+        <span className="flex-1 text-slate-600">{log.message}</span>
         {log.duration_ms !== undefined && (
-          <span className="text-muted-foreground shrink-0">
+          <span className="text-slate-400 shrink-0">
             {log.duration_ms}ms
           </span>
         )}
         {hasDetails && (
-          <span className="text-muted-foreground shrink-0">
+          <span className="text-slate-400 shrink-0 text-[10px]">
             {isExpanded ? "▼" : "▶"}
           </span>
         )}
       </div>
 
-      {/* Expanded details */}
       {hasDetails && isExpanded && (
-        <div className="mt-2 ml-8 p-2 bg-muted/30 rounded text-[10px] overflow-x-auto">
-          <pre className="whitespace-pre-wrap break-words">
+        <div className="mt-2 ml-8 p-2.5 bg-slate-50 rounded-md text-[10px] overflow-x-auto border border-slate-100">
+          <pre className="whitespace-pre-wrap break-words text-slate-600">
             {JSON.stringify(log.details, null, 2)}
           </pre>
         </div>

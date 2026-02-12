@@ -24,6 +24,7 @@ interface SectionListProps {
   ) => void;
   expandedChapters: Set<string>;
   onToggleChapter: (chapterCode: string) => void;
+  highlightedCode?: string | null;
 }
 
 export function SectionList({
@@ -36,6 +37,7 @@ export function SectionList({
   onChapterDetailLoaded,
   expandedChapters,
   onToggleChapter,
+  highlightedCode,
 }: SectionListProps) {
   const [loadingChapters, setLoadingChapters] = useState<Set<number>>(
     new Set()
@@ -60,9 +62,12 @@ export function SectionList({
         try {
           const data = await getBrowseChapters(section.id);
           onChaptersLoaded(section.id, data);
+          if (data.section_notes_vn) {
+            setShowNotes((prev) => new Set(prev).add(section.id));
+          }
         } catch (err) {
           const message =
-            err instanceof Error ? err.message : "Failed to load chapters";
+            err instanceof Error ? err.message : "Không thể tải danh sách chương";
           setChapterErrors((prev) => new Map(prev).set(section.id, message));
         } finally {
           setLoadingChapters((prev) => {
@@ -86,7 +91,7 @@ export function SectionList({
   };
 
   return (
-    <div className="space-y-1" data-testid="section-list">
+    <div data-testid="section-list">
       {sections.map((section) => {
         const isExpanded = expandedSections.has(section.id);
         const isLoadingChapters = loadingChapters.has(section.id);
@@ -98,37 +103,45 @@ export function SectionList({
             key={section.id}
             id={`section-${section.id}`}
             data-testid={`section-${section.section_roman}`}
+            className="border-b border-border"
           >
             <button
               onClick={() => handleToggleSection(section)}
-              className="flex w-full items-center gap-2 rounded-lg px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+              className="group flex w-full items-center gap-3.5 px-5 py-3.5 text-left hover:bg-secondary/50 transition-colors"
               aria-expanded={isExpanded}
             >
-              {isExpanded ? (
-                <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-              )}
-              <span className="font-semibold">{section.section_roman}</span>
-              <span className="flex-1 truncate">{section.name_vn}</span>
-              <span className="shrink-0 text-sm text-muted-foreground">
-                {section.chapter_count} chapter
-                {section.chapter_count !== 1 ? "s" : ""}
+              <span
+                className={`flex h-[22px] w-[22px] items-center justify-center rounded text-[11px] shrink-0 transition-all duration-200 ${
+                  isExpanded
+                    ? "bg-primary text-primary-foreground rotate-90"
+                    : "border-[1.5px] border-border bg-card text-muted-foreground group-hover:border-primary group-hover:text-primary"
+                }`}
+              >
+                &#9656;
+              </span>
+              <span className="font-mono text-xs font-bold text-accent-foreground bg-accent px-2.5 py-1 rounded min-w-[52px] text-center tracking-wide">
+                {section.section_roman}
+              </span>
+              <span className="flex-1 text-[13.5px] font-semibold text-foreground">
+                {section.name_vn}
+              </span>
+              <span className="shrink-0 text-[11px] text-muted-foreground font-medium px-2.5 py-1 bg-secondary rounded">
+                {section.chapter_count} chương
               </span>
             </button>
 
             {isExpanded && (
-              <div className="ml-6 border-l pl-3">
+              <div className="border-t border-border/50">
                 {isLoadingChapters && (
-                  <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 py-3 pl-14 text-sm text-muted-foreground">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
-                    Loading chapters...
+                    Đang tải danh sách chương...
                   </div>
                 )}
 
                 {chapterError && (
                   <div
-                    className="py-2 text-sm text-destructive"
+                    className="py-2 pl-14 text-sm text-destructive"
                     role="alert"
                   >
                     {chapterError}
@@ -138,13 +151,13 @@ export function SectionList({
                 {cached && (
                   <>
                     {cached.section_notes_vn && (
-                      <div className="mb-2">
+                      <div className="mx-5 mb-2 mt-2">
                         <button
                           onClick={() => toggleSectionNotes(section.id)}
                           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                         >
                           <Info className="h-3.5 w-3.5" />
-                          Section Notes
+                          Ghi chú phần
                           {showNotes.has(section.id) ? (
                             <ChevronDown className="h-3 w-3" />
                           ) : (
@@ -169,6 +182,7 @@ export function SectionList({
                           chapter.chapter_code
                         )}
                         onDetailLoaded={onChapterDetailLoaded}
+                        highlightedCode={highlightedCode}
                       />
                     ))}
                   </>
