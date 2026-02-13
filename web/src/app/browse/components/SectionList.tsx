@@ -107,7 +107,7 @@ export function SectionList({
           >
             <button
               onClick={() => handleToggleSection(section)}
-              className="group flex w-full items-center gap-3.5 px-5 py-3.5 text-left hover:bg-secondary/50 transition-colors"
+              className="group flex w-full items-center gap-2 sm:gap-3.5 px-3 sm:px-5 py-3 sm:py-3.5 text-left hover:bg-secondary/50 transition-colors"
               aria-expanded={isExpanded}
             >
               <span
@@ -122,10 +122,10 @@ export function SectionList({
               <span className="font-mono text-xs font-bold text-accent-foreground bg-accent px-2.5 py-1 rounded min-w-[52px] text-center tracking-wide">
                 {section.section_roman}
               </span>
-              <span className="flex-1 text-[13.5px] font-semibold text-foreground">
+              <span className="flex-1 text-xs sm:text-[13.5px] font-semibold text-foreground">
                 {section.name_vn}
               </span>
-              <span className="shrink-0 text-[11px] text-muted-foreground font-medium px-2.5 py-1 bg-secondary rounded">
+              <span className="shrink-0 text-[10px] sm:text-[11px] text-muted-foreground font-medium px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-secondary rounded">
                 {section.chapter_count} chương
               </span>
             </button>
@@ -133,7 +133,7 @@ export function SectionList({
             {isExpanded && (
               <div className="border-t border-border/50">
                 {isLoadingChapters && (
-                  <div className="flex items-center gap-2 py-3 pl-14 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 py-3 pl-6 sm:pl-14 text-sm text-muted-foreground">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
                     Đang tải danh sách chương...
                   </div>
@@ -151,7 +151,7 @@ export function SectionList({
                 {cached && (
                   <>
                     {cached.section_notes_vn && (
-                      <div className="mx-5 mb-2 mt-2">
+                      <div className="mx-3 sm:mx-5 mb-2 mt-2">
                         <button
                           onClick={() => toggleSectionNotes(section.id)}
                           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"

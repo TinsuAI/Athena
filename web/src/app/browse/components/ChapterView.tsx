@@ -68,7 +68,7 @@ export function ChapterView({
     <div data-testid={`chapter-${chapter.chapter_code}`} className="border-b border-border/50 last:border-b-0">
       <button
         onClick={handleToggle}
-        className={`relative flex w-full items-center gap-3 py-2.5 pr-5 pl-[52px] text-left text-sm hover:bg-secondary/50 transition-all before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:transition-colors ${
+        className={`relative flex w-full items-center gap-2 sm:gap-3 py-2.5 pr-3 sm:pr-5 pl-3 sm:pl-[52px] text-left text-sm hover:bg-secondary/50 transition-all before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:transition-colors ${
           isExpanded
             ? "before:bg-primary"
             : "before:bg-transparent hover:before:bg-primary/30"
@@ -87,7 +87,7 @@ export function ChapterView({
         <span className="font-mono text-[13px] font-bold text-foreground min-w-[32px]">
           {chapter.chapter_code}
         </span>
-        <span className="flex-1 truncate text-[13px] font-medium text-muted-foreground">
+        <span className="flex-1 truncate text-xs sm:text-[13px] font-medium text-muted-foreground">
           {chapter.name_vn}
         </span>
         <span className="shrink-0 text-[10.5px] font-mono text-muted-foreground font-medium px-2 py-0.5 bg-secondary rounded">
@@ -99,7 +99,7 @@ export function ChapterView({
         <div className="border-t border-border/50 bg-secondary/30">
           {isLoading && (
             <div
-              className="flex items-center gap-2 py-4 pl-14 text-sm text-muted-foreground"
+              className="flex items-center gap-2 py-4 pl-6 sm:pl-14 text-sm text-muted-foreground"
               data-testid="chapter-loading"
             >
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -108,7 +108,7 @@ export function ChapterView({
           )}
 
           {error && (
-            <div className="py-2 pl-14 text-sm text-destructive" role="alert">
+            <div className="py-2 pl-6 sm:pl-14 text-sm text-destructive" role="alert">
               {error}
             </div>
           )}
@@ -116,7 +116,7 @@ export function ChapterView({
           {cachedDetail && (
             <>
               {cachedDetail.notes_vn && (
-                <div className="mx-5 mb-2 mt-2">
+                <div className="mx-3 sm:mx-5 mb-2 mt-2">
                   <button
                     onClick={() => setShowNotes(!showNotes)}
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -137,29 +137,43 @@ export function ChapterView({
                 </div>
               )}
 
-              {/* Column headers */}
-              <div className="grid grid-cols-[1fr_90px_70px_70px_36px] items-center gap-2 px-5 py-1.5 pl-[134px] bg-secondary/50 border-b-2 border-border border-t border-border/50">
+              {/* Column headers — hidden on mobile since HS rows use stacked layout */}
+              <div className="hidden sm:grid grid-cols-[1fr_90px_70px_70px_36px] items-center gap-2 px-5 py-1.5 pl-[134px] bg-secondary/50 border-b-2 border-border border-t border-border/50">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.8px]">Mã HS &amp; Mô tả</span>
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.8px] text-center">NK</span>
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.8px] text-center">VAT</span>
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.8px] text-center">XK</span>
                 <span />
               </div>
+              <div className="sm:hidden flex items-center gap-2 px-3 py-1.5 bg-secondary/50 border-b-2 border-border border-t border-border/50">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.8px]">Mã HS &amp; Mô tả</span>
+                <span className="ml-auto text-[10px] font-bold text-muted-foreground uppercase tracking-[0.8px]">NK / VAT / XK</span>
+              </div>
 
-              {cachedDetail.headings.map((heading) => (
-                <div key={heading.id} className="border-b border-border/50 last:border-b-0">
-                  <div className="flex items-center gap-3 px-5 py-2.5 pl-[82px] cursor-pointer hover:bg-primary/[0.03] transition-colors">
-                    <span className="font-mono text-[12.5px] font-semibold text-accent-foreground min-w-[48px]">
+              {cachedDetail.headings.map((heading, hIdx) => (
+                <div key={heading.id} className="relative border-b border-border/50 last:border-b-0">
+                  {/* Tree: heading-level vertical trunk */}
+                  <div className={`absolute left-[6px] sm:left-[68px] top-0 w-[2px] sm:w-px bg-slate-400 sm:bg-slate-300 ${hIdx === cachedDetail.headings.length - 1 ? "h-4 sm:h-5" : "h-full"}`} />
+                  {/* Tree: heading-level horizontal branch */}
+                  <div className="absolute left-[6px] sm:left-[68px] top-4 sm:top-5 w-[10px] sm:w-3 h-[2px] sm:h-px bg-slate-400 sm:bg-slate-300" />
+
+                  <div className="flex items-center gap-2 sm:gap-3 pr-3 sm:px-5 py-2 sm:py-2.5 pl-4 sm:pl-[82px] cursor-pointer hover:bg-primary/[0.03] transition-colors">
+                    <span className="font-mono text-xs sm:text-[12.5px] font-semibold text-accent-foreground min-w-[40px] sm:min-w-[48px]">
                       {heading.heading_code}
                     </span>
-                    <span className="flex-1 text-[12.5px] font-medium text-muted-foreground">
+                    <span className="flex-1 text-xs sm:text-[12.5px] font-medium text-muted-foreground">
                       {heading.name_vn}
                     </span>
                   </div>
-                  {heading.subheadings.map((sub) => (
-                    <div key={sub.id} className="border-b border-border/50 last:border-b-0">
-                      <div className="flex items-center gap-3 px-5 py-2 pl-[108px]">
-                        <span className="font-mono text-xs font-semibold text-muted-foreground min-w-[64px]">
+                  {heading.subheadings.map((sub, sIdx) => (
+                    <div key={sub.id} className="relative border-b border-border/50 last:border-b-0">
+                      {/* Tree: subheading-level vertical trunk */}
+                      <div className={`absolute left-[18px] sm:left-[94px] top-0 w-[2px] sm:w-px bg-slate-400 sm:bg-slate-300 ${sIdx === heading.subheadings.length - 1 ? "h-[14px] sm:h-[17px]" : "h-full"}`} />
+                      {/* Tree: subheading-level horizontal branch */}
+                      <div className="absolute left-[18px] sm:left-[94px] top-[14px] sm:top-[17px] w-[10px] sm:w-3 h-[2px] sm:h-px bg-slate-400 sm:bg-slate-300" />
+
+                      <div className="flex items-center gap-2 sm:gap-3 pr-3 sm:px-5 py-1.5 sm:py-2 pl-7 sm:pl-[108px]">
+                        <span className="font-mono text-xs font-semibold text-muted-foreground min-w-[52px] sm:min-w-[64px]">
                           {sub.subheading_code}
                         </span>
                         <span className="flex-1 text-xs text-muted-foreground">
@@ -167,14 +181,19 @@ export function ChapterView({
                         </span>
                       </div>
                       <div>
-                        {sub.hs_codes.map((hsCode) => (
-                          <HSCodeRow
-                            key={hsCode.id}
-                            hsCode={hsCode}
-                            isExpanded={expandedHSCodes.has(hsCode.code)}
-                            onToggle={() => toggleHSCode(hsCode.code)}
-                            highlighted={highlightedCode === hsCode.code}
-                          />
+                        {sub.hs_codes.map((hsCode, hsIdx) => (
+                          <div key={hsCode.id} className="relative">
+                            {/* Tree: HS code-level vertical trunk */}
+                            <div className={`absolute left-[30px] sm:left-[120px] top-0 w-[2px] sm:w-px bg-slate-400 sm:bg-slate-300 ${hsIdx === sub.hs_codes.length - 1 ? "h-[14px] sm:h-[18px]" : "h-full"}`} />
+                            {/* Tree: HS code-level horizontal branch */}
+                            <div className="absolute left-[30px] sm:left-[120px] top-[14px] sm:top-[18px] w-[10px] sm:w-3 h-[2px] sm:h-px bg-slate-400 sm:bg-slate-300" />
+                            <HSCodeRow
+                              hsCode={hsCode}
+                              isExpanded={expandedHSCodes.has(hsCode.code)}
+                              onToggle={() => toggleHSCode(hsCode.code)}
+                              highlighted={highlightedCode === hsCode.code}
+                            />
+                          </div>
                         ))}
                       </div>
                     </div>

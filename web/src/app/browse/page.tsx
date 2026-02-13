@@ -187,63 +187,63 @@ export default function BrowsePage() {
   );
 
   return (
-    <div className="mx-auto max-w-[1600px] px-7 py-5">
+    <div className="mx-auto max-w-[1600px] px-3 py-3 sm:px-7 sm:py-5">
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[340px_1fr]">
         {/* Sidebar: search */}
-        <aside className="xl:sticky xl:top-[84px] xl:h-[calc(100vh-104px)] flex flex-col bg-card rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)] border border-border overflow-hidden max-h-[400px] xl:max-h-none">
+        <aside className="xl:sticky xl:top-[84px] xl:h-[calc(100vh-104px)] flex flex-col bg-card rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)] border border-border overflow-hidden max-h-[300px] sm:max-h-[400px] xl:max-h-none">
           <BrowseSearch onResultClick={handleSearchResultClick} />
         </aside>
 
         {/* Main content */}
         <main className="min-w-0">
           {/* Stats bar */}
-          <div className="grid grid-cols-2 gap-3 mb-4 sm:grid-cols-4">
-            <div className="flex items-center gap-3 bg-card rounded-lg border border-border shadow-sm px-4 py-3.5">
-              <div className="flex items-center justify-center w-[38px] h-[38px] rounded-md bg-[#ede9fe] text-[#7c3aed] shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <div className="grid grid-cols-2 gap-2 mb-3 sm:grid-cols-4 sm:gap-3 sm:mb-4">
+            <div className="flex items-center gap-2 sm:gap-3 bg-card rounded-lg border border-border shadow-sm px-2.5 py-2.5 sm:px-4 sm:py-3.5">
+              <div className="flex items-center justify-center w-8 h-8 sm:w-[38px] sm:h-[38px] rounded-md bg-[#ede9fe] text-[#7c3aed] shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sm:w-[18px] sm:h-[18px]"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
               </div>
               <div className="flex flex-col">
-                <span className="font-mono text-lg font-extrabold leading-tight">{sections.length}</span>
-                <span className="text-[11px] text-muted-foreground">Phần</span>
+                <span className="font-mono text-base sm:text-lg font-extrabold leading-tight">{sections.length}</span>
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground">Phần</span>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-card rounded-lg border border-border shadow-sm px-4 py-3.5">
-              <div className="flex items-center justify-center w-[38px] h-[38px] rounded-md bg-[#dbeafe] text-[#2563eb] shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+            <div className="flex items-center gap-2 sm:gap-3 bg-card rounded-lg border border-border shadow-sm px-2.5 py-2.5 sm:px-4 sm:py-3.5">
+              <div className="flex items-center justify-center w-8 h-8 sm:w-[38px] sm:h-[38px] rounded-md bg-[#dbeafe] text-[#2563eb] shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sm:w-[18px] sm:h-[18px]"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
               </div>
               <div className="flex flex-col">
-                <span className="font-mono text-lg font-extrabold leading-tight">97</span>
-                <span className="text-[11px] text-muted-foreground">Chương</span>
+                <span className="font-mono text-base sm:text-lg font-extrabold leading-tight">97</span>
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground">Chương</span>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-card rounded-lg border border-border shadow-sm px-4 py-3.5">
-              <div className="flex items-center justify-center w-[38px] h-[38px] rounded-md bg-accent/20 text-accent-foreground shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            <div className="flex items-center gap-2 sm:gap-3 bg-card rounded-lg border border-border shadow-sm px-2.5 py-2.5 sm:px-4 sm:py-3.5">
+              <div className="flex items-center justify-center w-8 h-8 sm:w-[38px] sm:h-[38px] rounded-md bg-accent/20 text-accent-foreground shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sm:w-[18px] sm:h-[18px]"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
               </div>
               <div className="flex flex-col">
-                <span className="font-mono text-lg font-extrabold leading-tight">11,234</span>
-                <span className="text-[11px] text-muted-foreground">Mã HS</span>
+                <span className="font-mono text-base sm:text-lg font-extrabold leading-tight">11,234</span>
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground">Mã HS</span>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-card rounded-lg border border-border shadow-sm px-4 py-3.5">
-              <div className="flex items-center justify-center w-[38px] h-[38px] rounded-md bg-[#fef3c7] text-[#d97706] shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            <div className="flex items-center gap-2 sm:gap-3 bg-card rounded-lg border border-border shadow-sm px-2.5 py-2.5 sm:px-4 sm:py-3.5">
+              <div className="flex items-center justify-center w-8 h-8 sm:w-[38px] sm:h-[38px] rounded-md bg-[#fef3c7] text-[#d97706] shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sm:w-[18px] sm:h-[18px]"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
               </div>
               <div className="flex flex-col">
-                <span className="font-mono text-lg font-extrabold leading-tight">16</span>
-                <span className="text-[11px] text-muted-foreground">Hiệp định FTA</span>
+                <span className="font-mono text-base sm:text-lg font-extrabold leading-tight">16</span>
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground">Hiệp định FTA</span>
               </div>
             </div>
           </div>
 
           {/* Toolbar */}
-          <div className="mb-4 rounded-xl border border-border bg-card shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)] overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-3 bg-secondary/50 border-b border-border w-full justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Biểu thuế</span>
-                <span className="px-2 py-0.5 bg-accent text-accent-foreground text-xs font-semibold rounded-full font-mono">2024</span>
+          <div className="mb-3 sm:mb-4 rounded-xl border border-border bg-card shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)] overflow-hidden">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 px-3 py-2.5 sm:px-5 sm:py-3 bg-secondary/50 border-b border-border w-full justify-between">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <span className="text-[11px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">Biểu thuế</span>
+                <span className="px-2 py-0.5 bg-accent text-accent-foreground text-[11px] sm:text-xs font-semibold rounded-full font-mono">2024</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <ChapterJumper
                   sections={sections}
                   chaptersCache={
