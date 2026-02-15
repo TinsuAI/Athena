@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 
 const navLinks = [
   { href: "/search", label: "Search" },
@@ -11,6 +12,7 @@ const navLinks = [
 
 export function Header() {
   const pathname = usePathname();
+  const { data: session, status } = useSession();
 
   return (
     <header className="sticky top-0 z-50 bg-[#0f172a] border-b border-white/[0.06] shadow-[0_2px_12px_rgba(0,0,0,0.15)]">
@@ -59,6 +61,41 @@ export function Header() {
               );
             })}
           </nav>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3 text-[12px] sm:text-[13px]">
+          {status === "loading" ? (
+            <span className="text-white/30" aria-live="polite" aria-busy="true">
+              Loading...
+            </span>
+          ) : session?.user ? (
+            <>
+              <span className="hidden sm:inline text-white/60 truncate max-w-[160px]">
+                {session.user.email}
+              </span>
+              <button
+                onClick={() => signOut({ callbackUrl: "/search" })}
+                className="text-white/50 hover:text-emerald-400 transition-colors duration-150"
+              >
+                Log out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-white/50 hover:text-emerald-400 transition-colors duration-150"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                className="rounded-md bg-emerald-600 px-3 py-1.5 text-white font-medium hover:bg-emerald-500 transition-colors duration-150"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

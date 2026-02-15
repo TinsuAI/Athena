@@ -48,11 +48,17 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 24 * 60 * 60, // 24 hours (NFR-SEC3)
+  },
   pages: {
     signIn: "/login",
   },
   callbacks: {
+    authorized({ auth }) {
+      return !!auth;
+    },
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
