@@ -1,7 +1,7 @@
 """Tests for NotebookLM service."""
 
+import asyncio
 import json
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -282,14 +282,11 @@ class TestCallSdkErrorClassification:
         """asyncio.TimeoutError from SDK maps to timeout reason."""
         service.settings.notebooklm_timeout = 0.01
 
-        mock_client_class = MagicMock()
+        async def slow_query(query_text):
+            await asyncio.sleep(10)
+            return "answer"
 
-        def blocking_query(notebook_id, query_text):
-            time.sleep(10)
-
-        mock_client_class.return_value.query = blocking_query
-
-        with patch.object(service, "_get_client_class", return_value=mock_client_class):
+        with patch.object(service, "_do_query", side_effect=slow_query):
             with pytest.raises(NotebookLMUnavailableError) as exc_info:
                 await service._call_sdk("test")
 
@@ -297,10 +294,9 @@ class TestCallSdkErrorClassification:
 
     async def test_rate_limit_error_from_sdk(self, service):
         """HTTP 429 from SDK maps to rate_limit reason."""
-        mock_client_class = MagicMock()
-        mock_client_class.return_value.query.side_effect = Exception("HTTP 429 Too Many Requests")
-
-        with patch.object(service, "_get_client_class", return_value=mock_client_class):
+        with patch.object(
+            service, "_do_query", side_effect=Exception("HTTP 429 Too Many Requests")
+        ):
             with pytest.raises(NotebookLMUnavailableError) as exc_info:
                 await service._call_sdk("test")
 
@@ -308,10 +304,9 @@ class TestCallSdkErrorClassification:
 
     async def test_auth_error_from_sdk(self, service):
         """HTTP 401/403 from SDK maps to auth_error reason."""
-        mock_client_class = MagicMock()
-        mock_client_class.return_value.query.side_effect = Exception("HTTP 401 Unauthorized")
-
-        with patch.object(service, "_get_client_class", return_value=mock_client_class):
+        with patch.object(
+            service, "_do_query", side_effect=Exception("HTTP 401 Unauthorized")
+        ):
             with pytest.raises(NotebookLMUnavailableError) as exc_info:
                 await service._call_sdk("test")
 
@@ -319,10 +314,9 @@ class TestCallSdkErrorClassification:
 
     async def test_connection_error_from_sdk(self, service):
         """ConnectionError from SDK maps to service_down reason."""
-        mock_client_class = MagicMock()
-        mock_client_class.return_value.query.side_effect = ConnectionError("Connection refused")
-
-        with patch.object(service, "_get_client_class", return_value=mock_client_class):
+        with patch.object(
+            service, "_do_query", side_effect=ConnectionError("Connection refused")
+        ):
             with pytest.raises(NotebookLMUnavailableError) as exc_info:
                 await service._call_sdk("test")
 
@@ -330,10 +324,9 @@ class TestCallSdkErrorClassification:
 
     async def test_unknown_error_from_sdk(self, service):
         """Unknown exception from SDK maps to service_down reason."""
-        mock_client_class = MagicMock()
-        mock_client_class.return_value.query.side_effect = RuntimeError("Something unexpected")
-
-        with patch.object(service, "_get_client_class", return_value=mock_client_class):
+        with patch.object(
+            service, "_do_query", side_effect=RuntimeError("Something unexpected")
+        ):
             with pytest.raises(NotebookLMUnavailableError) as exc_info:
                 await service._call_sdk("test")
 
@@ -394,15 +387,12 @@ class TestServiceWithoutRedis:
 class TestSDKImportValidation:
     """Test that SDK import path is correct."""
 
-    def test_sdk_import_path_is_valid(self, service):
-        """Validate that the NotebookLMClient can be imported from the expected path."""
+    def test_sdk_import_path_is_valid(self):
+        """Validate that NotebookLMClient can be imported from notebooklm package."""
         try:
-            client_class = service._get_client_class()
-            assert client_class is not None
-            assert hasattr(client_class, "__name__")
-            # If the package is not installed, this will raise ImportError
-            # If the import path is wrong, this will raise ImportError or AttributeError
+            from notebooklm import NotebookLMClient
+
+            assert NotebookLMClient is not None
         except ImportError as e:
-            # This is expected if notebooklm-mcp-cli is not installed in test environment
-            # In production, this import must succeed
+            # Expected if notebooklm-py is not installed in test environment
             pytest.skip(f"NotebookLM SDK not installed in test environment: {e}")

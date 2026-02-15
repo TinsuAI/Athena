@@ -80,17 +80,8 @@ class NotebookLMService:
 
         return result
 
-    def _get_client_class(self) -> type:
-        """Import and return the NotebookLMClient class.
-
-        Isolated for testability — allows mocking without the SDK installed.
-        """
-        from notebooklm_tools.core.client import NotebookLMClient
-
-        return NotebookLMClient
-
     async def _call_sdk(self, query_text: str) -> str:
-        """Call NotebookLM SDK via asyncio.to_thread.
+        """Call NotebookLM SDK asynchronously.
 
         Args:
             query_text: Product description to classify.
@@ -101,18 +92,11 @@ class NotebookLMService:
         Raises:
             NotebookLMUnavailableError: On any SDK/network failure.
         """
-        client_class = self._get_client_class()
-
         try:
-            result = await asyncio.wait_for(
-                asyncio.to_thread(
-                    self._sync_query,
-                    client_class,
-                    query_text,
-                ),
+            return await asyncio.wait_for(
+                self._do_query(query_text),
                 timeout=self.settings.notebooklm_timeout,
             )
-            return result.answer
         except asyncio.TimeoutError:
             raise NotebookLMUnavailableError(reason="timeout")
         except NotebookLMUnavailableError:
@@ -121,32 +105,23 @@ class NotebookLMService:
             reason = self._classify_error(exc)
             raise NotebookLMUnavailableError(reason=reason) from exc
 
-    def _sync_query(self, client_class: type, query_text: str) -> object:
-        """Synchronous SDK call to run in a thread.
+    async def _do_query(self, query_text: str) -> str:
+        """Execute the NotebookLM query. Isolated for testability.
 
         Args:
-            client_class: NotebookLMClient class.
-            query_text: Product description.
+            query_text: Product description to classify.
 
         Returns:
-            SDK result object with .answer attribute.
-
-        Raises:
-            NotebookLMUnavailableError: On HTTP 429, 401, 403 errors.
+            Raw markdown answer from NotebookLM.
         """
-        try:
-            client = client_class()
-            return client.query(
-                notebook_id=self.settings.notebooklm_notebook_id,
-                query_text=query_text,
+        from notebooklm import NotebookLMClient
+
+        async with await NotebookLMClient.from_storage() as client:
+            result = await client.chat.ask(
+                self.settings.notebooklm_notebook_id,
+                query_text,
             )
-        except Exception as exc:
-            exc_str = str(exc).lower()
-            if "429" in exc_str:
-                raise NotebookLMUnavailableError(reason="rate_limit") from exc
-            if "401" in exc_str or "403" in exc_str:
-                raise NotebookLMUnavailableError(reason="auth_error") from exc
-            raise
+            return result.answer
 
     def _classify_error(self, exc: Exception) -> str:
         """Classify an exception into an error reason.
