@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     enable_reranking: bool = True
     reranking_candidates: int = 10
 
+    # NotebookLM
+    notebooklm_enabled: bool = True
+    notebooklm_notebook_id: str = ""
+    notebooklm_timeout: int = 120
+    notebooklm_cache_ttl: int = 86400  # 24 hours
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Parse comma-separated CORS origins into a list."""

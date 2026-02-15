@@ -42,9 +42,12 @@ services:
       DATABASE_URL: postgresql+asyncpg://athena:athena@postgres:5432/athena
       REDIS_URL: redis://redis:6379
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-in-production}
+      NOTEBOOKLM_NOTEBOOK_ID: ${NOTEBOOKLM_NOTEBOOK_ID:-}
     volumes:
       - ./api:/app
       - ./docs:/docs:ro # Mount docs for tariff data import
+      - ~/.config/notebooklm-mcp:/root/.config/notebooklm-mcp:ro # NotebookLM cookies (primary path)
+      # Note: If auth fails, SDK might use ~/.notebooklm-mcp-cli/ instead. Check with `nlm --help` to verify cookie location.
       - /app/.venv # Exclude venv from mount
     ports:
       - "8980:8980"
