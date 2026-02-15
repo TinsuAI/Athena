@@ -200,6 +200,40 @@ athena/
 3. Merge and rank results by combined score
 4. Return top N with confidence percentages
 
+### NotebookLM Integration (Sprint Change 2026-02-15)
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **AI Search Provider** | Google NotebookLM (Gemini 3) | 100% accuracy on test queries vs 0% for vector/LLM |
+| **Integration Method** | Python SDK (`notebooklm_tools`) | Direct import, no subprocess overhead |
+| **Caching** | Redis 24h + permanent KB storage | Rate limit mitigation (~50/day free tier) |
+| **Fallback** | Vector + fuzzy search | Graceful degradation if NotebookLM unavailable |
+
+**New External Dependency:**
+
+| Service | Purpose | Configuration |
+|---------|---------|---------------|
+| NotebookLM | AI-powered tariff classification | `NOTEBOOKLM_NOTEBOOK_ID`, auth cookies |
+
+**Updated Search Flow (with NotebookLM):**
+1. KB exact hash match (<5ms)
+2. KB similar match (pg_trgm >= 0.85, <50ms)
+3. Redis cache for NotebookLM responses (<5ms)
+4. NotebookLM query via Gemini 3 (5-15s)
+5. Parse response → extract HS code → DB lookup for structured data
+6. Auto-store in KB + Redis cache
+7. Fallback: vector + fuzzy search if NotebookLM fails
+
+**New Service:** `api/app/services/notebooklm_service.py`
+
+**Configuration:**
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `NOTEBOOKLM_ENABLED` | bool | True | Feature flag |
+| `NOTEBOOKLM_NOTEBOOK_ID` | str | — | Notebook with tariff PDF |
+| `NOTEBOOKLM_TIMEOUT` | int | 120 | Query timeout (seconds) |
+| `NOTEBOOKLM_CACHE_TTL` | int | 86400 | Redis cache TTL (seconds) |
+
 ### Data Architecture
 
 | Decision | Choice | Rationale |

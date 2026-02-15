@@ -491,6 +491,9 @@ The core hypothesis to validate: **Semantic search can reliably match ambiguous 
 | **Matching Strategy** | Fuzzy matching + semantic similarity |
 | **Response Time** | <1 second for search query processing |
 | **Ranking** | BM25 with custom boosting for exact matches |
+| **NotebookLM Integration** | Google NotebookLM (Gemini 3) via notebooklm_tools Python SDK |
+| **Grounding Source** | Official Vietnam 2026 tariff PDF uploaded to NotebookLM |
+| **Rate Limit Strategy** | KB auto-storage + Redis cache (24h TTL) to minimize API calls (~50/day free tier) |
 
 **Search Index Structure:**
 - HS code (exact match field)
@@ -753,6 +756,11 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 - **FR60:** Users can jump to a specific chapter via quick selector in the browser
 - **FR61:** Users can view section and chapter classification notes in the browser
 
+**NotebookLM AI Search (FR62-FR64):** _(added via sprint change 2026-02-15)_
+- **FR62:** System queries NotebookLM (Gemini 3) for novel product descriptions not found in the knowledge base, using the official tariff PDF as grounding source
+- **FR63:** NotebookLM classification results are automatically stored in the knowledge base for future instant retrieval (self-improving accuracy)
+- **FR64:** System falls back to vector/fuzzy search when NotebookLM is unavailable (rate limit, timeout, or service outage)
+
 ---
 
 **FR Coverage Validation:**
@@ -769,6 +777,7 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 | Data integrity (from domain requirements) | FR48-FR50 |
 | Lookup history & details (from implementation) | FR51-FR53 |
 | Tariff schedule browser (from sprint change 2026-02-11) | FR54-FR61 |
+| NotebookLM AI search (from sprint change 2026-02-15) | FR62-FR64 |
 
 ---
 

@@ -2,9 +2,9 @@
 stepsCompleted: [1, 2, 3, 4]
 status: complete
 completedAt: '2026-01-26'
-totalEpics: 6  # Reordered 2026-02-11: New Epic 2 (Tariff Browser), old 2→3, 3→4, 4→5, 5→6
-totalStories: 37  # Added Stories 2-1, 2-2, 2-3 (Tariff Browser, Sprint Change 2026-02-11). Removed old 4.1 (moved to Epic 2).
-frCoverage: '61/61 (100%)'  # Added FR54-FR61 (2026-02-11)
+totalEpics: 7  # Added Epic 3 (NotebookLM AI Search, 2026-02-15), renumbered 3→4, 4→5, 5→6, 6→7
+totalStories: 39  # Added Stories 3-1, 3-2 (NotebookLM, Sprint Change 2026-02-15). Previous: 37.
+frCoverage: '64/64 (100%)'  # Added FR62-FR64 (2026-02-15)
 inputDocuments:
   - path: _bmad-output/planning-artifacts/prd.md
     type: prd
@@ -212,7 +212,7 @@ This document provides the complete epic and story breakdown for Athena, decompo
 | FR6 | Epic 1 | See confidence indicators |
 | FR7 | Epic 1 | View full tariff details from results |
 | FR8 | Epic 2 | Browse HS codes hierarchically |
-| FR9 | Epic 5 | Filter by HS code chapter |
+| FR9 | Epic 6 | Filter by HS code chapter |
 | FR10 | Epic 1 | View 8-digit HS code |
 | FR11 | Epic 1 | View Vietnamese description |
 | FR12 | Epic 1 | View English description |
@@ -222,33 +222,33 @@ This document provides the complete epic and story breakdown for Athena, decompo
 | FR16 | Epic 1 | View FTA preferential rates |
 | FR17 | Epic 1 | View policy notes |
 | FR18 | Epic 1 | View data version and date |
-| FR19 | Epic 4 | Save to favorites |
-| FR20 | Epic 4 | Add notes to favorites |
-| FR21 | Epic 4 | View favorites list |
-| FR22 | Epic 4 | Remove from favorites |
-| FR23 | Epic 4 | Search within favorites |
-| FR24 | Epic 4 | Quick access during search |
-| FR25 | Epic 4 | Auto-record searches |
-| FR26 | Epic 4 | View search history |
-| FR27 | Epic 4 | Re-execute from history |
-| FR28 | Epic 4 | See selected code in history |
-| FR29 | Epic 4 | Clear search history |
-| FR30 | Epic 3 | Create account |
-| FR31 | Epic 3 | Login |
-| FR32 | Epic 3 | Logout |
-| FR33 | Epic 3 | Password reset |
-| FR34 | Epic 3 | Persistent sessions |
-| FR35 | Epic 3 | Role assignment |
-| FR36 | Epic 6 | Upload tariff Excel |
-| FR37 | Epic 6 | Preview uploaded data |
-| FR38 | Epic 6 | Compare changes |
-| FR39 | Epic 6 | Activate new data |
-| FR40 | Epic 6 | Rollback to previous |
-| FR41 | Epic 6 | View upload history |
-| FR42 | Epic 6 | Validate Excel format |
+| FR19 | Epic 5 | Save to favorites |
+| FR20 | Epic 5 | Add notes to favorites |
+| FR21 | Epic 5 | View favorites list |
+| FR22 | Epic 5 | Remove from favorites |
+| FR23 | Epic 5 | Search within favorites |
+| FR24 | Epic 5 | Quick access during search |
+| FR25 | Epic 5 | Auto-record searches |
+| FR26 | Epic 5 | View search history |
+| FR27 | Epic 5 | Re-execute from history |
+| FR28 | Epic 5 | See selected code in history |
+| FR29 | Epic 5 | Clear search history |
+| FR30 | Epic 4 | Create account |
+| FR31 | Epic 4 | Login |
+| FR32 | Epic 4 | Logout |
+| FR33 | Epic 4 | Password reset |
+| FR34 | Epic 4 | Persistent sessions |
+| FR35 | Epic 4 | Role assignment |
+| FR36 | Epic 7 | Upload tariff Excel |
+| FR37 | Epic 7 | Preview uploaded data |
+| FR38 | Epic 7 | Compare changes |
+| FR39 | Epic 7 | Activate new data |
+| FR40 | Epic 7 | Rollback to previous |
+| FR41 | Epic 7 | View upload history |
+| FR42 | Epic 7 | Validate Excel format |
 | FR43 | Epic 1 | No results feedback |
-| FR44 | Epic 5 | Low-confidence suggestions |
-| FR45 | Epic 5 | Report data issues |
+| FR44 | Epic 6 | Low-confidence suggestions |
+| FR45 | Epic 6 | Report data issues |
 | FR46 | Epic 1 | System error messages |
 | FR47 | Epic 1 | Loading indicators |
 | FR48 | Epic 1 | Preserve HS code format |
@@ -265,6 +265,9 @@ This document provides the complete epic and story breakdown for Athena, decompo
 | FR59 | Epic 2 | Search/filter within tariff browser |
 | FR60 | Epic 2 | Jump to chapter quick selector |
 | FR61 | Epic 2 | View section/chapter notes |
+| FR62 | Epic 3 | NotebookLM query for novel descriptions |
+| FR63 | Epic 3 | Auto-store NotebookLM results in KB |
+| FR64 | Epic 3 | Fallback to vector search when NotebookLM unavailable |
 
 ## Epic List
 
@@ -295,7 +298,21 @@ Users can browse the full tariff schedule as a web-based replacement for the Exc
 - Schema migration: 4 new columns on hs_codes, 4 new columns on fta_rates
 - 3 new export FTA agreements imported (CPTPP-XK, EV-XK, UKV-XK)
 
-### Epic 3: User Authentication & Sessions (was Epic 2)
+### Epic 3: NotebookLM AI Search (ADDED 2026-02-15)
+NotebookLM (Google Gemini 3) replaces the failed vector/LLM pipeline as the primary AI search path. Product descriptions are sent to NotebookLM with the official tariff PDF as grounding source. Responses are parsed for HS codes, combined with local DB data, and auto-stored in the knowledge base for self-improving accuracy.
+
+**FRs covered:** FR62, FR63, FR64
+
+**Implementation Notes:**
+- **Sprint Change Proposal:** `sprint-change-proposal-2026-02-15.md`
+- Story 3-1: NotebookLM service, response parser, Redis caching, Docker setup
+- Story 3-2: Search pipeline integration, KB auto-storage, fallback chain
+- 100% accuracy in testing vs 0% for vector/LLM pipeline
+- Self-improving: auto-stores in KB, future similar queries skip NotebookLM
+- Rate limit mitigation: ~50 queries/day free tier, KB + Redis caching essential
+- Backend-only change — no frontend modifications
+
+### Epic 4: User Authentication & Sessions (was Epic 3, was Epic 2)
 Users can create accounts, log in securely, and maintain persistent sessions across browser sessions. Enables personalization features in subsequent epics.
 
 **FRs covered:** FR30, FR31, FR32, FR33, FR34, FR35
@@ -306,7 +323,7 @@ Users can create accounts, log in securely, and maintain persistent sessions acr
 - Role-based access (user/admin)
 - Password reset flow
 
-### Epic 4: Personalization - Favorites & History (was Epic 3)
+### Epic 5: Personalization - Favorites & History (was Epic 4, was Epic 3)
 Users can save frequently-used HS codes to favorites with personal notes, and access their complete search history for quick re-lookups. Completes the daily workflow optimization.
 
 **FRs covered:** FR19, FR20, FR21, FR22, FR23, FR24, FR25, FR26, FR27, FR28, FR29
@@ -317,7 +334,7 @@ Users can save frequently-used HS codes to favorites with personal notes, and ac
 - Search within favorites
 - One-click history re-execution
 
-### Epic 5: Advanced Search & Discovery (was Epic 4, remaining stories)
+### Epic 6: Advanced Search & Discovery (was Epic 5, was Epic 4)
 Users can filter search results by chapter, receive guidance when search results have low confidence, and report data issues. Handles edge cases and ambiguous queries.
 
 **FRs covered:** FR9, FR44, FR45
@@ -328,7 +345,7 @@ Users can filter search results by chapter, receive guidance when search results
 - Feedback mechanism for reporting data issues
 - Note: Hierarchical browsing (FR8) moved to Epic 2
 
-### Epic 6: Admin Data Management (was Epic 5)
+### Epic 7: Admin Data Management (was Epic 6, was Epic 5)
 Admins can upload new tariff data (Excel), preview changes, activate updates, and rollback if needed. Enables annual tariff updates.
 
 **FRs covered:** FR36, FR37, FR38, FR39, FR40, FR41, FR42
@@ -1212,11 +1229,158 @@ So that **I no longer need to open the Excel file to find and explore HS codes**
 
 ---
 
-## Epic 3: User Authentication & Sessions (was Epic 2)
+## Epic 3: NotebookLM AI Search (ADDED 2026-02-15)
+
+NotebookLM (Google Gemini 3) replaces the failed vector/LLM pipeline as the primary AI search path for novel queries.
+
+### Story 3.1: NotebookLM Service & Response Parser
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-15.md`
+
+As a **developer**,
+I want **a service that queries NotebookLM with product descriptions and parses the response into structured HS code data**,
+So that **the search pipeline can use NotebookLM as its primary AI classification engine**.
+
+**Background:**
+Three attempts at AI-based search (vector embeddings, category context enrichment, LLM query enhancement + reranking) all failed at 0% accuracy. NotebookLM (Gemini 3) with the official tariff PDF achieves 100% accuracy across all test queries. This story creates the service wrapper, response parser, and caching layer.
+
+**Acceptance Criteria:**
+
+**Given** the NotebookLM service is configured with a valid notebook ID
+**When** I call `query("Thanh treo khăn bằng đồng mạ chrome")`
+**Then** the service returns `{hs_code: "7418.20.00", classification: {...}, practical_notes: [...], raw_answer: "..."}`
+**And** the HS code is extracted via regex from the NotebookLM markdown response
+**And** classification contains material and function reasoning text
+
+**Given** NotebookLM returns an answer mentioning an HS code
+**When** the response is parsed
+**Then** the first HS code matching pattern `XXXX.XX.XX` is extracted
+**And** if that code exists in our database, it is used as the result
+**And** if that code does NOT exist in our database, the response is treated as no-match
+
+**Given** NotebookLM returns a categorized guide (no single HS code)
+**When** the response is parsed
+**Then** the system returns the response as guidance text
+**And** `hs_code` is None (indicating manual classification needed)
+
+**Given** NotebookLM is unavailable (rate limit, timeout, service down)
+**When** the service is called
+**Then** it raises a specific exception (`NotebookLMUnavailableError`)
+**And** the error includes reason (timeout/rate_limit/auth_error/service_down)
+
+**Given** the service is disabled via configuration
+**When** the service is called
+**Then** it immediately returns None without making any API call
+
+**Given** a query has been previously answered by NotebookLM
+**When** the same query is sent within 24 hours
+**Then** the cached Redis response is returned
+**And** no NotebookLM API call is made
+
+**Technical Tasks:**
+
+1. Create service: `api/app/services/notebooklm_service.py`
+   - `NotebookLMService` class wrapping `notebooklm_tools.core.client.NotebookLMClient`
+   - `query(query_text)` → `{hs_code, classification, practical_notes, raw_answer}` | `None`
+   - Response parsing: regex HS code extraction (`\d{4}\.\d{2}\.\d{2}`) + section splitting
+   - Error handling: timeout (120s), rate limit, auth errors
+   - Configuration: notebook_id, enabled flag, timeout
+
+2. Add Redis caching for NotebookLM responses
+   - Key: `nlm:{md5(query.lower().strip())}`
+   - TTL: 24 hours (configurable via `NOTEBOOKLM_CACHE_TTL`)
+   - Value: `{hs_code, classification, practical_notes, raw_answer}`
+
+3. Add configuration to `api/app/core/config.py`
+   - `NOTEBOOKLM_ENABLED`: bool = True
+   - `NOTEBOOKLM_NOTEBOOK_ID`: str
+   - `NOTEBOOKLM_TIMEOUT`: int = 120
+   - `NOTEBOOKLM_CACHE_TTL`: int = 86400
+
+4. Update Docker setup
+   - Add `notebooklm-mcp-cli` to `api/requirements.txt`
+   - Mount cookie directory as volume in `docker-compose.dev.yml`
+
+5. Write tests
+   - `notebooklm_service_test.py`: mock client, test parsing, test Redis caching, test error handling
+
+**Definition of Done:**
+- [ ] NotebookLMService created with `query()` method
+- [ ] Response parsing extracts HS code, classification, and notes
+- [ ] Redis caching prevents duplicate NotebookLM calls (24h TTL)
+- [ ] Configuration flags allow enabling/disabling
+- [ ] Docker setup includes `notebooklm-mcp-cli` and cookie volume
+- [ ] Tests cover happy path, parsing edge cases, caching, and error handling
+
+**Dependency:** Stories 1-8, 1-9, 1-10 must be complete.
+
+---
+
+### Story 3.2: Integrate NotebookLM into Search Pipeline
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-15.md`
+
+As a **user**,
+I want **my searches to be classified by NotebookLM (Gemini 3) using the official tariff document**,
+So that **I get accurate HS code classifications grounded in the actual Vietnam 2026 tariff schedule**.
+
+**Acceptance Criteria:**
+
+**Given** no KB match exists for a query
+**When** I search for "Thanh treo khăn bằng đồng mạ chrome"
+**Then** NotebookLM is queried with the tariff notebook
+**And** the HS code is looked up in the local database for structured rates
+**And** classification reasoning from NotebookLM is included in the response
+**And** the result is stored in the knowledge base (`is_verified=false`)
+**And** the result is cached in Redis (24h TTL)
+**And** `source="notebooklm"` in the response
+
+**Given** a previous NotebookLM query is cached in Redis
+**When** I search with the same query within 24 hours
+**Then** the cached response is returned immediately
+**And** `source="cache"` in the response
+**And** no NotebookLM API call is made
+
+**Given** NotebookLM is unavailable (rate limit, timeout, service down)
+**When** I search for a product description
+**Then** the system falls back to vector/fuzzy search
+**And** `process_logs` include "NotebookLM unavailable, falling back to vector search"
+
+**Given** NotebookLM returns a categorized guide (no single HS code)
+**When** the result is processed
+**Then** the system returns the guidance text as classification
+**And** confidence is set to 0 (indicating manual classification needed)
+
+**Technical Tasks:**
+
+1. Modify service: `api/app/services/search_service.py`
+   - Add NotebookLM step between KB lookup and vector search
+   - New pipeline: KB exact → KB similar → Redis cache → NotebookLM → vector/fuzzy (fallback)
+   - On NotebookLM success: look up HS code in local DB, combine data
+   - On NotebookLM failure: fall back to existing vector/fuzzy pipeline
+   - Auto-store result in `lookup_records` (knowledge base, `is_verified=false`)
+
+2. Write integration tests
+   - `search_service` integration test: verify NotebookLM → DB lookup → KB storage flow
+   - `search_service` fallback test: verify vector search fallback on NotebookLM failure
+
+**Definition of Done:**
+- [ ] Search pipeline uses NotebookLM between KB and vector search
+- [ ] NotebookLM results combined with local DB data (rates, descriptions)
+- [ ] Results auto-stored in knowledge base (`is_verified=false`)
+- [ ] Fallback to vector search when NotebookLM unavailable
+- [ ] Process logs include NotebookLM step status
+- [ ] Integration tests pass for happy path and fallback
+
+**Dependency:** Story 3-1 must be complete.
+
+---
+
+## Epic 4: User Authentication & Sessions (was Epic 3, was Epic 2)
 
 Users can create accounts, log in securely, and maintain persistent sessions across browser sessions.
 
-### Story 3.1: User Registration (was Story 2.1)
+### Story 4.1: User Registration (was Story 3.1, was Story 2.1)
 
 As a **new user**,
 I want **to create an account with my email and password**,
@@ -1251,7 +1415,7 @@ So that **I can access personalized features like favorites and history**.
 
 ---
 
-### Story 3.2: User Login (was Story 2.2)
+### Story 4.2: User Login (was Story 3.2, was Story 2.2)
 
 As a **registered user**,
 I want **to log in with my email and password**,
@@ -1286,7 +1450,7 @@ So that **I can access my personal favorites and search history**.
 
 ---
 
-### Story 3.3: User Logout (was Story 2.3)
+### Story 4.3: User Logout (was Story 3.3, was Story 2.3)
 
 As a **logged-in user**,
 I want **to log out of the system**,
@@ -1310,7 +1474,7 @@ So that **I can secure my account on shared devices**.
 
 ---
 
-### Story 3.4: Password Reset (was Story 2.4)
+### Story 4.4: Password Reset (was Story 3.4, was Story 2.4)
 
 As a **user who forgot my password**,
 I want **to reset my password via email**,
@@ -1344,7 +1508,7 @@ So that **I can regain access to my account**.
 
 ---
 
-### Story 3.5: Role-Based Access Control (was Story 2.5)
+### Story 4.5: Role-Based Access Control (was Story 3.5, was Story 2.5)
 
 As an **administrator**,
 I want **to assign roles to users**,
@@ -1378,11 +1542,11 @@ So that **I can control who has admin access to data management**.
 
 ---
 
-## Epic 4: Personalization - Favorites & History (was Epic 3)
+## Epic 5: Personalization - Favorites & History (was Epic 4, was Epic 3)
 
 Users can save frequently-used HS codes to favorites with personal notes, and access their complete search history for quick re-lookups.
 
-### Story 4.1: Save HS Code to Favorites (was Story 3.1)
+### Story 5.1: Save HS Code to Favorites (was Story 4.1, was Story 3.1)
 
 As a **logged-in user**,
 I want **to save an HS code to my favorites**,
@@ -1412,7 +1576,7 @@ So that **I can quickly access frequently-used codes**.
 
 ---
 
-### Story 4.2: Add Notes to Favorites (was Story 3.2)
+### Story 5.2: Add Notes to Favorites (was Story 4.2, was Story 3.2)
 
 As a **logged-in user**,
 I want **to add personal notes to my favorited HS codes**,
@@ -1441,7 +1605,7 @@ So that **I can remember why I saved them or add context**.
 
 ---
 
-### Story 4.3: View and Manage Favorites List (was Story 3.3)
+### Story 5.3: View and Manage Favorites List (was Story 4.3, was Story 3.3)
 
 As a **logged-in user**,
 I want **to view and manage my complete favorites list**,
@@ -1475,7 +1639,7 @@ So that **I can quickly access my saved HS codes**.
 
 ---
 
-### Story 4.4: Search Within Favorites (was Story 3.4)
+### Story 5.4: Search Within Favorites (was Story 4.4, was Story 3.4)
 
 As a **logged-in user**,
 I want **to search within my favorites**,
@@ -1503,7 +1667,7 @@ So that **I can quickly find a specific saved code**.
 
 ---
 
-### Story 4.5: Quick Favorites Access During Search (was Story 3.5)
+### Story 5.5: Quick Favorites Access During Search (was Story 4.5, was Story 3.5)
 
 As a **logged-in user**,
 I want **to quickly access my favorites while searching**,
@@ -1528,7 +1692,7 @@ So that **I can reference saved codes without leaving the search workflow**.
 
 ---
 
-### Story 4.6: Automatic Search History Recording (was Story 3.6)
+### Story 5.6: Automatic Search History Recording (was Story 4.6, was Story 3.6)
 
 As a **logged-in user**,
 I want **my searches to be recorded automatically**,
@@ -1559,7 +1723,7 @@ So that **I can review and re-use past searches**.
 
 ---
 
-### Story 4.7: View and Re-execute Search History (was Story 3.7)
+### Story 5.7: View and Re-execute Search History (was Story 4.7, was Story 3.7)
 
 As a **logged-in user**,
 I want **to view my search history and re-execute past searches**,
@@ -1588,7 +1752,7 @@ So that **I can quickly repeat common lookups**.
 
 ---
 
-### Story 4.8: Clear Search History (was Story 3.8)
+### Story 5.8: Clear Search History (was Story 4.8, was Story 3.8)
 
 As a **logged-in user**,
 I want **to clear my search history**,
@@ -1618,13 +1782,13 @@ So that **I can maintain privacy or remove clutter**.
 
 ---
 
-## Epic 5: Advanced Search & Discovery (was Epic 4)
+## Epic 6: Advanced Search & Discovery (was Epic 5, was Epic 4)
 
 Users can filter search results by chapter, receive guidance when search results have low confidence, and report data issues. Handles edge cases and ambiguous queries.
 
-> **Note:** Story 4.1 (Hierarchical HS Code Browser) has been moved to Epic 2 as Stories 2.2 and 2.3 (Sprint Change 2026-02-11).
+> **Note:** Story 4.1/5.1 (Hierarchical HS Code Browser) has been moved to Epic 2 as Stories 2.2 and 2.3 (Sprint Change 2026-02-11).
 
-### Story 5.1: Chapter Filter on Search Results (was Story 4.2)
+### Story 6.1: Chapter Filter on Search Results (was Story 5.1, was Story 4.2)
 
 As a **user**,
 I want **to filter search results by HS code chapter**,
@@ -1659,7 +1823,7 @@ So that **I can narrow down results when I know the general category**.
 
 ---
 
-### Story 5.2: Low-Confidence Search Guidance (was Story 4.3)
+### Story 6.2: Low-Confidence Search Guidance (was Story 5.2, was Story 4.3)
 
 As a **user**,
 I want **to receive guidance when search results have low confidence**,
@@ -1695,7 +1859,7 @@ So that **I can refine my search or try alternative approaches**.
 
 ---
 
-### Story 5.3: Data Feedback Mechanism (was Story 4.4)
+### Story 6.3: Data Feedback Mechanism (was Story 5.3, was Story 4.4)
 
 As a **user**,
 I want **to report incorrect or missing HS code data**,
@@ -1730,11 +1894,11 @@ So that **administrators can improve the data quality**.
 
 ---
 
-## Epic 6: Admin Data Management (was Epic 5)
+## Epic 7: Admin Data Management (was Epic 6, was Epic 5)
 
 Admins can upload new tariff data (Excel), preview changes, activate updates, and rollback if needed.
 
-### Story 6.1: Tariff Data Upload (was Story 5.1)
+### Story 7.1: Tariff Data Upload (was Story 6.1, was Story 5.1)
 
 As an **admin**,
 I want **to upload new tariff data files**,
@@ -1769,7 +1933,7 @@ So that **I can update the system with the latest Vietnam Customs data**.
 
 ---
 
-### Story 6.2: Preview Uploaded Data (was Story 5.2)
+### Story 7.2: Preview Uploaded Data (was Story 6.2, was Story 5.2)
 
 As an **admin**,
 I want **to preview uploaded data before activation**,
@@ -1805,7 +1969,7 @@ So that **I can verify the data is correct**.
 
 ---
 
-### Story 6.3: Activate Tariff Data (was Story 5.3)
+### Story 7.3: Activate Tariff Data (was Story 6.3, was Story 5.3)
 
 As an **admin**,
 I want **to activate uploaded tariff data to make it live**,
@@ -1842,7 +2006,7 @@ So that **users can search the new data**.
 
 ---
 
-### Story 6.4: Rollback to Previous Version (was Story 5.4)
+### Story 7.4: Rollback to Previous Version (was Story 6.4, was Story 5.4)
 
 As an **admin**,
 I want **to rollback to the previous tariff data version**,
@@ -1873,7 +2037,7 @@ So that **I can recover from a bad data update**.
 
 ---
 
-### Story 6.5: Data Version History (was Story 5.5)
+### Story 7.5: Data Version History (was Story 6.5, was Story 5.5)
 
 As an **admin**,
 I want **to view the history of data uploads and activations**,
