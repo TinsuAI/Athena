@@ -71,7 +71,7 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: User Authentication & Sessions (was Epic 3, was Epic 2, 5 stories)
-  epic-4: in-progress
+  epic-4: done
   4-1-user-registration: done  # was 3-1, was 2-1 (Code review: 1 high + 6 medium issues fixed)
   4-2-user-login: done  # was 3-2, was 2-2 (Code review: 1 high + 6 medium issues fixed)
   4-3-user-logout: done  # was 3-3, was 2-3 (Code review: 3 high + 4 medium issues fixed)
