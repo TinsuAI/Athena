@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     notebooklm_notebook_id: str = ""
     notebooklm_timeout: int = 120
     notebooklm_cache_ttl: int = 86400  # 24 hours
+    notebooklm_confidence_score: int = 95  # Confidence score for NLM-grounded results
 
     @property
     def cors_origins_list(self) -> list[str]:

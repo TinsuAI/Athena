@@ -33,6 +33,10 @@ from app.services.llm_reasoning_service import LLMReasoningService
 from app.services.query_enhancement_service import QueryEnhancementService
 from app.services.reranking_service import RerankingService
 from app.services.knowledge_base_service import KnowledgeBaseService
+from app.services.notebooklm_service import (
+    NotebookLMService,
+    NotebookLMUnavailableError,
+)
 from app.services.search_cache import CachedSearchResult, SearchCacheService
 from app.services.search_service import SearchService
 
@@ -332,6 +336,162 @@ async def search_hs_codes(
             kb_duration = int((time.time() - kb_exact_start) * 1000) if 'kb_exact_start' in locals() else 0
             add_log("kb_exact_lookup", "failed", f"KB lookup failed: {str(e)}, falling back to AI search", duration_ms=kb_duration)
             logger.warning("KB lookup failed, continuing with AI search", extra={"error": str(e)}, exc_info=True)
+
+        # --- NotebookLM AI Search (primary AI path) ---
+        nlm_service = NotebookLMService(redis_client=redis_client)
+        try:
+            nlm_start = time.time()
+            add_log("notebooklm", "started", "Querying NotebookLM for classification...")
+            nlm_result = await nlm_service.query(body.query)
+            nlm_duration = int((time.time() - nlm_start) * 1000)
+
+            if nlm_result is None:
+                # Service is disabled
+                add_log("notebooklm", "skipped", "NotebookLM disabled, skipping", duration_ms=nlm_duration)
+            elif nlm_result.hs_code:
+                # NLM returned an HS code — look up in local DB
+                nlm_code_raw = nlm_result.hs_code.replace(".", "")
+
+                # Validate HS code format (must be exactly 8 digits)
+                if len(nlm_code_raw) != 8 or not nlm_code_raw.isdigit():
+                    add_log("notebooklm", "failed",
+                            f"NLM returned malformed HS code '{nlm_result.hs_code}' (expected XXXX.XX.XX format), falling back",
+                            duration_ms=nlm_duration)
+                    # Fall through to vector/fuzzy search
+                else:
+                    add_log("notebooklm", "completed",
+                            f"NotebookLM returned HS code {nlm_result.hs_code}",
+                            duration_ms=nlm_duration)
+
+                    # DB lookup for structured data
+                    db_start = time.time()
+                    add_log("notebooklm_db_lookup", "started", f"Looking up {nlm_code_raw} in database...")
+                    hs_result = await db.execute(
+                        select(HSCode)
+                        .where(HSCode.code == nlm_code_raw)
+                        .options(
+                            selectinload(HSCode.fta_rates),
+                            selectinload(HSCode.subheading)
+                            .selectinload(HSSubheading.heading)
+                            .selectinload(HSHeading.chapter),
+                        )
+                    )
+                    hs_code_obj = hs_result.scalar_one_or_none()
+                    db_duration = int((time.time() - db_start) * 1000)
+
+                    if hs_code_obj:
+                        add_log("notebooklm_db_lookup", "completed",
+                                f"HS code {nlm_code_raw} found in database",
+                                duration_ms=db_duration)
+
+                        # Determine source based on cache hit
+                        source = "cache" if nlm_result.from_cache else "notebooklm"
+
+                        # Build classification from NLM data
+                        nlm_classification = nlm_result.classification or {}
+                        classification = ClassificationSchema(
+                            material=nlm_classification.get("material", ""),
+                            function=nlm_classification.get("function", ""),
+                        )
+
+                        total_duration = int((time.time() - start_time) * 1000)
+                        add_log("complete", "completed",
+                                f"Search completed (from {source}): {_format_hs_code(hs_code_obj.code)}",
+                                duration_ms=total_duration)
+
+                        response_data = SearchResponseData(
+                            hs_code=_format_hs_code(hs_code_obj.code),
+                            description=hs_code_obj.description_vn,
+                            duty_rate=_format_rate(float(hs_code_obj.duty_rate)),
+                            vat_rate=_format_rate(float(hs_code_obj.vat_rate)),
+                            classification=classification,
+                            practical_notes=nlm_result.practical_notes,
+                            confidence=settings.notebooklm_confidence_score,
+                            process_logs=process_logs,
+                            source=source,
+                            is_verified=False,
+                        )
+
+                        # Record lookup for knowledge base
+                        lookup_id = await _record_lookup(
+                            db=db,
+                            query=body.query,
+                            matched_hs_code_id=hs_code_obj.id,
+                            confidence_score=settings.notebooklm_confidence_score,
+                            search_method="notebooklm",
+                            classification_data=nlm_classification,
+                            practical_notes=nlm_result.practical_notes,
+                            process_logs=[log.model_dump() for log in process_logs],
+                        )
+                        response_data.lookup_id = lookup_id
+
+                        return success_response(response_data.model_dump())
+                    else:
+                        add_log("notebooklm_db_lookup", "failed",
+                                f"NLM HS code {nlm_code_raw} not found in database, falling back",
+                                duration_ms=db_duration)
+            else:
+                # NLM returned a categorized guide (no single HS code)
+                add_log("notebooklm", "completed",
+                        "NotebookLM returned categorized guide (no single HS code)",
+                        duration_ms=nlm_duration)
+
+                source = "cache" if nlm_result.from_cache else "notebooklm"
+
+                # Truncate with ellipsis indicator
+                truncated_material = nlm_result.raw_answer[:200] + ("..." if len(nlm_result.raw_answer) > 200 else "")
+                classification = ClassificationSchema(
+                    material=truncated_material,
+                    function="Categorized guide — manual classification recommended",
+                )
+
+                total_duration = int((time.time() - start_time) * 1000)
+                add_log("complete", "completed",
+                        f"Search completed (from {source}): categorized guide",
+                        duration_ms=total_duration)
+
+                truncated_description = nlm_result.raw_answer[:200] + ("..." if len(nlm_result.raw_answer) > 200 else "")
+                response_data = SearchResponseData(
+                    hs_code="0000.00.00",
+                    description=truncated_description,
+                    duty_rate="N/A",
+                    vat_rate="N/A",
+                    classification=classification,
+                    practical_notes=nlm_result.practical_notes,
+                    confidence=0,
+                    process_logs=process_logs,
+                    source=source,
+                    is_verified=False,
+                )
+
+                # Record the guide in KB for reference
+                lookup_id = await _record_lookup(
+                    db=db,
+                    query=body.query,
+                    matched_hs_code_id=None,
+                    confidence_score=0,
+                    search_method="notebooklm",
+                    classification_data={"guide": nlm_result.raw_answer},
+                    practical_notes=nlm_result.practical_notes,
+                    process_logs=[log.model_dump() for log in process_logs],
+                )
+                response_data.lookup_id = lookup_id
+
+                return success_response(response_data.model_dump())
+
+        except NotebookLMUnavailableError as e:
+            nlm_duration = int((time.time() - nlm_start) * 1000) if 'nlm_start' in locals() else 0
+            add_log("notebooklm", "failed",
+                    f"NotebookLM unavailable ({e.reason}), falling back to vector search",
+                    duration_ms=nlm_duration,
+                    details={"reason": e.reason})
+            logger.warning("NotebookLM unavailable, falling back", extra={"reason": e.reason})
+        except Exception as e:
+            nlm_duration = int((time.time() - nlm_start) * 1000) if 'nlm_start' in locals() else 0
+            add_log("notebooklm", "failed",
+                    f"NotebookLM error: {str(e)}, falling back to vector search",
+                    duration_ms=nlm_duration)
+            logger.warning("NotebookLM error, falling back", extra={"error": str(e)}, exc_info=True)
 
         # --- AI Fallback: Existing search flow ---
         # Check cache first

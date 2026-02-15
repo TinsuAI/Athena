@@ -30,6 +30,7 @@ class NotebookLMResult:
     classification: dict | None  # {"reasoning": "...", "material": "...", "function": "..."}
     practical_notes: list[str]  # Extracted practical guidance
     raw_answer: str  # Full NotebookLM markdown response
+    from_cache: bool = False  # True when result came from Redis cache
 
 
 class NotebookLMService:
@@ -293,7 +294,9 @@ class NotebookLMService:
             cached = await self.redis_client.get(self._cache_key(query_text))
             if cached:
                 data = json.loads(cached)
-                return NotebookLMResult(**data)
+                result = NotebookLMResult(**data)
+                result.from_cache = True
+                return result
         except Exception:
             pass
 

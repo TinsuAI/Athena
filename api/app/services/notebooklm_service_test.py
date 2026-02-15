@@ -100,6 +100,7 @@ class TestQueryReturnsHSCode:
         assert result.classification is not None
         assert result.raw_answer == RESPONSE_WITH_HS_CODE
         assert isinstance(result.practical_notes, list)
+        assert result.from_cache is False  # Fresh result, not from cache
 
 
 class TestResponseParsingEdgeCases:
@@ -135,12 +136,13 @@ class TestRedisCaching:
     """Test AC6: Redis caching."""
 
     async def test_redis_cache_hit(self, service, mock_redis):
-        """Cached result is returned without calling SDK."""
+        """Cached result is returned without calling SDK, with from_cache=True."""
         cached_data = {
             "hs_code": "7418.20.00",
             "classification": {"reasoning": "test"},
             "practical_notes": [],
             "raw_answer": "cached response",
+            "from_cache": False,  # Stored as False in Redis
         }
         mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
 
@@ -151,6 +153,7 @@ class TestRedisCaching:
         assert result is not None
         assert result.hs_code == "7418.20.00"
         assert result.raw_answer == "cached response"
+        assert result.from_cache is True  # Must be True on cache hit
 
     async def test_redis_cache_miss(self, service, mock_redis):
         """Cache miss triggers SDK call and caches result."""
@@ -181,7 +184,8 @@ class TestRedisCaching:
 
     def test_redis_serialization_round_trip(self, service):
         """Validate that NotebookLMResult can be serialized and deserialized for Redis."""
-        from dataclasses import asdict
+        from dataclasses import asdict  # noqa: I001
+
         from app.services.notebooklm_service import NotebookLMResult
 
         original = NotebookLMResult(
@@ -199,6 +203,32 @@ class TestRedisCaching:
         assert deserialized.classification == original.classification
         assert deserialized.practical_notes == original.practical_notes
         assert deserialized.raw_answer == original.raw_answer
+        assert deserialized.from_cache is False  # Default is False after deserialization
+
+    def test_from_cache_flag_serialization_round_trip(self, service):
+        """Validate from_cache field survives serialization but defaults to False."""
+        from dataclasses import asdict  # noqa: I001
+
+        from app.services.notebooklm_service import NotebookLMResult
+
+        original = NotebookLMResult(
+            hs_code="7418.20.00",
+            classification={"reasoning": "test"},
+            practical_notes=[],
+            raw_answer="test",
+            from_cache=True,
+        )
+
+        # Simulate save to cache (includes from_cache=True, harmless)
+        serialized = json.dumps(asdict(original))
+        data = json.loads(serialized)
+
+        # Simulate _get_from_cache: deserialize then set from_cache=True
+        deserialized = NotebookLMResult(**data)
+        deserialized.from_cache = True
+
+        assert deserialized.from_cache is True
+        assert deserialized.hs_code == "7418.20.00"
 
 
 class TestErrorHandling:

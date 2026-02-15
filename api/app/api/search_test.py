@@ -983,3 +983,629 @@ class TestKBSearchIntegration:
         assert call_kwargs["search_method"] == "knowledge_base"
         assert call_kwargs["matched_hs_code_id"] == 42
         assert call_kwargs["confidence_score"] == 100
+
+
+class TestNotebookLMIntegration:
+    """Integration tests for NotebookLM search pipeline (Story 3-2)."""
+
+    def _make_mock_hs_code(self, code="74182000", hs_id=42):
+        """Create a mock HS code object for testing."""
+        mock_hs_code = MagicMock()
+        mock_hs_code.id = hs_id
+        mock_hs_code.code = code
+        mock_hs_code.description_vn = "Đồ trang bị trong nhà vệ sinh"
+        mock_hs_code.description_en = "Sanitary ware"
+        mock_hs_code.duty_rate = 30.0
+        mock_hs_code.vat_rate = 10.0
+        mock_hs_code.unit = "Chiếc"
+        mock_hs_code.fta_rates = []
+        mock_hs_code.subheading = None
+        return mock_hs_code
+
+    def _make_mock_nlm_result(self, hs_code="7418.20.00", from_cache=False):
+        """Create a mock NotebookLMResult."""
+        from app.services.notebooklm_service import NotebookLMResult
+
+        return NotebookLMResult(
+            hs_code=hs_code,
+            classification={"reasoning": "GRI 1", "material": "copper", "function": "bathroom fitting"},
+            practical_notes=["Use EVFTA for 3.7% rate"],
+            raw_answer="Full markdown response...",
+            from_cache=from_cache,
+        )
+
+    def _make_mock_nlm_guide(self, from_cache=False):
+        """Create a mock NotebookLMResult for a categorized guide (no HS code)."""
+        from app.services.notebooklm_service import NotebookLMResult
+
+        return NotebookLMResult(
+            hs_code=None,
+            classification=None,
+            practical_notes=[],
+            raw_answer="Categorized guide: this product needs manual classification...",
+            from_cache=from_cache,
+        )
+
+    def _base_patches(self):
+        """Return common patches for NLM integration tests."""
+        mock_settings = MagicMock()
+        mock_settings.openrouter_api_key = None
+        mock_settings.enable_query_enhancement = False
+        mock_settings.enable_reranking = False
+        mock_settings.llm_reasoning_model = "gpt-4o-mini"
+        mock_settings.notebooklm_confidence_score = 95
+        return mock_settings
+
+    @pytest.mark.asyncio
+    async def test_nlm_success_hs_code_found(self):
+        """AC1: NLM returns HS code found in DB → source='notebooklm', confidence=95."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_hs_code = self._make_mock_hs_code()
+        nlm_result = self._make_mock_nlm_result(from_cache=False)
+
+        # DB returns the HS code on lookup
+        mock_db_result = MagicMock()
+        mock_db_result.scalar_one_or_none.return_value = mock_hs_code
+        mock_db.execute.return_value = mock_db_result
+
+        search_request = SearchRequest(query="Thanh treo khăn bằng đồng mạ chrome")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search._record_lookup") as mock_record, \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+            mock_record.return_value = 10
+
+            # KB returns no match
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            # Cache service (not used, but needs to be mocked)
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache.set = AsyncMock()
+            mock_cache_class.return_value = mock_cache
+
+            # NLM returns successful result
+            mock_nlm = AsyncMock()
+            mock_nlm.query.return_value = nlm_result
+            mock_nlm_class.return_value = mock_nlm
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["source"] == "notebooklm"
+        assert response["data"]["confidence"] == 95
+        assert response["data"]["hs_code"] == "7418.20.00"
+        assert response["data"]["is_verified"] is False
+        assert response["data"]["lookup_id"] == 10
+
+        # Verify NLM was called
+        mock_nlm.query.assert_awaited_once_with("Thanh treo khăn bằng đồng mạ chrome")
+
+        # Verify lookup recorded with search_method="notebooklm"
+        mock_record.assert_awaited_once()
+        call_kwargs = mock_record.call_args[1]
+        assert call_kwargs["search_method"] == "notebooklm"
+        assert call_kwargs["confidence_score"] == 95
+
+    @pytest.mark.asyncio
+    async def test_nlm_cache_hit(self):
+        """AC2: NLM cached result → source='cache', confidence=95, no new API call."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_hs_code = self._make_mock_hs_code()
+        nlm_result = self._make_mock_nlm_result(from_cache=True)
+
+        mock_db_result = MagicMock()
+        mock_db_result.scalar_one_or_none.return_value = mock_hs_code
+        mock_db.execute.return_value = mock_db_result
+
+        search_request = SearchRequest(query="Thanh treo khăn bằng đồng mạ chrome")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=11)), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            # Cache service (not used, but needs to be mocked)
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache.set = AsyncMock()
+            mock_cache_class.return_value = mock_cache
+
+            mock_nlm = AsyncMock()
+            mock_nlm.query.return_value = nlm_result
+            mock_nlm_class.return_value = mock_nlm
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["source"] == "cache"
+        assert response["data"]["confidence"] == 95
+
+    @pytest.mark.asyncio
+    async def test_nlm_unavailable_fallback(self):
+        """AC3: NLM unavailable → falls back to vector search, process_logs has fallback entry."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+        from app.services.notebooklm_service import NotebookLMUnavailableError
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_search_result = MagicMock()
+        mock_search_result.hs_code = "74182000"
+        mock_search_result.description_vn = "Đồ trang bị trong nhà vệ sinh"
+        mock_search_result.description_en = "Sanitary ware"
+        mock_search_result.duty_rate = 30.0
+        mock_search_result.vat_rate = 10.0
+        mock_search_result.unit = "Chiếc"
+        mock_search_result.confidence = 85
+        mock_search_result.is_exact_match = False
+        mock_search_result.hs_code_full = self._make_mock_hs_code()
+
+        search_request = SearchRequest(query="copper towel rack")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search.SearchService") as mock_search_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=12)), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            # NLM raises unavailable
+            mock_nlm = AsyncMock()
+            mock_nlm.query.side_effect = NotebookLMUnavailableError(reason="timeout")
+            mock_nlm_class.return_value = mock_nlm
+
+            # Cache miss
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache_class.return_value = mock_cache
+
+            # Search returns result
+            mock_search = AsyncMock()
+            mock_search.search.return_value = [mock_search_result]
+            mock_search_class.return_value = mock_search
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "Copper"
+            mock_analysis.function = "Fixture"
+            mock_analysis.practical_notes = []
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["source"] == "ai_suggestion"
+
+        # Verify process_logs has fallback entry
+        logs = response["data"]["process_logs"]
+        nlm_fallback_logs = [
+            log for log in logs
+            if log["step"] == "notebooklm" and log["status"] == "failed"
+        ]
+        assert len(nlm_fallback_logs) == 1
+        assert "NotebookLM unavailable" in nlm_fallback_logs[0]["message"]
+        assert "falling back to vector search" in nlm_fallback_logs[0]["message"]
+
+    @pytest.mark.asyncio
+    async def test_nlm_guide_no_hs_code(self):
+        """AC4: NLM returns guide (no HS code) → confidence=0, guidance text."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        nlm_guide = self._make_mock_nlm_guide()
+
+        search_request = SearchRequest(query="sản phẩm phức hợp")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search._record_lookup") as mock_record, \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+            mock_record.return_value = 13
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            mock_nlm = AsyncMock()
+            mock_nlm.query.return_value = nlm_guide
+            mock_nlm_class.return_value = mock_nlm
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["confidence"] == 0
+        assert response["data"]["source"] == "notebooklm"
+        assert "Categorized guide" in response["data"]["classification"]["function"]
+        assert response["data"]["hs_code"] == "0000.00.00"
+
+        # Verify lookup was recorded with confidence=0
+        mock_record.assert_awaited_once()
+        call_kwargs = mock_record.call_args[1]
+        assert call_kwargs["confidence_score"] == 0
+        assert call_kwargs["search_method"] == "notebooklm"
+
+    @pytest.mark.asyncio
+    async def test_nlm_hs_code_not_in_db(self):
+        """AC5: NLM returns HS code not in DB → falls back to vector search."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        nlm_result = self._make_mock_nlm_result(hs_code="9999.99.99")
+
+        mock_search_result = MagicMock()
+        mock_search_result.hs_code = "74182000"
+        mock_search_result.description_vn = "Đồ trang bị"
+        mock_search_result.description_en = "Sanitary"
+        mock_search_result.duty_rate = 30.0
+        mock_search_result.vat_rate = 10.0
+        mock_search_result.unit = "Chiếc"
+        mock_search_result.confidence = 80
+        mock_search_result.is_exact_match = False
+        mock_search_result.hs_code_full = self._make_mock_hs_code()
+
+        search_request = SearchRequest(query="some product")
+
+        # First DB call (for NLM HS code) returns None, second calls are for fallback
+        db_results = []
+        # NLM DB lookup returns None (code not found)
+        nlm_db_result = MagicMock()
+        nlm_db_result.scalar_one_or_none.return_value = None
+        db_results.append(nlm_db_result)
+
+        mock_db.execute = AsyncMock(side_effect=db_results)
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search.SearchService") as mock_search_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=14)), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            mock_nlm = AsyncMock()
+            mock_nlm.query.return_value = nlm_result
+            mock_nlm_class.return_value = mock_nlm
+
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache_class.return_value = mock_cache
+
+            mock_search = AsyncMock()
+            mock_search.search.return_value = [mock_search_result]
+            mock_search_class.return_value = mock_search
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "Material"
+            mock_analysis.function = "Function"
+            mock_analysis.practical_notes = []
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["source"] == "ai_suggestion"
+
+        # Verify process_logs has NLM DB lookup failure
+        logs = response["data"]["process_logs"]
+        nlm_db_logs = [
+            log for log in logs
+            if log["step"] == "notebooklm_db_lookup" and log["status"] == "failed"
+        ]
+        assert len(nlm_db_logs) == 1
+        assert "not found in database" in nlm_db_logs[0]["message"]
+
+    @pytest.mark.asyncio
+    async def test_nlm_disabled(self):
+        """AC6: NLM disabled → skipped, proceeds to vector search."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_search_result = MagicMock()
+        mock_search_result.hs_code = "74182000"
+        mock_search_result.description_vn = "Đồ trang bị"
+        mock_search_result.description_en = "Sanitary"
+        mock_search_result.duty_rate = 30.0
+        mock_search_result.vat_rate = 10.0
+        mock_search_result.unit = "Chiếc"
+        mock_search_result.confidence = 80
+        mock_search_result.is_exact_match = False
+        mock_search_result.hs_code_full = self._make_mock_hs_code()
+
+        search_request = SearchRequest(query="some product")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search.SearchService") as mock_search_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=15)), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            # NLM returns None (disabled)
+            mock_nlm = AsyncMock()
+            mock_nlm.query.return_value = None
+            mock_nlm_class.return_value = mock_nlm
+
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache_class.return_value = mock_cache
+
+            mock_search = AsyncMock()
+            mock_search.search.return_value = [mock_search_result]
+            mock_search_class.return_value = mock_search
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "Material"
+            mock_analysis.function = "Function"
+            mock_analysis.practical_notes = []
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["source"] == "ai_suggestion"
+
+        # Verify process_logs has NLM disabled entry
+        logs = response["data"]["process_logs"]
+        nlm_skipped_logs = [
+            log for log in logs
+            if log["step"] == "notebooklm" and log["status"] == "skipped"
+        ]
+        assert len(nlm_skipped_logs) == 1
+        assert "NotebookLM disabled" in nlm_skipped_logs[0]["message"]
+
+    @pytest.mark.asyncio
+    async def test_nlm_auto_stores_in_kb(self):
+        """AC1: NLM success auto-stores in KB via _record_lookup with search_method='notebooklm'."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_hs_code = self._make_mock_hs_code()
+        nlm_result = self._make_mock_nlm_result()
+
+        mock_db_result = MagicMock()
+        mock_db_result.scalar_one_or_none.return_value = mock_hs_code
+        mock_db.execute.return_value = mock_db_result
+
+        search_request = SearchRequest(query="copper rack")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search._record_lookup") as mock_record, \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+            mock_record.return_value = 16
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            # Cache service (not used, but needs to be mocked)
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache.set = AsyncMock()
+            mock_cache_class.return_value = mock_cache
+
+            mock_nlm = AsyncMock()
+            mock_nlm.query.return_value = nlm_result
+            mock_nlm_class.return_value = mock_nlm
+
+            await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        # Verify _record_lookup was called with NLM-specific data
+        mock_record.assert_awaited_once()
+        call_kwargs = mock_record.call_args[1]
+        assert call_kwargs["search_method"] == "notebooklm"
+        assert call_kwargs["matched_hs_code_id"] == 42
+        assert call_kwargs["confidence_score"] == 95
+        assert call_kwargs["classification_data"] == nlm_result.classification
+        assert call_kwargs["practical_notes"] == nlm_result.practical_notes
+
+    @pytest.mark.asyncio
+    async def test_nlm_returns_malformed_hs_code(self):
+        """NLM returns malformed HS code (wrong length/format) → falls back to vector search."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+        from app.services.notebooklm_service import NotebookLMResult
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        # Malformed HS code: missing digits (only 6 chars after dot removal)
+        malformed_result = NotebookLMResult(
+            hs_code="74.18.20",  # Only 6 digits, not 8
+            classification={"reasoning": "test", "material": "copper", "function": "rack"},
+            practical_notes=[],
+            raw_answer="Malformed code response",
+            from_cache=False,
+        )
+
+        # Vector search fallback result
+        mock_search_result = MagicMock()
+        mock_search_result.hs_code = "99999999"
+        mock_search_result.description_vn = "Fallback result"
+        mock_search_result.description_en = "Fallback"
+        mock_search_result.duty_rate = 30.0
+        mock_search_result.vat_rate = 10.0
+        mock_search_result.unit = "Chiếc"
+        mock_search_result.confidence = 75
+        mock_search_result.is_exact_match = False
+        mock_search_result.hs_code_full = self._make_mock_hs_code(code="99999999", hs_id=99)
+
+        search_request = SearchRequest(query="copper rack")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search.SearchService") as mock_search_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup") as mock_record, \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            mock_nlm = AsyncMock()
+            mock_nlm.query.return_value = malformed_result
+            mock_nlm_class.return_value = mock_nlm
+
+            # Mock cache service (no cache hit)
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache.set = AsyncMock()
+            mock_cache_class.return_value = mock_cache
+
+            # Mock vector search fallback
+            mock_search = AsyncMock()
+            mock_search.search.return_value = [mock_search_result]
+            mock_search_class.return_value = mock_search
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "fallback material"
+            mock_analysis.function = "fallback function"
+            mock_analysis.practical_notes = []
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            mock_record.return_value = 17
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        # Verify fallback to vector search
+        assert response["success"] is True
+        assert response["data"]["hs_code"] == "9999.99.99"
+        assert response["data"]["source"] == "ai_suggestion"
+
+        # Verify process logs show malformed code failure
+        nlm_failed_logs = [
+            log for log in response["data"]["process_logs"]
+            if log["step"] == "notebooklm" and log["status"] == "failed"
+        ]
+        assert len(nlm_failed_logs) == 1
+        assert "malformed HS code" in nlm_failed_logs[0]["message"]
+        assert "falling back" in nlm_failed_logs[0]["message"]

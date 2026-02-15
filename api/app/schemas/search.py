@@ -64,7 +64,10 @@ class SearchResponseData(BaseModel):
     practical_notes: list[str] = Field(description="Practical import notes")
     confidence: int = Field(ge=0, le=100, description="Match confidence (0-100%)")
     process_logs: list[ProcessLogEntry] = Field(default_factory=list, description="Detailed process logs")
-    source: str = Field(default="ai_suggestion", description="Result source: 'knowledge_base' or 'ai_suggestion'")
+    source: str = Field(
+        default="ai_suggestion",
+        description="Result source: 'knowledge_base', 'notebooklm', 'cache', or 'ai_suggestion'",
+    )
     is_verified: bool = Field(default=False, description="Whether result is expert-verified")
     verified_by: str | None = Field(default=None, description="User ID of verifier (if verified)")
     verified_at: str | None = Field(default=None, description="ISO datetime when verified (if verified)")
