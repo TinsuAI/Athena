@@ -35,8 +35,9 @@ class LookupRecord(Base):
     is_verified: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
     )
-    # No FK constraint on verified_by_user_id - users table doesn't exist yet (Epic 2)
-    verified_by_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    verified_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
     verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

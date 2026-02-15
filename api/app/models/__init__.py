@@ -9,6 +9,7 @@ from app.models.hs_heading import HSHeading
 from app.models.hs_section import HSSection
 from app.models.hs_subheading import HSSubheading
 from app.models.lookup_record import LookupRecord
+from app.models.user import User
 
 __all__ = [
     "Base",
@@ -20,4 +21,5 @@ __all__ = [
     "HSSection",
     "HSSubheading",
     "LookupRecord",
+    "User",
 ]

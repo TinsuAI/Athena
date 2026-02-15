@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import type { SearchResult } from "@/types/hs-code";
+import type { User } from "@/types/user";
 
 interface SearchState {
   searchQuery: string;
@@ -21,7 +22,9 @@ interface SearchState {
 
 interface AuthState {
   isAuthenticated: boolean;
+  user: User | null;
   setIsAuthenticated: (isAuthenticated: boolean) => void;
+  setUser: (user: User | null) => void;
 }
 
 interface FavoritesState {
@@ -53,7 +56,9 @@ export const useStore = create<AppStore>((set) => ({
 
   // Auth slice
   isAuthenticated: false,
+  user: null,
   setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
+  setUser: (user) => set({ user, isAuthenticated: user !== null }),
 
   // Favorites slice
   favoriteIds: [],
