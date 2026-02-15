@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { useStore } from "@/lib/store";
 
 const navLinks = [
   { href: "/search", label: "Search" },
@@ -13,6 +14,7 @@ const navLinks = [
 export function Header() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
+  const logout = useStore((s) => s.logout);
 
   return (
     <header className="sticky top-0 z-50 bg-[#0f172a] border-b border-white/[0.06] shadow-[0_2px_12px_rgba(0,0,0,0.15)]">
@@ -74,7 +76,17 @@ export function Header() {
                 {session.user.email}
               </span>
               <button
-                onClick={() => signOut({ callbackUrl: "/search" })}
+                onClick={() => {
+                  try {
+                    logout();
+                    signOut({ callbackUrl: "/login" });
+                  } catch (error) {
+                    // Log error but don't block logout UX
+                    console.error("Logout error:", error);
+                    // Still attempt signOut even if store logout fails
+                    signOut({ callbackUrl: "/login" });
+                  }
+                }}
                 className="text-white/50 hover:text-emerald-400 transition-colors duration-150"
               >
                 Log out

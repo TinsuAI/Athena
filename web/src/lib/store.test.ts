@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./store";
 import type { SearchResult } from "@/types/hs-code";
+import type { User } from "@/types/user";
 
 describe("store - search slice", () => {
   beforeEach(() => {
@@ -131,6 +132,44 @@ describe("store - search slice", () => {
       useStore.getState().clearSearch();
       // isSearching should remain unchanged
       expect(useStore.getState().isSearching).toBe(true);
+    });
+  });
+});
+
+describe("store - auth slice", () => {
+  beforeEach(() => {
+    useStore.setState({
+      isAuthenticated: false,
+      user: null,
+    });
+  });
+
+  describe("logout", () => {
+    it("resets isAuthenticated to false and user to null", () => {
+      const testUser: User = {
+        id: "1",
+        email: "test@example.com",
+        name: null,
+        role: "user",
+        created_at: "2026-01-01",
+      };
+
+      useStore.setState({
+        isAuthenticated: true,
+        user: testUser,
+      });
+
+      useStore.getState().logout();
+
+      expect(useStore.getState().isAuthenticated).toBe(false);
+      expect(useStore.getState().user).toBeNull();
+    });
+
+    it("is a no-op when already logged out", () => {
+      useStore.getState().logout();
+
+      expect(useStore.getState().isAuthenticated).toBe(false);
+      expect(useStore.getState().user).toBeNull();
     });
   });
 });

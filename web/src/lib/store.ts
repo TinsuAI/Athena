@@ -25,6 +25,7 @@ interface AuthState {
   user: User | null;
   setIsAuthenticated: (isAuthenticated: boolean) => void;
   setUser: (user: User | null) => void;
+  logout: () => void;
 }
 
 interface FavoritesState {
@@ -59,6 +60,7 @@ export const useStore = create<AppStore>((set) => ({
   user: null,
   setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
   setUser: (user) => set({ user, isAuthenticated: user !== null }),
+  logout: () => set({ user: null, isAuthenticated: false }),
 
   // Favorites slice
   favoriteIds: [],
