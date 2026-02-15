@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.browse import router as browse_router
 from app.api.corrections import router as corrections_router
@@ -51,6 +52,7 @@ app.add_middleware(
 )
 
 # Register routers
+app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(browse_router)
 app.include_router(corrections_router)

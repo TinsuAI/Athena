@@ -72,6 +72,18 @@ export function Header() {
             </span>
           ) : session?.user ? (
             <>
+              {(session.user as { role?: string }).role === "admin" && (
+                <Link
+                  href="/admin"
+                  className={
+                    pathname?.startsWith("/admin")
+                      ? "text-emerald-400 font-semibold"
+                      : "text-white/50 hover:text-emerald-400 transition-colors duration-150"
+                  }
+                >
+                  Admin
+                </Link>
+              )}
               <span className="hidden sm:inline text-white/60 truncate max-w-[160px]">
                 {session.user.email}
               </span>

@@ -152,6 +152,30 @@ describe("Header", () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it("shows Admin link when user has admin role", () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { email: "admin@example.com", role: "admin" }, expires: "" },
+      status: "authenticated",
+      update: vi.fn(),
+    });
+
+    render(<Header />);
+
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+  });
+
+  it("does not show Admin link for standard user", () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { email: "user@example.com", role: "user" }, expires: "" },
+      status: "authenticated",
+      update: vi.fn(),
+    });
+
+    render(<Header />);
+
+    expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+  });
+
   it("handles rapid logout clicks without duplicate calls", async () => {
     const user = userEvent.setup();
     mockUseSession.mockReturnValue({

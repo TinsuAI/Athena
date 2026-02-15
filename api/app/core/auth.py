@@ -10,6 +10,18 @@ settings = get_settings()
 JWT = NextAuthJWT(secret=settings.nextauth_secret)
 
 
+async def require_admin(request: Request) -> dict:
+    """Require admin role for endpoint access.
+
+    Calls get_current_user() first (handles 401),
+    then checks role == "admin" (handles 403).
+    """
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
 async def get_current_user(request: Request) -> dict:
     """Extract user from NextAuth JWT cookie.
 

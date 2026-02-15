@@ -1,6 +1,6 @@
 """Repository for user data access."""
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -40,3 +40,26 @@ class UserRepository:
             .values(password_hash=password_hash)
         )
         await self.session.flush()
+
+    async def list_all(self, page: int, per_page: int) -> tuple[list[User], int]:
+        """Return paginated user list with total count."""
+        # Get total count
+        count_result = await self.session.execute(select(func.count(User.id)))
+        total = count_result.scalar_one()
+
+        # Get paginated users
+        offset = (page - 1) * per_page
+        result = await self.session.execute(
+            select(User).order_by(User.id).offset(offset).limit(per_page)
+        )
+        users = list(result.scalars().all())
+
+        return users, total
+
+    async def update_role(self, user_id: int, role: str) -> User | None:
+        """Update a user's role. Returns updated user or None if not found."""
+        await self.session.execute(
+            update(User).where(User.id == user_id).values(role=role)
+        )
+        await self.session.flush()
+        return await self.get_by_id(user_id)

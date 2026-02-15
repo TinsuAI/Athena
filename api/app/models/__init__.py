@@ -1,5 +1,6 @@
 """SQLAlchemy models."""
 
+from app.models.audit_log import AuditLog
 from app.models.base import Base
 from app.models.data_version import DataVersion
 from app.models.fta_rate import FTARate
@@ -13,6 +14,7 @@ from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 
 __all__ = [
+    "AuditLog",
     "Base",
     "DataVersion",
     "FTARate",

@@ -76,7 +76,7 @@ development_status:
   4-2-user-login: done  # was 3-2, was 2-2 (Code review: 1 high + 6 medium issues fixed)
   4-3-user-logout: done  # was 3-3, was 2-3 (Code review: 3 high + 4 medium issues fixed)
   4-4-password-reset: done  # was 3-4, was 2-4 (Code review: 3 high + 4 medium issues fixed)
-  4-5-role-based-access-control: backlog  # was 3-5, was 2-5
+  4-5-role-based-access-control: done  # was 3-5, was 2-5 (Code review: 4 high + 4 medium issues fixed)
   epic-4-retrospective: optional
 
   # Epic 5: Personalization - Favorites & History (was Epic 4, was Epic 3, 8 stories)
