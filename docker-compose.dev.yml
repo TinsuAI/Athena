@@ -33,6 +33,14 @@ services:
       timeout: 5s
       retries: 5
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: athena-mailpit
+    ports:
+      - "8025:8025"   # Web UI
+      - "1025:1025"   # SMTP
+    restart: unless-stopped
+
   api:
     build:
       context: ./api
@@ -43,6 +51,10 @@ services:
       REDIS_URL: redis://redis:6379
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-in-production}
       NOTEBOOKLM_NOTEBOOK_ID: ${NOTEBOOKLM_NOTEBOOK_ID:-5d982e32-e9a6-43a2-a469-090dd46c140c}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM_EMAIL: noreply@athena.local
+      FRONTEND_URL: http://localhost:8979
     volumes:
       - ./api:/app
       - ./docs:/docs:ro # Mount docs for tariff data import

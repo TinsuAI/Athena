@@ -132,6 +132,15 @@ export function LoginForm() {
         )}
       </div>
 
+      <div className="text-right">
+        <Link
+          href="/forgot-password"
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          Forgot your password?
+        </Link>
+      </div>
+
       {serverError && (
         <div
           className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"

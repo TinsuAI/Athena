@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     enable_reranking: bool = True
     reranking_candidates: int = 10
 
+    # Email (SMTP)
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025  # Mailpit default
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "noreply@athena.local"
+    smtp_use_tls: bool = False
+    frontend_url: str = "http://localhost:8979"
+
     # NotebookLM
     notebooklm_enabled: bool = True
     notebooklm_notebook_id: str = ""

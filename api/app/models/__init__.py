@@ -9,6 +9,7 @@ from app.models.hs_heading import HSHeading
 from app.models.hs_section import HSSection
 from app.models.hs_subheading import HSSubheading
 from app.models.lookup_record import LookupRecord
+from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "HSSection",
     "HSSubheading",
     "LookupRecord",
+    "PasswordResetToken",
     "User",
 ]

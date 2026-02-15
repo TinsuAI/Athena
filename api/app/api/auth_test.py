@@ -1,7 +1,7 @@
 """Tests for auth API endpoints."""
 
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.schemas.user import UserResponse
 
@@ -125,3 +125,184 @@ class TestLoginEndpoint:
         assert response["success"] is False
         assert response["error"]["status"] == 401
         assert "Invalid" in response["error"]["detail"]
+
+
+class TestForgotPasswordEndpoint:
+    """Tests for POST /api/auth/forgot-password."""
+
+    @pytest.mark.asyncio
+    async def test_forgot_password_valid_email(self):
+        """Test forgot-password with valid email returns success."""
+        from app.api.auth import forgot_password
+        from app.schemas.user import PasswordResetRequest
+
+        mock_db = AsyncMock()
+        mock_settings = MagicMock()
+        mock_redis = AsyncMock()
+        mock_redis.incr.return_value = 1  # First request (not rate limited)
+        data = PasswordResetRequest(email="user@example.com")
+
+        with patch("app.api.auth.AuthService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.request_password_reset.return_value = True
+            mock_service_class.return_value = mock_service
+
+            response = await forgot_password(
+                data=data, db=mock_db, settings=mock_settings, redis=mock_redis
+            )
+
+        assert response["success"] is True
+        assert "reset link" in response["data"]["message"].lower()
+        mock_service.request_password_reset.assert_awaited_once_with("user@example.com")
+
+    @pytest.mark.asyncio
+    async def test_forgot_password_unknown_email_still_success(self):
+        """Test forgot-password with unknown email still returns success (no enumeration)."""
+        from app.api.auth import forgot_password
+        from app.schemas.user import PasswordResetRequest
+
+        mock_db = AsyncMock()
+        mock_settings = MagicMock()
+        mock_redis = AsyncMock()
+        mock_redis.incr.return_value = 1
+        data = PasswordResetRequest(email="unknown@example.com")
+
+        with patch("app.api.auth.AuthService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.request_password_reset.return_value = True
+            mock_service_class.return_value = mock_service
+
+            response = await forgot_password(
+                data=data, db=mock_db, settings=mock_settings, redis=mock_redis
+            )
+
+        assert response["success"] is True
+        assert "reset link" in response["data"]["message"].lower()
+
+    def test_forgot_password_invalid_email_rejected(self):
+        """Test forgot-password with invalid email is rejected by schema."""
+        from pydantic import ValidationError
+        from app.schemas.user import PasswordResetRequest
+
+        with pytest.raises(ValidationError) as exc_info:
+            PasswordResetRequest(email="not-an-email")
+
+        errors = exc_info.value.errors()
+        assert any("email" in str(e).lower() for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_forgot_password_rate_limited(self):
+        """Test forgot-password rate limiting after 3 requests (via Redis)."""
+        from app.api.auth import forgot_password
+        from app.schemas.user import PasswordResetRequest
+
+        mock_db = AsyncMock()
+        mock_settings = MagicMock()
+        mock_redis = AsyncMock()
+        data = PasswordResetRequest(email="ratelimit@example.com")
+
+        with patch("app.api.auth.AuthService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.request_password_reset.return_value = True
+            mock_service_class.return_value = mock_service
+
+            # Simulate 4th request (count > 3, rate limited)
+            mock_redis.incr.return_value = 4
+
+            response = await forgot_password(
+                data=data, db=mock_db, settings=mock_settings, redis=mock_redis
+            )
+
+        assert response["success"] is False
+        assert response["error"]["status"] == 429
+
+    @pytest.mark.asyncio
+    async def test_forgot_password_email_send_failure(self):
+        """Test forgot-password returns error when email service fails."""
+        from app.api.auth import forgot_password
+        from app.schemas.user import PasswordResetRequest
+
+        mock_db = AsyncMock()
+        mock_settings = MagicMock()
+        mock_redis = AsyncMock()
+        mock_redis.incr.return_value = 1
+        data = PasswordResetRequest(email="user@example.com")
+
+        with patch("app.api.auth.AuthService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.request_password_reset.return_value = False  # Email failed
+            mock_service_class.return_value = mock_service
+
+            response = await forgot_password(
+                data=data, db=mock_db, settings=mock_settings, redis=mock_redis
+            )
+
+        assert response["success"] is False
+        assert response["error"]["status"] == 503
+        assert "email" in response["error"]["detail"].lower()
+
+
+class TestResetPasswordEndpoint:
+    """Tests for POST /api/auth/reset-password."""
+
+    @pytest.mark.asyncio
+    async def test_reset_password_success(self):
+        """Test reset-password with valid token returns success."""
+        from app.api.auth import reset_password
+        from app.schemas.user import PasswordResetConfirm
+
+        mock_db = AsyncMock()
+        data = PasswordResetConfirm(
+            token="valid-token",
+            password="newpassword123",
+            password_confirm="newpassword123",
+        )
+
+        with patch("app.api.auth.AuthService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.reset_password.return_value = True
+            mock_service_class.return_value = mock_service
+
+            response = await reset_password(data=data, db=mock_db)
+
+        assert response["success"] is True
+        assert "reset successfully" in response["data"]["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_reset_password_expired_token(self):
+        """Test reset-password with expired token returns error."""
+        from app.api.auth import reset_password
+        from app.schemas.user import PasswordResetConfirm
+
+        mock_db = AsyncMock()
+        data = PasswordResetConfirm(
+            token="expired-token",
+            password="newpassword123",
+            password_confirm="newpassword123",
+        )
+
+        with patch("app.api.auth.AuthService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.reset_password.return_value = False
+            mock_service_class.return_value = mock_service
+
+            response = await reset_password(data=data, db=mock_db)
+
+        assert response["success"] is False
+        assert response["error"]["status"] == 400
+        assert "expired or is invalid" in response["error"]["detail"].lower()
+
+    def test_reset_password_mismatched_passwords_rejected(self):
+        """Test reset-password with mismatched passwords is rejected by schema."""
+        from pydantic import ValidationError
+        from app.schemas.user import PasswordResetConfirm
+
+        with pytest.raises(ValidationError) as exc_info:
+            PasswordResetConfirm(
+                token="some-token",
+                password="newpassword123",
+                password_confirm="differentpassword",
+            )
+
+        errors = exc_info.value.errors()
+        assert any("match" in str(e).lower() for e in errors)

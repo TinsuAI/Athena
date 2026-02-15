@@ -1,9 +1,11 @@
 /**
  * Login page (server component wrapper).
  * Renders at /login.
+ * Shows success message when redirected from password reset (?reset=success).
  */
 
 import { LoginForm } from "./LoginForm";
+import { ResetSuccessMessage } from "./ResetSuccessMessage";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -21,6 +23,7 @@ export default function LoginPage() {
             Log in to access your favorites and search history
           </p>
         </div>
+        <ResetSuccessMessage />
         <LoginForm />
       </div>
     </main>

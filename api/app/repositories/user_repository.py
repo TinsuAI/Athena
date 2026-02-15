@@ -1,6 +1,6 @@
 """Repository for user data access."""
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -31,3 +31,12 @@ class UserRepository:
             select(User).where(User.id == user_id)
         )
         return result.scalar_one_or_none()
+
+    async def update_password(self, user_id: int, password_hash: str) -> None:
+        """Update a user's password hash."""
+        await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(password_hash=password_hash)
+        )
+        await self.session.flush()

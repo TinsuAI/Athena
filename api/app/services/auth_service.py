@@ -1,11 +1,21 @@
 """Authentication service for user registration and login."""
 
+import hashlib
+import logging
+import secrets
+from datetime import datetime, timedelta, timezone
+
 import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings
 from app.models.user import User
+from app.repositories.password_reset_repository import PasswordResetRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserResponse
+from app.services.email_service import EmailService
+
+logger = logging.getLogger(__name__)
 
 
 def hash_password(password: str) -> str:
@@ -21,8 +31,11 @@ def verify_password(plain: str, hashed: str) -> bool:
 class AuthService:
     """Service for authentication business logic."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, settings: Settings | None = None):
+        self.session = session
         self.repo = UserRepository(session)
+        self.reset_repo = PasswordResetRepository(session)
+        self.settings = settings
 
     async def register_user(self, data: UserCreate) -> UserResponse | None:
         """Register a new user.
@@ -73,3 +86,74 @@ class AuthService:
             )
 
         return None
+
+    async def request_password_reset(self, email: str) -> bool:
+        """Request a password reset for the given email.
+
+        Returns True if email was sent successfully, False if email send failed.
+        Returns True for non-existent emails (no enumeration - we just don't send).
+        Generates a secure token, stores its hash, and sends the reset email.
+        """
+        user = await self.repo.get_by_email(email)
+        if user is None:
+            # Return True to prevent email enumeration (pretend we sent it)
+            return True
+
+        # Invalidate any existing unused tokens for this user
+        await self.reset_repo.invalidate_all_for_user(user.id)
+
+        # Generate secure token and hash it
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+
+        # Store hashed token in database
+        await self.reset_repo.create(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+
+        # Send reset email
+        if self.settings:
+            reset_url = f"{self.settings.frontend_url}/reset-password?token={token}"
+            email_service = EmailService(self.settings)
+            try:
+                await email_service.send_password_reset_email(user.email, reset_url)
+                return True
+            except Exception:
+                logger.exception("Failed to send password reset email to %s", email)
+                return False
+
+        return True
+
+    async def reset_password(self, token: str, new_password: str) -> bool:
+        """Reset a user's password using a valid reset token.
+
+        Returns True on success, False if token is invalid/expired/used.
+        """
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        reset_token = await self.reset_repo.get_by_token_hash(token_hash)
+
+        if reset_token is None:
+            return False
+
+        # Check if token is expired
+        if reset_token.expires_at < datetime.now(timezone.utc):
+            return False
+
+        # Check if token is already used
+        if reset_token.used_at is not None:
+            return False
+
+        # Update user's password
+        new_hash = hash_password(new_password)
+        await self.repo.update_password(reset_token.user_id, new_hash)
+
+        # Mark token as used
+        await self.reset_repo.mark_used(reset_token.id)
+
+        # Invalidate all other tokens for this user
+        await self.reset_repo.invalidate_all_for_user(reset_token.user_id)
+
+        return True

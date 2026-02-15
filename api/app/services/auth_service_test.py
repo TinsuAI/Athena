@@ -1,9 +1,12 @@
 """Tests for auth service."""
 
+import hashlib
 import bcrypt
 import pytest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 from app.schemas.user import UserCreate
 from app.services.auth_service import AuthService, hash_password, verify_password
@@ -178,3 +181,203 @@ class TestAuthServiceAuthenticate:
             result = await service.authenticate_user("nobody@example.com", "anypassword")
 
         assert result is None
+
+
+class TestRequestPasswordReset:
+    """Tests for AuthService.request_password_reset."""
+
+    @pytest.mark.asyncio
+    async def test_request_reset_existing_email(self):
+        """Test password reset with existing email sends email and creates token."""
+        session = AsyncMock()
+        mock_settings = MagicMock()
+        mock_settings.frontend_url = "http://localhost:8979"
+
+        with (
+            patch("app.services.auth_service.UserRepository") as mock_user_repo_class,
+            patch("app.services.auth_service.PasswordResetRepository") as mock_reset_repo_class,
+            patch("app.services.auth_service.EmailService") as mock_email_class,
+        ):
+            mock_user_repo = AsyncMock()
+            mock_user = MagicMock(spec=User)
+            mock_user.id = 1
+            mock_user.email = "user@example.com"
+            mock_user_repo.get_by_email.return_value = mock_user
+            mock_user_repo_class.return_value = mock_user_repo
+
+            mock_reset_repo = AsyncMock()
+            mock_reset_repo_class.return_value = mock_reset_repo
+
+            mock_email_service = AsyncMock()
+            mock_email_class.return_value = mock_email_service
+
+            service = AuthService(session, settings=mock_settings)
+            await service.request_password_reset("user@example.com")
+
+        mock_reset_repo.invalidate_all_for_user.assert_awaited_once_with(1)
+        mock_reset_repo.create.assert_awaited_once()
+        mock_email_service.send_password_reset_email.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_request_reset_nonexistent_email(self):
+        """Test password reset with unknown email does nothing (no enumeration)."""
+        session = AsyncMock()
+
+        with (
+            patch("app.services.auth_service.UserRepository") as mock_user_repo_class,
+            patch("app.services.auth_service.PasswordResetRepository") as mock_reset_repo_class,
+        ):
+            mock_user_repo = AsyncMock()
+            mock_user_repo.get_by_email.return_value = None
+            mock_user_repo_class.return_value = mock_user_repo
+
+            mock_reset_repo = AsyncMock()
+            mock_reset_repo_class.return_value = mock_reset_repo
+
+            service = AuthService(session)
+            await service.request_password_reset("nobody@example.com")
+
+        mock_reset_repo.create.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_request_reset_email_failure_does_not_raise(self):
+        """Test that email sending failure is logged but doesn't raise."""
+        session = AsyncMock()
+        mock_settings = MagicMock()
+        mock_settings.frontend_url = "http://localhost:8979"
+
+        with (
+            patch("app.services.auth_service.UserRepository") as mock_user_repo_class,
+            patch("app.services.auth_service.PasswordResetRepository") as mock_reset_repo_class,
+            patch("app.services.auth_service.EmailService") as mock_email_class,
+        ):
+            mock_user_repo = AsyncMock()
+            mock_user = MagicMock(spec=User)
+            mock_user.id = 1
+            mock_user.email = "user@example.com"
+            mock_user_repo.get_by_email.return_value = mock_user
+            mock_user_repo_class.return_value = mock_user_repo
+
+            mock_reset_repo = AsyncMock()
+            mock_reset_repo_class.return_value = mock_reset_repo
+
+            mock_email_service = AsyncMock()
+            mock_email_service.send_password_reset_email.side_effect = ConnectionRefusedError()
+            mock_email_class.return_value = mock_email_service
+
+            service = AuthService(session, settings=mock_settings)
+            # Should not raise
+            await service.request_password_reset("user@example.com")
+
+        # Token was still created even though email failed
+        mock_reset_repo.create.assert_awaited_once()
+
+
+class TestResetPassword:
+    """Tests for AuthService.reset_password."""
+
+    @pytest.mark.asyncio
+    async def test_reset_password_valid_token(self):
+        """Test password reset with valid token succeeds."""
+        session = AsyncMock()
+        token = "valid-token-string"
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+        with (
+            patch("app.services.auth_service.UserRepository") as mock_user_repo_class,
+            patch("app.services.auth_service.PasswordResetRepository") as mock_reset_repo_class,
+        ):
+            mock_user_repo = AsyncMock()
+            mock_user_repo_class.return_value = mock_user_repo
+
+            mock_reset_repo = AsyncMock()
+            mock_token = MagicMock(spec=PasswordResetToken)
+            mock_token.id = 1
+            mock_token.user_id = 42
+            mock_token.expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+            mock_token.used_at = None
+            mock_reset_repo.get_by_token_hash.return_value = mock_token
+            mock_reset_repo_class.return_value = mock_reset_repo
+
+            service = AuthService(session)
+            result = await service.reset_password(token, "newpassword123")
+
+        assert result is True
+        mock_user_repo.update_password.assert_awaited_once()
+        mock_reset_repo.mark_used.assert_awaited_once_with(1)
+        mock_reset_repo.invalidate_all_for_user.assert_awaited_once_with(42)
+
+    @pytest.mark.asyncio
+    async def test_reset_password_expired_token(self):
+        """Test password reset with expired token returns False."""
+        session = AsyncMock()
+        token = "expired-token-string"
+
+        with (
+            patch("app.services.auth_service.UserRepository") as mock_user_repo_class,
+            patch("app.services.auth_service.PasswordResetRepository") as mock_reset_repo_class,
+        ):
+            mock_user_repo = AsyncMock()
+            mock_user_repo_class.return_value = mock_user_repo
+
+            mock_reset_repo = AsyncMock()
+            mock_token = MagicMock(spec=PasswordResetToken)
+            mock_token.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+            mock_token.used_at = None
+            mock_reset_repo.get_by_token_hash.return_value = mock_token
+            mock_reset_repo_class.return_value = mock_reset_repo
+
+            service = AuthService(session)
+            result = await service.reset_password(token, "newpassword123")
+
+        assert result is False
+        mock_user_repo.update_password.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_reset_password_used_token(self):
+        """Test password reset with already-used token returns False."""
+        session = AsyncMock()
+        token = "used-token-string"
+
+        with (
+            patch("app.services.auth_service.UserRepository") as mock_user_repo_class,
+            patch("app.services.auth_service.PasswordResetRepository") as mock_reset_repo_class,
+        ):
+            mock_user_repo = AsyncMock()
+            mock_user_repo_class.return_value = mock_user_repo
+
+            mock_reset_repo = AsyncMock()
+            mock_token = MagicMock(spec=PasswordResetToken)
+            mock_token.expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+            mock_token.used_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+            mock_reset_repo.get_by_token_hash.return_value = mock_token
+            mock_reset_repo_class.return_value = mock_reset_repo
+
+            service = AuthService(session)
+            result = await service.reset_password(token, "newpassword123")
+
+        assert result is False
+        mock_user_repo.update_password.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_reset_password_invalid_token(self):
+        """Test password reset with nonexistent token returns False."""
+        session = AsyncMock()
+        token = "nonexistent-token"
+
+        with (
+            patch("app.services.auth_service.UserRepository") as mock_user_repo_class,
+            patch("app.services.auth_service.PasswordResetRepository") as mock_reset_repo_class,
+        ):
+            mock_user_repo = AsyncMock()
+            mock_user_repo_class.return_value = mock_user_repo
+
+            mock_reset_repo = AsyncMock()
+            mock_reset_repo.get_by_token_hash.return_value = None
+            mock_reset_repo_class.return_value = mock_reset_repo
+
+            service = AuthService(session)
+            result = await service.reset_password(token, "newpassword123")
+
+        assert result is False
+        mock_user_repo.update_password.assert_not_awaited()
