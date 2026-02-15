@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getLookupDetail } from "@/lib/api";
 import { CorrectionButton } from "@/app/search/components/CorrectionButton";
 import { CorrectionPanel } from "@/app/search/components/CorrectionPanel";
+import { HSCodeTree } from "@/components/ui/HSCodeTree";
 import type { LookupDetail } from "@/types/lookup";
 
 function ConfidenceBadge({ score }: { score: number | null }) {
@@ -33,32 +34,6 @@ function LanguageBadge({ lang }: { lang: string | null }) {
   );
 }
 
-function StatusIcon({ status }: { status: string }) {
-  if (status === "completed")
-    return (
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-      </span>
-    );
-  if (status === "failed")
-    return (
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-      </span>
-    );
-  if (status === "skipped")
-    return (
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
-        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>
-      </span>
-    );
-  return (
-    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400">
-      <span className="h-2 w-2 rounded-full bg-current" />
-    </span>
-  );
-}
-
 export default function LookupDetailPage() {
   const params = useParams();
   const id = Number(params.id);
@@ -68,7 +43,6 @@ export default function LookupDetailPage() {
   const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCorrectionPanel, setShowCorrectionPanel] = useState(false);
-  const [showProcessLogs, setShowProcessLogs] = useState(false);
 
   const fetchDetail = useCallback(async (isRefetch = false) => {
     if (isRefetch) {
@@ -262,54 +236,10 @@ export default function LookupDetailPage() {
         </div>
       )}
 
-      {/* Process Log Section */}
-      {lookup.process_logs && lookup.process_logs.length > 0 && (
-        <div className="mb-6 rounded-xl border border-border bg-card shadow-sm">
-          <button
-            type="button"
-            onClick={() => setShowProcessLogs(!showProcessLogs)}
-            className="flex w-full items-center justify-between p-6 text-left"
-            aria-expanded={showProcessLogs}
-            aria-label={`Nhật ký xử lý, ${lookup.process_logs.length} bước, ${showProcessLogs ? "thu gọn" : "mở rộng"}`}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
-                Nhật ký xử lý
-              </span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                {lookup.process_logs.length} bước
-              </span>
-            </div>
-            <svg
-              className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${showProcessLogs ? "rotate-180" : ""}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {showProcessLogs && (
-            <div className="border-t border-border">
-              {lookup.process_logs.map((log, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center gap-3 px-6 py-3 text-sm ${
-                    i % 2 === 0 ? "bg-slate-50/50 dark:bg-muted/20" : ""
-                  } ${i < (lookup.process_logs?.length ?? 0) - 1 ? "border-b border-border/50" : ""}`}
-                >
-                  <StatusIcon status={log.status} />
-                  <span className="min-w-[120px] font-semibold text-foreground">{log.step}</span>
-                  <span className="flex-1 truncate text-muted-foreground">
-                    {log.message}
-                  </span>
-                  {typeof log.duration_ms === "number" && (
-                    <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                      {log.duration_ms}ms
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+      {/* HS Code Hierarchy Tree */}
+      {lookup.matched_hs_code && (
+        <div className="mb-6">
+          <HSCodeTree hsCode={lookup.matched_hs_code.code} />
         </div>
       )}
 

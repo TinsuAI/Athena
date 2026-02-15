@@ -4,11 +4,10 @@ import { useRef, useCallback, useState } from "react";
 import { SearchBar } from "./components/SearchBar";
 import { CorrectionButton } from "./components/CorrectionButton";
 import { CorrectionPanel } from "./components/CorrectionPanel";
-import { ModelSelect } from "@/components/ui/ModelSelect";
+import { HSCodeTree } from "@/components/ui/HSCodeTree";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
 import { useStore } from "@/lib/store";
 import { searchHsCodes } from "@/lib/api";
-import type { ProcessLogEntry } from "@/types/hs-code";
 
 /**
  * Search page with SearchBar component.
@@ -17,8 +16,6 @@ import type { ProcessLogEntry } from "@/types/hs-code";
 export default function SearchPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [showLogs, setShowLogs] = useState(true);
-  const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
   const [correctionPanelOpen, setCorrectionPanelOpen] = useState(false);
 
   // Zustand store selectors
@@ -26,12 +23,10 @@ export default function SearchPage() {
   const searchResult = useStore((state) => state.searchResult);
   const isSearching = useStore((state) => state.isSearching);
   const searchError = useStore((state) => state.searchError);
-  const llmModel = useStore((state) => state.llmModel);
   const setSearchQuery = useStore((state) => state.setSearchQuery);
   const setSearchResult = useStore((state) => state.setSearchResult);
   const setIsSearching = useStore((state) => state.setIsSearching);
   const setSearchError = useStore((state) => state.setSearchError);
-  const setLlmModel = useStore((state) => state.setLlmModel);
   const clearSearch = useStore((state) => state.clearSearch);
 
   // Set up keyboard shortcuts (/ and Cmd+K)
@@ -60,8 +55,7 @@ export default function SearchPage() {
     try {
       const result = await searchHsCodes(
         query,
-        abortControllerRef.current.signal,
-        llmModel || undefined
+        abortControllerRef.current.signal
       );
       setSearchResult(result);
     } catch (err) {
@@ -76,7 +70,7 @@ export default function SearchPage() {
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery, llmModel, setSearchResult, setIsSearching, setSearchError]);
+  }, [searchQuery, setSearchResult, setIsSearching, setSearchError]);
 
   const handleQueryChange = (value: string) => {
     setSearchQuery(value);
@@ -112,21 +106,6 @@ export default function SearchPage() {
           />
           <p className="text-[12px] text-slate-400 mt-2.5 text-center font-medium">
             Press Enter or click Search to find HS codes
-          </p>
-        </div>
-
-        {/* Model selector */}
-        <div className="mb-8 p-4 bg-white border border-slate-200 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)]">
-          <label className="block text-[12px] font-semibold text-slate-600 mb-2">
-            LLM Model (for classification reasoning)
-          </label>
-          <ModelSelect
-            value={llmModel}
-            onChange={setLlmModel}
-            placeholder="Search or enter model..."
-          />
-          <p className="text-[11px] text-slate-400 mt-1.5">
-            Type to search models or enter any OpenRouter model ID
           </p>
         </div>
 
@@ -216,6 +195,9 @@ export default function SearchPage() {
                 />
               </div>
             </div>
+
+            {/* HS Code Hierarchy Tree */}
+            <HSCodeTree hsCode={searchResult.hs_code} />
           </div>
         )}
 
@@ -239,111 +221,7 @@ export default function SearchPage() {
             </p>
           </div>
         )}
-
-        {/* Process Logs Panel */}
-        {searchResult?.process_logs && searchResult.process_logs.length > 0 && (
-          <div className="mt-6 bg-white border border-slate-200 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)] overflow-hidden">
-            <button
-              onClick={() => setShowLogs(!showLogs)}
-              className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors duration-150"
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-[12px] font-bold text-slate-600 tracking-tight">Process Logs</span>
-                <span className="text-[11px] font-mono font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                  {searchResult.process_logs.length} steps
-                </span>
-              </div>
-              <span className="text-slate-400 text-[11px]">
-                {showLogs ? "▼" : "▶"}
-              </span>
-            </button>
-
-            {showLogs && (
-              <div className="border-t border-slate-100">
-                <div className="p-4 space-y-1 max-h-[500px] overflow-y-auto font-mono text-[11px]">
-                  {searchResult.process_logs.map((log, idx) => (
-                    <LogEntry
-                      key={idx}
-                      log={log}
-                      isExpanded={expandedLogs.has(idx)}
-                      onToggle={() => {
-                        const newExpanded = new Set(expandedLogs);
-                        if (newExpanded.has(idx)) {
-                          newExpanded.delete(idx);
-                        } else {
-                          newExpanded.add(idx);
-                        }
-                        setExpandedLogs(newExpanded);
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
-    </div>
-  );
-}
-
-function LogEntry({
-  log,
-  isExpanded,
-  onToggle,
-}: {
-  log: ProcessLogEntry;
-  isExpanded: boolean;
-  onToggle: () => void;
-}) {
-  const statusColors: Record<string, string> = {
-    started: "text-blue-500",
-    completed: "text-emerald-600",
-    failed: "text-red-500",
-    skipped: "text-amber-500",
-  };
-
-  const statusIcons: Record<string, string> = {
-    started: "○",
-    completed: "✓",
-    failed: "✗",
-    skipped: "⊘",
-  };
-
-  const hasDetails = log.details && Object.keys(log.details).length > 0;
-
-  return (
-    <div className="border-l-2 border-slate-200 pl-3 py-1.5">
-      <div
-        className={`flex items-start gap-2 ${hasDetails ? "cursor-pointer hover:bg-slate-50 -ml-3 pl-3 -mr-1 pr-1 rounded-md transition-colors duration-150" : ""}`}
-        onClick={hasDetails ? onToggle : undefined}
-      >
-        <span className={statusColors[log.status] || "text-slate-400"}>
-          {statusIcons[log.status] || "•"}
-        </span>
-        <span className="text-slate-400 uppercase w-24 shrink-0 text-[10px] font-semibold tracking-wider">
-          [{log.step}]
-        </span>
-        <span className="flex-1 text-slate-600">{log.message}</span>
-        {log.duration_ms !== undefined && (
-          <span className="text-slate-400 shrink-0">
-            {log.duration_ms}ms
-          </span>
-        )}
-        {hasDetails && (
-          <span className="text-slate-400 shrink-0 text-[10px]">
-            {isExpanded ? "▼" : "▶"}
-          </span>
-        )}
-      </div>
-
-      {hasDetails && isExpanded && (
-        <div className="mt-2 ml-8 p-2.5 bg-slate-50 rounded-md text-[10px] overflow-x-auto border border-slate-100">
-          <pre className="whitespace-pre-wrap break-words text-slate-600">
-            {JSON.stringify(log.details, null, 2)}
-          </pre>
-        </div>
-      )}
     </div>
   );
 }
