@@ -72,3 +72,4 @@ class SearchResponseData(BaseModel):
     verified_by: str | None = Field(default=None, description="User ID of verifier (if verified)")
     verified_at: str | None = Field(default=None, description="ISO datetime when verified (if verified)")
     lookup_id: int | None = Field(default=None, description="Lookup record ID for corrections")
+    nlm_raw_response: str | None = Field(default=None, description="Full NLM raw markdown response")

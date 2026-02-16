@@ -1,5 +1,5 @@
 # generated: 2026-01-26
-# updated: 2026-02-15 (Epic reorder: New Epic 3 NotebookLM AI Search, old 3→4, 4→5, 5→6, 6→7)
+# updated: 2026-02-15 (Story 3-3: Store full NLM raw response)
 # project: athena
 # tracking_system: file-system
 # story_location: _bmad-output/implementation-artifacts
@@ -64,10 +64,11 @@ development_status:
   2-3-tariff-schedule-browser-page: done  # NEW: Sprint Change 2026-02-11 - collapsible tree, inline rates, search/filter
   epic-2-retrospective: optional
 
-  # Epic 3: NotebookLM AI Search (NEW - Sprint Change 2026-02-15, 2 stories)
+  # Epic 3: NotebookLM AI Search (NEW - Sprint Change 2026-02-15, 3 stories)
   epic-3: in-progress
   3-1-notebooklm-service-response-parser: done  # NEW: Sprint Change 2026-02-15 - service, parser, Redis caching, Docker setup (Code review: 1 high + 5 medium issues fixed)
   3-2-integrate-notebooklm-into-search-pipeline: done  # NEW: Sprint Change 2026-02-15 - search pipeline integration, KB auto-storage, fallback (Code review: 6 medium + 3 low issues fixed)
+  3-3-store-nlm-raw-response: done  # NEW: Sprint Change 2026-02-15 - persist full NLM response, display on lookup detail (Code review: 3 medium issues fixed)
   epic-3-retrospective: optional
 
   # Epic 4: User Authentication & Sessions (was Epic 3, was Epic 2, 5 stories)

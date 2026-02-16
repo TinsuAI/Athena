@@ -92,6 +92,7 @@ async def _record_lookup(
     classification_data: dict | None = None,
     practical_notes: list[str] | None = None,
     process_logs: list[dict] | None = None,
+    nlm_raw_response: str | None = None,
 ) -> int | None:
     """Record a search lookup for the knowledge base (best-effort, failures logged).
 
@@ -109,6 +110,7 @@ async def _record_lookup(
             existing.classification_data = classification_data
             existing.practical_notes = practical_notes
             existing.process_logs = process_logs
+            existing.nlm_raw_response = nlm_raw_response
             await repo.update(existing)
             return existing.id
 
@@ -126,6 +128,7 @@ async def _record_lookup(
             classification_data=classification_data,
             practical_notes=practical_notes,
             process_logs=process_logs,
+            nlm_raw_response=nlm_raw_response,
         )
         created = await repo.create(record)
         return created.id
@@ -388,10 +391,15 @@ async def search_hs_codes(
                         source = "cache" if nlm_result.from_cache else "notebooklm"
 
                         # Build classification from NLM data
+                        # Keyword extraction may yield empty material/function;
+                        # fall back to reasoning (the core NLM analysis text).
                         nlm_classification = nlm_result.classification or {}
+                        nlm_material = nlm_classification.get("material", "")
+                        nlm_function = nlm_classification.get("function", "")
+                        nlm_reasoning = nlm_classification.get("reasoning", "")
                         classification = ClassificationSchema(
-                            material=nlm_classification.get("material", ""),
-                            function=nlm_classification.get("function", ""),
+                            material=nlm_material or nlm_reasoning,
+                            function=nlm_function or "Xem mục 'Phân tích chi tiết' để biết thêm",
                         )
 
                         total_duration = int((time.time() - start_time) * 1000)
@@ -406,22 +414,29 @@ async def search_hs_codes(
                             vat_rate=_format_rate(float(hs_code_obj.vat_rate)),
                             classification=classification,
                             practical_notes=nlm_result.practical_notes,
-                            confidence=settings.notebooklm_confidence_score,
+                            confidence=nlm_result.confidence,
                             process_logs=process_logs,
                             source=source,
                             is_verified=False,
+                            nlm_raw_response=nlm_result.raw_answer,
                         )
 
                         # Record lookup for knowledge base
+                        # Store the resolved classification (with fallbacks) in DB
+                        stored_classification = {
+                            "material": classification.material,
+                            "function": classification.function,
+                        }
                         lookup_id = await _record_lookup(
                             db=db,
                             query=body.query,
                             matched_hs_code_id=hs_code_obj.id,
-                            confidence_score=settings.notebooklm_confidence_score,
+                            confidence_score=nlm_result.confidence,
                             search_method="notebooklm",
-                            classification_data=nlm_classification,
+                            classification_data=stored_classification,
                             practical_notes=nlm_result.practical_notes,
                             process_logs=[log.model_dump() for log in process_logs],
+                            nlm_raw_response=nlm_result.raw_answer,
                         )
                         response_data.lookup_id = lookup_id
 
@@ -462,6 +477,7 @@ async def search_hs_codes(
                     process_logs=process_logs,
                     source=source,
                     is_verified=False,
+                    nlm_raw_response=nlm_result.raw_answer,
                 )
 
                 # Record the guide in KB for reference
@@ -474,6 +490,7 @@ async def search_hs_codes(
                     classification_data={"guide": nlm_result.raw_answer},
                     practical_notes=nlm_result.practical_notes,
                     process_logs=[log.model_dump() for log in process_logs],
+                    nlm_raw_response=nlm_result.raw_answer,
                 )
                 response_data.lookup_id = lookup_id
 

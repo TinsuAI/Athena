@@ -7,6 +7,7 @@ import { CorrectionButton } from "./components/CorrectionButton";
 import { CorrectionPanel } from "./components/CorrectionPanel";
 import { HSCodeTree } from "@/components/ui/HSCodeTree";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { useStore } from "@/lib/store";
 import { searchHsCodes } from "@/lib/api";
 
@@ -19,6 +20,7 @@ export default function SearchPage() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [correctionPanelOpen, setCorrectionPanelOpen] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [showNlmResponse, setShowNlmResponse] = useState(false);
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
   const { data: session } = useSession();
   const isAdmin = (session?.user as { role?: string })?.role === "admin";
@@ -163,11 +165,11 @@ export default function SearchPage() {
                   <div className="space-y-2.5">
                     <div className="flex gap-3">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 pt-0.5 shrink-0">Chất liệu</span>
-                      <span className="text-[13px] text-slate-700 font-medium">{searchResult.classification.material}</span>
+                      <MarkdownContent content={searchResult.classification.material} className="prose-p:my-0 text-[13px] text-slate-700" />
                     </div>
                     <div className="flex gap-3">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 pt-0.5 shrink-0">Công dụng</span>
-                      <span className="text-[13px] text-slate-700 font-medium">{searchResult.classification.function}</span>
+                      <MarkdownContent content={searchResult.classification.function} className="prose-p:my-0 text-[13px] text-slate-700" />
                     </div>
                   </div>
                 </div>
@@ -183,7 +185,7 @@ export default function SearchPage() {
                     {searchResult.practical_notes.map((note, index) => (
                       <li key={index} className="text-[12.5px] text-slate-500 font-medium flex gap-2">
                         <span className="text-emerald-500 shrink-0">•</span>
-                        {note}
+                        <MarkdownContent content={note} className="prose-p:my-0 prose-ul:my-0 prose-li:my-0 [&>div]:inline" />
                       </li>
                     ))}
                   </ul>
@@ -200,6 +202,31 @@ export default function SearchPage() {
                 />
               </div>
             </div>
+
+            {/* NLM Detailed Analysis (collapsible) */}
+            {searchResult.nlm_raw_response && (
+              <div className="bg-white border border-slate-200 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)]">
+                <button
+                  type="button"
+                  onClick={() => setShowNlmResponse(!showNlmResponse)}
+                  className="w-full flex items-center justify-between px-6 py-4 text-left"
+                  aria-expanded={showNlmResponse}
+                  aria-label="Phân tích chi tiết"
+                >
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Phân tích chi tiết
+                  </span>
+                  <span className="inline-block transition-transform duration-150 text-slate-400" style={{ transform: showNlmResponse ? "rotate(180deg)" : "rotate(0deg)" }}>
+                    &#9662;
+                  </span>
+                </button>
+                {showNlmResponse && (
+                  <div className="border-t border-slate-100 px-6 py-4">
+                    <MarkdownContent content={searchResult.nlm_raw_response} />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* HS Code Hierarchy Tree */}
             <HSCodeTree hsCode={searchResult.hs_code} />

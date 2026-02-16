@@ -42,6 +42,7 @@ export interface LookupDetail {
         details?: Record<string, unknown>;
       }[]
     | null;
+  nlm_raw_response: string | null;
   confidence_score: number | null;
   search_method: string;
   is_verified: boolean;

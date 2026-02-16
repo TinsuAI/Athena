@@ -31,6 +31,7 @@ class NotebookLMResult:
     practical_notes: list[str]  # Extracted practical guidance
     raw_answer: str  # Full NotebookLM markdown response
     from_cache: bool = False  # True when result came from Redis cache
+    confidence: int = 0  # Heuristic confidence score (0-95)
 
 
 class NotebookLMService:
@@ -160,12 +161,63 @@ class NotebookLMService:
         # Extract practical notes
         practical_notes = self._extract_practical_notes(raw_answer)
 
+        # Compute heuristic confidence
+        confidence = self._compute_confidence(raw_answer, hs_code)
+
         return NotebookLMResult(
             hs_code=hs_code,
             classification=classification,
             practical_notes=practical_notes,
             raw_answer=raw_answer,
+            confidence=confidence,
         )
+
+    def _compute_confidence(self, raw_answer: str, hs_code: str | None) -> int:
+        """Compute heuristic confidence score from NLM response signals.
+
+        Args:
+            raw_answer: Full NLM response text.
+            hs_code: Extracted HS code, or None for guide responses.
+
+        Returns:
+            Confidence score clamped to [30, 95], or 0 if no HS code.
+        """
+        if not hs_code:
+            return 0
+
+        score = 60  # Base: NLM returned an HS code
+
+        # 8-digit code (XXXX.XX.XX) is more specific
+        if re.match(r"^\d{4}\.\d{2}\.\d{2}$", hs_code):
+            score += 10
+
+        # Source citations [1], [2], etc. — grounded in uploaded docs
+        if re.search(r"\[\d+\]", raw_answer):
+            score += 8
+
+        # Count HS codes in response
+        all_codes = HS_CODE_PATTERN.findall(raw_answer)
+        unique_codes = set(all_codes)
+        if len(unique_codes) == 1:
+            score += 8  # Single unambiguous code
+        elif len(unique_codes) > 1:
+            score -= 10  # Multiple codes = ambiguity
+
+        # Strong assertion keywords (Vietnamese)
+        strong_keywords = ["thuộc nhóm", "được phân loại", "chính xác"]
+        if any(kw in raw_answer.lower() for kw in strong_keywords):
+            score += 7
+
+        # Hedging keywords (Vietnamese)
+        hedge_keywords = ["có thể", "tùy thuộc", "cần xác minh", "không rõ"]
+        if any(kw in raw_answer.lower() for kw in hedge_keywords):
+            score -= 10
+
+        # Long response = thorough analysis
+        if len(raw_answer) > 1000:
+            score += 5
+
+        return max(30, min(95, score))
 
     def _extract_classification(self, text: str) -> dict:
         """Extract classification reasoning from response text.

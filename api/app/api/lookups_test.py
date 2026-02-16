@@ -22,6 +22,7 @@ def _make_mock_detail_record(
     classification_data: dict | None = None,
     practical_notes: list | None = None,
     process_logs: list | None = None,
+    nlm_raw_response: str | None = None,
     matched_hs_code: MagicMock | None = "default",
     correct_hs_code: MagicMock | None = None,
 ) -> MagicMock:
@@ -38,6 +39,7 @@ def _make_mock_detail_record(
     record.classification_data = classification_data
     record.practical_notes = practical_notes
     record.process_logs = process_logs
+    record.nlm_raw_response = nlm_raw_response
     record.created_at = datetime(2026, 2, 10, 12, 0, 0, tzinfo=timezone.utc)
 
     if matched_hs_code == "default":
@@ -475,3 +477,46 @@ class TestGetLookupDetail:
         assert "success" in data
         assert "data" in data
         assert "error" in data
+
+    @patch("app.api.lookups.LookupRecordRepository")
+    @patch("app.api.lookups.get_db")
+    def test_get_detail_includes_nlm_raw_response(self, mock_get_db, mock_repo_class):
+        """AC6: GET /api/lookups/{id} includes nlm_raw_response when present."""
+        mock_db = AsyncMock()
+        mock_get_db.return_value = mock_db
+
+        raw_response = "## HS Code: 7418.20.00\n\nCopper towel rack classification..."
+        record = _make_mock_detail_record(
+            search_method="notebooklm",
+            nlm_raw_response=raw_response,
+        )
+        mock_repo = AsyncMock()
+        mock_repo.find_by_id_with_details.return_value = record
+        mock_repo_class.return_value = mock_repo
+
+        response = client.get("/api/lookups/1")
+
+        assert response.status_code == 200
+        detail = response.json()["data"]
+        assert detail["nlm_raw_response"] == raw_response
+
+    @patch("app.api.lookups.LookupRecordRepository")
+    @patch("app.api.lookups.get_db")
+    def test_get_detail_nlm_raw_response_null_for_non_nlm(self, mock_get_db, mock_repo_class):
+        """AC8: Non-NLM lookups have nlm_raw_response as null."""
+        mock_db = AsyncMock()
+        mock_get_db.return_value = mock_db
+
+        record = _make_mock_detail_record(
+            search_method="vector",
+            nlm_raw_response=None,
+        )
+        mock_repo = AsyncMock()
+        mock_repo.find_by_id_with_details.return_value = record
+        mock_repo_class.return_value = mock_repo
+
+        response = client.get("/api/lookups/1")
+
+        assert response.status_code == 200
+        detail = response.json()["data"]
+        assert detail["nlm_raw_response"] is None

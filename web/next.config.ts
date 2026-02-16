@@ -5,6 +5,13 @@ const API_BACKEND_URL =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  experimental: {
+    // TECH DEBT: Using experimental API for proxy timeout (Story 3-3)
+    // Risk: May break in future Next.js versions if API changes
+    // Reason: NotebookLM queries can take 5-15s, need longer timeout than default 60s
+    // TODO: Migrate to stable API when Next.js promotes this feature
+    proxyTimeout: 120_000, // 2 minutes for long-running search (LLM calls)
+  },
   async rewrites() {
     return {
       // beforeFiles runs before Next.js filesystem routes (including API routes).

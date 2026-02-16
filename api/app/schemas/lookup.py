@@ -49,6 +49,7 @@ class LookupDetailResponse(BaseModel):
     classification_data: dict[str, Any] | None
     practical_notes: list[str] | None
     process_logs: list[dict[str, Any]] | None
+    nlm_raw_response: str | None = None
     confidence_score: float | None
     search_method: str
     is_verified: bool

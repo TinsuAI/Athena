@@ -118,6 +118,7 @@ async def get_lookup_detail(
         classification_data=record.classification_data,
         practical_notes=record.practical_notes,
         process_logs=record.process_logs,
+        nlm_raw_response=record.nlm_raw_response,
         confidence_score=record.confidence_score,
         search_method=record.search_method,
         is_verified=record.is_verified,

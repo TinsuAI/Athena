@@ -1002,7 +1002,7 @@ class TestNotebookLMIntegration:
         mock_hs_code.subheading = None
         return mock_hs_code
 
-    def _make_mock_nlm_result(self, hs_code="7418.20.00", from_cache=False):
+    def _make_mock_nlm_result(self, hs_code="7418.20.00", from_cache=False, confidence=88):
         """Create a mock NotebookLMResult."""
         from app.services.notebooklm_service import NotebookLMResult
 
@@ -1012,6 +1012,7 @@ class TestNotebookLMIntegration:
             practical_notes=["Use EVFTA for 3.7% rate"],
             raw_answer="Full markdown response...",
             from_cache=from_cache,
+            confidence=confidence,
         )
 
     def _make_mock_nlm_guide(self, from_cache=False):
@@ -1024,6 +1025,7 @@ class TestNotebookLMIntegration:
             practical_notes=[],
             raw_answer="Categorized guide: this product needs manual classification...",
             from_cache=from_cache,
+            confidence=0,
         )
 
     def _base_patches(self):
@@ -1033,12 +1035,11 @@ class TestNotebookLMIntegration:
         mock_settings.enable_query_enhancement = False
         mock_settings.enable_reranking = False
         mock_settings.llm_reasoning_model = "gpt-4o-mini"
-        mock_settings.notebooklm_confidence_score = 95
         return mock_settings
 
     @pytest.mark.asyncio
     async def test_nlm_success_hs_code_found(self):
-        """AC1: NLM returns HS code found in DB → source='notebooklm', confidence=95."""
+        """AC1: NLM returns HS code found in DB → source='notebooklm', dynamic confidence."""
         from app.api.search import search_hs_codes
         from app.schemas.search import SearchRequest
 
@@ -1091,7 +1092,7 @@ class TestNotebookLMIntegration:
 
         assert response["success"] is True
         assert response["data"]["source"] == "notebooklm"
-        assert response["data"]["confidence"] == 95
+        assert response["data"]["confidence"] == 88  # Dynamic from nlm_result
         assert response["data"]["hs_code"] == "7418.20.00"
         assert response["data"]["is_verified"] is False
         assert response["data"]["lookup_id"] == 10
@@ -1103,11 +1104,11 @@ class TestNotebookLMIntegration:
         mock_record.assert_awaited_once()
         call_kwargs = mock_record.call_args[1]
         assert call_kwargs["search_method"] == "notebooklm"
-        assert call_kwargs["confidence_score"] == 95
+        assert call_kwargs["confidence_score"] == 88  # Dynamic from nlm_result
 
     @pytest.mark.asyncio
     async def test_nlm_cache_hit(self):
-        """AC2: NLM cached result → source='cache', confidence=95, no new API call."""
+        """AC2: NLM cached result → source='cache', dynamic confidence, no new API call."""
         from app.api.search import search_hs_codes
         from app.schemas.search import SearchRequest
 
@@ -1156,7 +1157,7 @@ class TestNotebookLMIntegration:
 
         assert response["success"] is True
         assert response["data"]["source"] == "cache"
-        assert response["data"]["confidence"] == 95
+        assert response["data"]["confidence"] == 88  # Dynamic from nlm_result
 
     @pytest.mark.asyncio
     async def test_nlm_unavailable_fallback(self):
@@ -1457,6 +1458,166 @@ class TestNotebookLMIntegration:
         assert "NotebookLM disabled" in nlm_skipped_logs[0]["message"]
 
     @pytest.mark.asyncio
+    async def test_nlm_success_includes_nlm_raw_response(self):
+        """NLM success path includes nlm_raw_response in API response."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_hs_code = self._make_mock_hs_code()
+        nlm_result = self._make_mock_nlm_result(from_cache=False)
+
+        mock_db_result = MagicMock()
+        mock_db_result.scalar_one_or_none.return_value = mock_hs_code
+        mock_db.execute.return_value = mock_db_result
+
+        search_request = SearchRequest(query="copper towel rack")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=20)), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache.set = AsyncMock()
+            mock_cache_class.return_value = mock_cache
+
+            mock_nlm = AsyncMock()
+            mock_nlm.query.return_value = nlm_result
+            mock_nlm_class.return_value = mock_nlm
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["nlm_raw_response"] == "Full markdown response..."
+
+    @pytest.mark.asyncio
+    async def test_nlm_guide_includes_nlm_raw_response(self):
+        """NLM guide path (no HS code) includes nlm_raw_response in API response."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        nlm_guide = self._make_mock_nlm_guide()
+
+        search_request = SearchRequest(query="sản phẩm phức hợp")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=21)), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            mock_nlm = AsyncMock()
+            mock_nlm.query.return_value = nlm_guide
+            mock_nlm_class.return_value = mock_nlm
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["nlm_raw_response"] == "Categorized guide: this product needs manual classification..."
+
+    @pytest.mark.asyncio
+    async def test_non_nlm_search_has_null_nlm_raw_response(self):
+        """Non-NLM search paths return nlm_raw_response=None."""
+        from app.api.search import search_hs_codes
+        from app.schemas.search import SearchRequest
+
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        mock_search_result = MagicMock()
+        mock_search_result.hs_code = "74182000"
+        mock_search_result.description_vn = "Đồ trang bị"
+        mock_search_result.description_en = "Sanitary"
+        mock_search_result.duty_rate = 30.0
+        mock_search_result.vat_rate = 10.0
+        mock_search_result.unit = "Chiếc"
+        mock_search_result.confidence = 80
+        mock_search_result.is_exact_match = False
+        mock_search_result.hs_code_full = self._make_mock_hs_code()
+
+        search_request = SearchRequest(query="some product")
+
+        with patch("app.api.search.KnowledgeBaseService") as mock_kb_class, \
+             patch("app.api.search.NotebookLMService") as mock_nlm_class, \
+             patch("app.api.search.SearchService") as mock_search_class, \
+             patch("app.api.search.SearchCacheService") as mock_cache_class, \
+             patch("app.api.search.ClassificationAnalyzer") as mock_analyzer_class, \
+             patch("app.api.search._record_lookup", new=AsyncMock(return_value=22)), \
+             patch("app.api.search.get_settings") as mock_get_settings:
+
+            mock_get_settings.return_value = self._base_patches()
+
+            mock_kb = AsyncMock()
+            mock_kb.lookup.return_value = None
+            mock_kb_class.return_value = mock_kb
+
+            # NLM disabled
+            mock_nlm = AsyncMock()
+            mock_nlm.query.return_value = None
+            mock_nlm_class.return_value = mock_nlm
+
+            mock_cache = AsyncMock()
+            mock_cache.get.return_value = None
+            mock_cache_class.return_value = mock_cache
+
+            mock_search = AsyncMock()
+            mock_search.search.return_value = [mock_search_result]
+            mock_search_class.return_value = mock_search
+
+            mock_analyzer = MagicMock()
+            mock_analysis = MagicMock()
+            mock_analysis.material = "Material"
+            mock_analysis.function = "Function"
+            mock_analysis.practical_notes = []
+            mock_analyzer.analyze_async = AsyncMock(return_value=mock_analysis)
+            mock_analyzer_class.return_value = mock_analyzer
+
+            response = await search_hs_codes(
+                request=mock_request,
+                body=search_request,
+                db=mock_db,
+                redis_client=mock_redis,
+            )
+
+        assert response["success"] is True
+        assert response["data"]["nlm_raw_response"] is None
+
+    @pytest.mark.asyncio
     async def test_nlm_auto_stores_in_kb(self):
         """AC1: NLM success auto-stores in KB via _record_lookup with search_method='notebooklm'."""
         from app.api.search import search_hs_codes
@@ -1511,8 +1672,12 @@ class TestNotebookLMIntegration:
         call_kwargs = mock_record.call_args[1]
         assert call_kwargs["search_method"] == "notebooklm"
         assert call_kwargs["matched_hs_code_id"] == 42
-        assert call_kwargs["confidence_score"] == 95
-        assert call_kwargs["classification_data"] == nlm_result.classification
+        assert call_kwargs["confidence_score"] == 88  # Dynamic from nlm_result
+        # Stored classification uses resolved values (material/function only, no reasoning key)
+        assert call_kwargs["classification_data"] == {
+            "material": "copper",
+            "function": "bathroom fitting",
+        }
         assert call_kwargs["practical_notes"] == nlm_result.practical_notes
 
     @pytest.mark.asyncio
@@ -1534,6 +1699,7 @@ class TestNotebookLMIntegration:
             practical_notes=[],
             raw_answer="Malformed code response",
             from_cache=False,
+            confidence=60,
         )
 
         # Vector search fallback result
@@ -1609,3 +1775,176 @@ class TestNotebookLMIntegration:
         assert len(nlm_failed_logs) == 1
         assert "malformed HS code" in nlm_failed_logs[0]["message"]
         assert "falling back" in nlm_failed_logs[0]["message"]
+
+
+class TestNLMRawResponsePersistence:
+    """Tests for nlm_raw_response persistence in _record_lookup (Story 3-3)."""
+
+    @pytest.mark.asyncio
+    async def test_stores_nlm_raw_response_on_new_record(self):
+        """AC2: NLM success stores raw_answer in nlm_raw_response on new record."""
+        mock_db = AsyncMock()
+
+        with patch("app.api.search.LookupRecordRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_by_query_hash.return_value = None
+            mock_repo_class.return_value = mock_repo
+
+            raw_answer = "## HS Code: 7418.20.00\n\nCopper towel rack classification..."
+
+            await _record_lookup(
+                db=mock_db,
+                query="copper towel rack",
+                matched_hs_code_id=42,
+                confidence_score=95.0,
+                search_method="notebooklm",
+                classification_data={"material": "copper", "function": "bathroom"},
+                practical_notes=["Use EVFTA"],
+                process_logs=[{"step": "nlm", "status": "completed", "message": "ok"}],
+                nlm_raw_response=raw_answer,
+            )
+
+            mock_repo.create.assert_awaited_once()
+            created_record = mock_repo.create.call_args[0][0]
+            assert created_record.nlm_raw_response == raw_answer
+
+    @pytest.mark.asyncio
+    async def test_dedup_updates_nlm_raw_response(self):
+        """AC5: Dedup updates nlm_raw_response on existing record."""
+        mock_db = AsyncMock()
+        existing_record = MagicMock()
+        existing_record.id = 99
+        existing_record.nlm_raw_response = "Old response"
+
+        with patch("app.api.search.LookupRecordRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_by_query_hash.return_value = existing_record
+            mock_repo_class.return_value = mock_repo
+
+            new_raw_answer = "Updated NLM response with fresh data"
+
+            result = await _record_lookup(
+                db=mock_db,
+                query="copper towel rack",
+                matched_hs_code_id=42,
+                confidence_score=95.0,
+                search_method="notebooklm",
+                nlm_raw_response=new_raw_answer,
+            )
+
+            assert result == 99
+            assert existing_record.nlm_raw_response == new_raw_answer
+            mock_repo.update.assert_awaited_once_with(existing_record)
+            mock_repo.create.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_non_nlm_stores_null_raw_response(self):
+        """AC4: Non-NLM lookup stores nlm_raw_response=None by default."""
+        mock_db = AsyncMock()
+
+        with patch("app.api.search.LookupRecordRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_by_query_hash.return_value = None
+            mock_repo_class.return_value = mock_repo
+
+            await _record_lookup(
+                db=mock_db,
+                query="copper towel rack",
+                matched_hs_code_id=42,
+                confidence_score=85.0,
+                search_method="vector",
+                classification_data={"material": "copper", "function": "bathroom"},
+            )
+
+            created_record = mock_repo.create.call_args[0][0]
+            assert created_record.nlm_raw_response is None
+
+    @pytest.mark.asyncio
+    async def test_lookup_record_model_has_nlm_raw_response_field(self):
+        """AC1: LookupRecord model supports nlm_raw_response field."""
+        from app.models.lookup_record import LookupRecord
+
+        record = LookupRecord(
+            query_text="test query",
+            query_hash="abc123",
+            is_verified=False,
+            search_method="notebooklm",
+            nlm_raw_response="Full markdown response from NLM",
+        )
+        assert record.nlm_raw_response == "Full markdown response from NLM"
+
+        # Also test None
+        record_no_nlm = LookupRecord(
+            query_text="test query",
+            query_hash="abc123",
+            is_verified=False,
+            search_method="vector",
+        )
+        assert record_no_nlm.nlm_raw_response is None
+
+    @pytest.mark.asyncio
+    async def test_nlm_raw_response_full_persistence_flow(self):
+        """Integration: Verify nlm_raw_response persists through create → update → retrieve flow.
+
+        This test validates the complete lifecycle:
+        1. Create new record with nlm_raw_response
+        2. Retrieve it back (simulated)
+        3. Update via dedup with new nlm_raw_response
+        4. Verify the update persisted
+
+        Addresses code review finding: Need integration test for full E2E flow.
+        """
+        mock_db = AsyncMock()
+
+        with patch("app.api.search.LookupRecordRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo_class.return_value = mock_repo
+
+            # Phase 1: Create new record with nlm_raw_response
+            mock_repo.find_by_query_hash.return_value = None
+            created_record = MagicMock()
+            created_record.id = 100
+            created_record.nlm_raw_response = "Original NLM response content"
+            mock_repo.create.return_value = created_record
+
+            original_response = "## HS Code: 7418.20.00\n\nOriginal classification..."
+            record_id = await _record_lookup(
+                db=mock_db,
+                query="copper towel rack",
+                matched_hs_code_id=42,
+                confidence_score=95.0,
+                search_method="notebooklm",
+                classification_data={"material": "copper"},
+                nlm_raw_response=original_response,
+            )
+
+            assert record_id == 100
+            mock_repo.create.assert_awaited_once()
+            created = mock_repo.create.call_args[0][0]
+            assert created.nlm_raw_response == original_response
+
+            # Phase 2: Simulate dedup - same query within 24h
+            mock_repo.reset_mock()
+            existing = MagicMock()
+            existing.id = 100
+            existing.nlm_raw_response = original_response
+            mock_repo.find_by_query_hash.return_value = existing
+
+            updated_response = "## HS Code: 7418.20.00\n\nUpdated classification with fresh data..."
+            record_id_2 = await _record_lookup(
+                db=mock_db,
+                query="copper towel rack",  # Same query
+                matched_hs_code_id=42,
+                confidence_score=96.0,
+                search_method="notebooklm",
+                classification_data={"material": "copper", "function": "bathroom"},
+                nlm_raw_response=updated_response,
+            )
+
+            # Should return same ID (dedup)
+            assert record_id_2 == 100
+            # Should have updated nlm_raw_response
+            assert existing.nlm_raw_response == updated_response
+            mock_repo.update.assert_awaited_once_with(existing)
+            # Should NOT create new record
+            mock_repo.create.assert_not_awaited()

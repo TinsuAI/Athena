@@ -47,6 +47,7 @@ class LookupRecord(Base):
     classification_data: Mapped[dict[str, str] | None] = mapped_column(JSONB, nullable=True)
     practical_notes: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     process_logs: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
+    nlm_raw_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

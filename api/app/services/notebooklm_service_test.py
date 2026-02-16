@@ -143,6 +143,7 @@ class TestRedisCaching:
             "practical_notes": [],
             "raw_answer": "cached response",
             "from_cache": False,  # Stored as False in Redis
+            "confidence": 85,
         }
         mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
 
@@ -382,6 +383,95 @@ class TestServiceWithoutRedis:
 
         assert result is not None
         assert result.hs_code == "7418.20.00"
+
+
+class TestComputeConfidence:
+    """Test _compute_confidence heuristic scoring."""
+
+    def test_high_confidence_single_code_citations_strong_language(self, service):
+        """Single 8-digit code + citations + strong assertion + long response → high score."""
+        raw = (
+            "Sản phẩm này được phân loại vào mã HS **7418.20.00** - Đồ vệ sinh bằng đồng. [1]\n"
+            "Theo GRI 1, sản phẩm thuộc nhóm 7418. "
+            "Chất liệu chính là đồng mạ chrome, chức năng dùng trong phòng vệ sinh.\n"
+        ) + ("Chi tiết phân loại bổ sung. " * 50)  # >1000 chars
+
+        score = service._compute_confidence(raw, "7418.20.00")
+        # 60 base + 10 (8-digit) + 8 (citations) + 8 (single code) + 7 (strong) + 5 (long) = 98 → clamped 95
+        assert 85 <= score <= 95
+
+    def test_medium_confidence_single_code_with_hedging(self, service):
+        """Single code + hedging keywords → medium score."""
+        raw = "Mã HS có thể là 7418.20.00. Tùy thuộc vào chất liệu chính xác."
+        score = service._compute_confidence(raw, "7418.20.00")
+        # 60 + 10 (8-digit) + 8 (single) - 10 (hedging) = 68
+        # "chính xác" is a strong keyword too → +7 = 75
+        assert 55 <= score <= 80
+
+    def test_low_confidence_multiple_codes_hedging(self, service):
+        """Multiple codes + hedging → low score."""
+        raw = (
+            "Sản phẩm có thể phân loại theo:\n"
+            "- 8509.40.00 - Máy nghiền\n"
+            "- 8501.10.00 - Động cơ điện\n"
+            "Cần xác minh thêm thông tin."
+        )
+        score = service._compute_confidence(raw, "8509.40.00")
+        # 60 + 10 (8-digit) - 10 (multiple codes) - 10 (hedging) = 50
+        assert 30 <= score <= 55
+
+    def test_no_hs_code_returns_zero(self, service):
+        """No HS code → confidence 0."""
+        raw = "Hướng dẫn phân loại sản phẩm phức hợp."
+        score = service._compute_confidence(raw, None)
+        assert score == 0
+
+    def test_clamp_minimum_30(self, service):
+        """Score is clamped to minimum 30."""
+        raw = (
+            "Có thể là 1234.56.78 hoặc 1234.56.79 hoặc 1234.56.80. "
+            "Không rõ mã nào đúng. Tùy thuộc vào nhiều yếu tố."
+        )
+        score = service._compute_confidence(raw, "1234.56.78")
+        # 60 + 10 - 10 (multiple) - 10 (hedging) = 50; still >= 30
+        assert score >= 30
+
+    def test_clamp_maximum_95(self, service):
+        """Score is clamped to maximum 95."""
+        raw = (
+            "Sản phẩm được phân loại chính xác vào mã HS **7418.20.00**. [1] [2]\n"
+            "Thuộc nhóm 7418 theo GRI 1.\n"
+        ) + ("Phân tích chi tiết. " * 100)  # Very long
+        score = service._compute_confidence(raw, "7418.20.00")
+        assert score <= 95
+
+    def test_parse_response_sets_confidence(self, service):
+        """_parse_response populates confidence field on NotebookLMResult."""
+        result = service._parse_response(RESPONSE_WITH_HS_CODE)
+        assert result.confidence > 0
+        assert result.hs_code == "7418.20.00"
+
+    def test_parse_response_guide_has_zero_confidence(self, service):
+        """_parse_response sets confidence=0 for guide responses (no HS code)."""
+        result = service._parse_response(RESPONSE_GUIDE_NO_CODE)
+        assert result.confidence == 0
+        assert result.hs_code is None
+
+    def test_citations_boost(self, service):
+        """Source citations [1], [2] add confidence."""
+        without_citations = "Mã HS 7418.20.00 cho sản phẩm đồng."
+        with_citations = "Mã HS 7418.20.00 cho sản phẩm đồng. [1] [2]"
+        score_without = service._compute_confidence(without_citations, "7418.20.00")
+        score_with = service._compute_confidence(with_citations, "7418.20.00")
+        assert score_with > score_without
+
+    def test_long_response_boost(self, service):
+        """Responses >1000 chars get a bonus."""
+        short = "Mã HS 7418.20.00."
+        long = "Mã HS 7418.20.00.\n" + ("Chi tiết phân loại. " * 60)
+        score_short = service._compute_confidence(short, "7418.20.00")
+        score_long = service._compute_confidence(long, "7418.20.00")
+        assert score_long > score_short
 
 
 class TestSDKImportValidation:

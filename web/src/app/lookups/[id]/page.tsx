@@ -8,6 +8,7 @@ import { getLookupDetail } from "@/lib/api";
 import { CorrectionButton } from "@/app/search/components/CorrectionButton";
 import { CorrectionPanel } from "@/app/search/components/CorrectionPanel";
 import { HSCodeTree } from "@/components/ui/HSCodeTree";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import type { LookupDetail } from "@/types/lookup";
 
 function ConfidenceBadge({ score }: { score: number | null }) {
@@ -45,6 +46,8 @@ export default function LookupDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCorrectionPanel, setShowCorrectionPanel] = useState(false);
   const [showProcessLogs, setShowProcessLogs] = useState(false);
+  const [showNlmResponse, setShowNlmResponse] = useState(false);
+  const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
   const { data: session } = useSession();
   const isAdmin = (session?.user as { role?: string })?.role === "admin";
 
@@ -211,15 +214,46 @@ export default function LookupDetailPage() {
               <h3 className="mb-2 text-[10px] font-bold uppercase tracking-[0.8px] text-muted-foreground">
                 Chất liệu
               </h3>
-              <p className="text-sm font-medium text-foreground">{lookup.classification_data.material}</p>
+              <MarkdownContent
+                content={lookup.classification_data.material || (lookup.classification_data as Record<string, string>).reasoning || ""}
+                className="prose-p:my-0 text-sm"
+              />
             </div>
             <div className="rounded-lg border border-border bg-secondary/50 p-4 dark:bg-muted/30">
               <h3 className="mb-2 text-[10px] font-bold uppercase tracking-[0.8px] text-muted-foreground">
                 Công dụng
               </h3>
-              <p className="text-sm font-medium text-foreground">{lookup.classification_data.function}</p>
+              <MarkdownContent
+                content={lookup.classification_data.function || "Xem mục 'Phân tích chi tiết' để biết thêm"}
+                className="prose-p:my-0 text-sm"
+              />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* NotebookLM Raw Response Section */}
+      {lookup.nlm_raw_response && (
+        <div className="mb-6 rounded-xl border border-border bg-card shadow-sm">
+          <button
+            type="button"
+            onClick={() => setShowNlmResponse(!showNlmResponse)}
+            className="w-full flex items-center justify-between px-6 py-4 text-left"
+            aria-expanded={showNlmResponse}
+            aria-label="Phân tích chi tiết"
+          >
+            <span className="text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
+              Phân tích chi tiết
+            </span>
+            <span className="inline-block transition-transform duration-150 text-muted-foreground" style={{ transform: showNlmResponse ? "rotate(180deg)" : "rotate(0deg)" }}>
+              &#9662;
+            </span>
+          </button>
+          {showNlmResponse && (
+            <div className="border-t border-border px-6 py-4">
+              <MarkdownContent content={lookup.nlm_raw_response} />
+            </div>
+          )}
         </div>
       )}
 
@@ -233,7 +267,7 @@ export default function LookupDetailPage() {
             {lookup.practical_notes.map((note, i) => (
               <li key={i} className="flex items-start gap-2.5 text-sm">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-                <span className="text-foreground">{note}</span>
+                <MarkdownContent content={note} className="prose-p:my-0 prose-ul:my-0 prose-li:my-0" />
               </li>
             ))}
           </ul>
@@ -270,17 +304,40 @@ export default function LookupDetailPage() {
           {showProcessLogs && (
             <div className="border-t border-border">
               {lookup.process_logs.map((log, i) => (
-                <div key={i} className="flex items-center gap-3 px-6 py-3 text-sm border-b border-border/50 last:border-b-0">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${
-                    log.status === "completed" ? "bg-emerald-500" :
-                    log.status === "failed" ? "bg-red-500" :
-                    log.status === "skipped" ? "bg-slate-300" :
-                    "bg-amber-400"
-                  }`} />
-                  <span className="text-xs font-semibold text-foreground w-28 shrink-0">{log.step}</span>
-                  <span className="text-xs text-muted-foreground flex-1 truncate">{log.message}</span>
-                  {typeof log.duration_ms === "number" && (
-                    <span className="text-[11px] font-mono text-muted-foreground shrink-0">{log.duration_ms}ms</span>
+                <div key={i} className="border-b border-border/50 last:border-b-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpandedLogs((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(i)) next.delete(i);
+                        else next.add(i);
+                        return next;
+                      });
+                    }}
+                    className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-secondary/50"
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${
+                      log.status === "completed" ? "bg-emerald-500" :
+                      log.status === "failed" ? "bg-red-500" :
+                      log.status === "skipped" ? "bg-slate-300" :
+                      "bg-amber-400"
+                    }`} />
+                    <span className="text-xs font-semibold text-foreground w-28 shrink-0">{log.step}</span>
+                    <span className="text-xs text-muted-foreground flex-1 truncate">{log.message}</span>
+                    {typeof log.duration_ms === "number" && (
+                      <span className="text-[11px] font-mono text-muted-foreground shrink-0">{log.duration_ms}ms</span>
+                    )}
+                    {log.details && (
+                      <span className="text-[10px] text-muted-foreground shrink-0 transition-transform duration-150" style={{ transform: expandedLogs.has(i) ? "rotate(180deg)" : "rotate(0deg)" }}>
+                        &#9662;
+                      </span>
+                    )}
+                  </button>
+                  {expandedLogs.has(i) && log.details && (
+                    <pre className="mx-6 mb-3 p-3 bg-secondary/50 rounded-lg text-[11px] text-foreground font-mono overflow-x-auto max-h-60 overflow-y-auto whitespace-pre-wrap">
+                      {JSON.stringify(log.details, null, 2)}
+                    </pre>
                   )}
                 </div>
               ))}

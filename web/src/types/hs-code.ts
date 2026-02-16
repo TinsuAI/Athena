@@ -46,6 +46,7 @@ export interface SearchResult {
   verified_by?: string | null;
   verified_at?: string | null;
   lookup_id?: number | null;
+  nlm_raw_response?: string | null;
 }
 
 /**
