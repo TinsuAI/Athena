@@ -114,10 +114,10 @@ function TreeConnector({ isLast }: { isLast?: boolean }) {
 function ChapterNode({ chapterCode, nameVn }: { chapterCode: string; nameVn: string }) {
   return (
     <div className="flex items-baseline gap-2">
-      <span className="font-mono text-[12px] font-bold text-slate-500">
+      <span className="font-mono text-[12px] font-bold text-slate-500 shrink-0">
         Ch. {chapterCode}
       </span>
-      <span className="text-[12px] text-slate-400 font-medium truncate">
+      <span className="text-[12px] text-slate-400 font-medium" title={nameVn}>
         {nameVn}
       </span>
     </div>
@@ -135,10 +135,10 @@ function HeadingNode({
     <div>
       <div className="flex items-baseline gap-1.5">
         <TreeConnector isLast />
-        <span className="font-mono text-[12px] font-bold text-slate-600">
+        <span className="font-mono text-[12px] font-bold text-slate-600 shrink-0">
           {formatCode(heading.heading_code)}
         </span>
-        <span className="text-[12px] text-slate-400 font-medium truncate">
+        <span className="text-[12px] text-slate-400 font-medium" title={heading.name_vn}>
           {heading.name_vn}
         </span>
       </div>
@@ -175,16 +175,17 @@ function SubheadingNode({
       <div className="flex items-baseline gap-1.5">
         <TreeConnector isLast={isLast} />
         <span
-          className={`font-mono text-[11.5px] font-semibold ${
+          className={`font-mono text-[11.5px] font-semibold shrink-0 ${
             matchedSubheading ? "text-emerald-700" : "text-slate-500"
           }`}
         >
           {formatCode(subheading.subheading_code)}
         </span>
         <span
-          className={`text-[11.5px] font-medium truncate ${
-            matchedSubheading ? "text-emerald-600" : "text-slate-400"
+          className={`text-[11.5px] font-medium ${
+            matchedSubheading ? "text-emerald-600" : "text-slate-400 line-clamp-1"
           }`}
+          title={subheading.name_vn}
         >
           {subheading.name_vn}
         </span>
@@ -231,9 +232,10 @@ function HSCodeLeaf({
         {formatCode(code.code)}
       </span>
       <span
-        className={`text-[11px] font-medium truncate ${
-          isMatched ? "text-emerald-600" : "text-slate-400"
+        className={`text-[11px] font-medium ${
+          isMatched ? "text-emerald-600" : "text-slate-400 line-clamp-1"
         }`}
+        title={code.description_vn}
       >
         {code.description_vn}
       </span>
