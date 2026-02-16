@@ -9,8 +9,8 @@ import { ResetSuccessMessage } from "./ResetSuccessMessage";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Log In - Athena",
-  description: "Log in to access your favorites and search history",
+  title: "Đăng nhập - Athena",
+  description: "Đăng nhập để truy cập mục yêu thích và lịch sử tìm kiếm",
 };
 
 export default function LoginPage() {
@@ -18,9 +18,9 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
+          <h1 className="text-2xl font-bold text-foreground">Chào mừng trở lại</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Log in to access your favorites and search history
+            Đăng nhập để truy cập mục yêu thích và lịch sử tìm kiếm
           </p>
         </div>
         <ResetSuccessMessage />

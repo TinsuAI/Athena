@@ -50,6 +50,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://athena:athena@postgres:5432/athena
       REDIS_URL: redis://redis:6379
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-in-production}
+      NEXTAUTH_URL: https://athena.tinsu.ai
       NOTEBOOKLM_NOTEBOOK_ID: ${NOTEBOOKLM_NOTEBOOK_ID:-5d982e32-e9a6-43a2-a469-090dd46c140c}
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
@@ -77,7 +78,8 @@ services:
     environment:
       NEXTAUTH_URL: https://athena.tinsu.ai
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-in-production}
-      NEXT_PUBLIC_API_URL: https://athena-api.tinsu.ai
+      NEXT_PUBLIC_API_URL: ""
+      API_BACKEND_URL: http://api:8980
     volumes:
       - ./web:/app
       - /app/node_modules # Exclude node_modules from mount

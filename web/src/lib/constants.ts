@@ -3,7 +3,7 @@
  */
 
 export const APP_NAME = "Athena";
-export const APP_DESCRIPTION = "HS Code Lookup Tool";
+export const APP_DESCRIPTION = "Công cụ tra cứu mã HS";
 
 export const API_ENDPOINTS = {
   health: "/health",

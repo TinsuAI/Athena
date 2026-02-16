@@ -63,7 +63,7 @@ export function HSCodeTree({ hsCode }: HSCodeTreeProps) {
       <div className="mt-4 bg-white border border-slate-200 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)]">
         <div className="flex items-center gap-2.5">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
-          <span className="text-[12px] text-slate-400 font-medium">Loading hierarchy...</span>
+          <span className="text-[12px] text-slate-400 font-medium">Đang tải phân cấp...</span>
         </div>
       </div>
     );
@@ -84,7 +84,7 @@ export function HSCodeTree({ hsCode }: HSCodeTreeProps) {
     <div className="mt-4 bg-white border border-slate-200 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)] overflow-hidden">
       <div className="px-5 py-3.5 border-b border-slate-100">
         <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-          HS Code Hierarchy
+          Phân cấp mã HS
         </h3>
       </div>
       <div className="p-4">
@@ -239,7 +239,7 @@ function HSCodeLeaf({
       </span>
       {isMatched && (
         <span className="shrink-0 text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">
-          MATCHED
+          PHÙ HỢP
         </span>
       )}
     </div>

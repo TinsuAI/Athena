@@ -6,7 +6,8 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL =
+  process.env.API_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8980";
 
 // Enforce HTTPS in production (security check)
 if (

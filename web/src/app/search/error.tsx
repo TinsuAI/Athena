@@ -23,12 +23,11 @@ export default function SearchError({ error, reset }: ErrorProps) {
     <div className="flex min-h-screen flex-col items-center justify-center p-8">
       <div className="text-center max-w-md">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Something went wrong</h2>
+        <h2 className="text-2xl font-bold mb-2">Đã xảy ra lỗi</h2>
         <p className="text-muted-foreground mb-6">
-          We encountered an error while loading the search page. Please try
-          again.
+          Đã xảy ra lỗi khi tải trang tìm kiếm. Vui lòng thử lại.
         </p>
-        <Button onClick={reset}>Try again</Button>
+        <Button onClick={reset}>Thử lại</Button>
       </div>
     </div>
   );

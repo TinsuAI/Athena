@@ -17,8 +17,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Athena - HS Code Lookup",
-  description: "Semantic search for Harmonized System codes",
+  title: "Athena - Tra cứu mã HS",
+  description: "Tra cứu mã thuế Hệ thống Hài hoà (HS)",
 };
 
 export default function RootLayout({
@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="vi">
       <body
         className={`${plusJakarta.variable} ${jetbrainsMono.variable} antialiased`}
       >

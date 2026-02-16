@@ -47,14 +47,14 @@ function VerifiedBadge({ isVerified }: { isVerified: boolean }) {
             d="M5 13l4 4L19 7"
           />
         </svg>
-        Verified
+        Đã xác minh
       </span>
     );
   }
 
   return (
     <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-500">
-      Unverified
+      Chưa xác minh
     </span>
   );
 }
@@ -66,19 +66,19 @@ export function LookupList({ items, onRowClick }: LookupListProps) {
         <thead>
           <tr className="bg-[#0f172a]">
             <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-white/85">
-              Query
+              Truy vấn
             </th>
             <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-white/85">
-              Matched Code
+              Mã phù hợp
             </th>
             <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-white/85">
-              Confidence
+              Độ tin cậy
             </th>
             <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-white/85">
-              Status
+              Trạng thái
             </th>
             <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-white/85">
-              Date
+              Ngày
             </th>
           </tr>
         </thead>

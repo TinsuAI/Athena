@@ -17,9 +17,9 @@ import { Eye, EyeOff } from "lucide-react";
 const loginSchema = z.object({
   email: z
     .string()
-    .email("Please enter a valid email address")
+    .email("Vui lòng nhập địa chỉ email hợp lệ")
     .transform((val) => val.toLowerCase().trim()),
-  password: z.string().min(1, "Password is required"),
+  password: z.string().min(1, "Vui lòng nhập mật khẩu"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -53,14 +53,14 @@ export function LoginForm() {
       });
 
       if (result?.error) {
-        setServerError("Invalid email or password");
+        setServerError("Email hoặc mật khẩu không đúng");
         return;
       }
 
       router.push(callbackUrl);
     } catch (error) {
       console.error("Login error:", error);
-      setServerError("An unexpected error occurred. Please try again.");
+      setServerError("Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
     }
@@ -100,7 +100,7 @@ export function LoginForm() {
           htmlFor="password"
           className="block text-sm font-medium text-foreground"
         >
-          Password
+          Mật khẩu
         </label>
         <div className="relative">
           <input
@@ -109,14 +109,14 @@ export function LoginForm() {
             autoComplete="current-password"
             {...register("password")}
             className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Enter your password"
+            placeholder="Nhập mật khẩu của bạn"
             aria-describedby={errors.password ? "password-error" : undefined}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
           >
             {showPassword ? (
               <EyeOff className="h-4 w-4" />
@@ -137,7 +137,7 @@ export function LoginForm() {
           href="/forgot-password"
           className="text-sm font-medium text-primary hover:underline"
         >
-          Forgot your password?
+          Quên mật khẩu?
         </Link>
       </div>
 
@@ -155,16 +155,16 @@ export function LoginForm() {
         disabled={isSubmitting}
         className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
       >
-        {isSubmitting ? "Logging in..." : "Log In"}
+        {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
 
       <p className="text-center text-sm text-muted-foreground">
-        Don&apos;t have an account?{" "}
+        Chưa có tài khoản?{" "}
         <Link
           href="/register"
           className="font-medium text-primary hover:underline"
         >
-          Sign up
+          Đăng ký
         </Link>
       </p>
     </form>

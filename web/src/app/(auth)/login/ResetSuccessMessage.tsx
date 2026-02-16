@@ -20,8 +20,8 @@ export function ResetSuccessMessage() {
       className="rounded-md border border-primary/20 bg-primary/10 p-3 text-sm text-foreground"
       role="status"
     >
-      Your password has been reset successfully. Please log in with your new
-      password.
+      Mật khẩu của bạn đã được đặt lại thành công. Vui lòng đăng nhập bằng mật
+      khẩu mới.
     </div>
   );
 }

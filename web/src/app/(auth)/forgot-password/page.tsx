@@ -7,8 +7,8 @@ import { ForgotPasswordForm } from "./ForgotPasswordForm";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Forgot Password - Athena",
-  description: "Reset your Athena account password",
+  title: "Quên mật khẩu - Athena",
+  description: "Đặt lại mật khẩu tài khoản Athena",
 };
 
 export default function ForgotPasswordPage() {
@@ -17,10 +17,10 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground">
-            Forgot Password
+            Quên mật khẩu
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Enter your email and we&apos;ll send you a reset link
+            Nhập email của bạn và chúng tôi sẽ gửi liên kết đặt lại
           </p>
         </div>
         <ForgotPasswordForm />

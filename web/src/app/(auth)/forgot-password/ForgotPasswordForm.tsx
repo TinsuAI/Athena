@@ -15,7 +15,7 @@ import { apiClient } from "@/lib/api";
 const forgotPasswordSchema = z.object({
   email: z
     .string()
-    .email("Please enter a valid email address")
+    .email("Vui lòng nhập địa chỉ email hợp lệ")
     .transform((val) => val.toLowerCase().trim()),
 });
 
@@ -47,7 +47,7 @@ export function ForgotPasswordForm() {
 
       if (!response.success) {
         setServerError(
-          response.error?.detail || "An error occurred. Please try again."
+          response.error?.detail || "Đã xảy ra lỗi. Vui lòng thử lại."
         );
         return;
       }
@@ -55,7 +55,7 @@ export function ForgotPasswordForm() {
       setIsSuccess(true);
     } catch (error) {
       console.error("Forgot password error:", error);
-      setServerError("An unexpected error occurred. Please try again.");
+      setServerError("Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
     }
@@ -68,15 +68,15 @@ export function ForgotPasswordForm() {
           className="rounded-md border border-primary/20 bg-primary/10 p-3 text-sm text-foreground"
           role="status"
         >
-          If this email exists, a reset link has been sent. Please check your
-          inbox.
+          Nếu email này tồn tại, liên kết đặt lại đã được gửi. Vui lòng kiểm
+          tra hộp thư của bạn.
         </div>
         <p className="text-center text-sm text-muted-foreground">
           <Link
             href="/login"
             className="font-medium text-primary hover:underline"
           >
-            Back to Login
+            Quay lại đăng nhập
           </Link>
         </p>
       </div>
@@ -130,16 +130,16 @@ export function ForgotPasswordForm() {
         disabled={isSubmitting}
         className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
       >
-        {isSubmitting ? "Sending..." : "Send Reset Link"}
+        {isSubmitting ? "Đang gửi..." : "Gửi liên kết đặt lại"}
       </button>
 
       <p className="text-center text-sm text-muted-foreground">
-        Remember your password?{" "}
+        Nhớ mật khẩu?{" "}
         <Link
           href="/login"
           className="font-medium text-primary hover:underline"
         >
-          Log in
+          Đăng nhập
         </Link>
       </p>
     </form>

@@ -16,11 +16,11 @@ import { apiClient } from "@/lib/api";
 
 const resetPasswordSchema = z
   .object({
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    passwordConfirm: z.string().min(1, "Please confirm your password"),
+    password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
+    passwordConfirm: z.string().min(1, "Vui lòng xác nhận mật khẩu"),
   })
   .refine((data) => data.password === data.passwordConfirm, {
-    message: "Passwords do not match",
+    message: "Mật khẩu không khớp",
     path: ["passwordConfirm"],
   });
 
@@ -53,14 +53,14 @@ export function ResetPasswordForm() {
           className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
           role="alert"
         >
-          This reset link has expired or is invalid.
+          Liên kết đặt lại này đã hết hạn hoặc không hợp lệ.
         </div>
         <p className="text-center text-sm text-muted-foreground">
           <Link
             href="/forgot-password"
             className="font-medium text-primary hover:underline"
           >
-            Request a new reset link
+            Yêu cầu liên kết đặt lại mới
           </Link>
         </p>
       </div>
@@ -85,11 +85,11 @@ export function ResetPasswordForm() {
         // Check error type instead of fragile string matching
         if (response.error?.type === "https://athena.example/errors/invalid-token") {
           setServerError(
-            "This reset link has expired or is invalid. Please request a new one."
+            "Liên kết đặt lại này đã hết hạn hoặc không hợp lệ. Vui lòng yêu cầu liên kết mới."
           );
         } else {
           setServerError(
-            response.error?.detail || "An error occurred. Please try again."
+            response.error?.detail || "Đã xảy ra lỗi. Vui lòng thử lại."
           );
         }
         return;
@@ -98,7 +98,7 @@ export function ResetPasswordForm() {
       router.push("/login?reset=success");
     } catch (error) {
       console.error("Reset password error:", error);
-      setServerError("An unexpected error occurred. Please try again.");
+      setServerError("Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
     }
@@ -115,7 +115,7 @@ export function ResetPasswordForm() {
           htmlFor="password"
           className="block text-sm font-medium text-foreground"
         >
-          New Password
+          Mật khẩu mới
         </label>
         <div className="relative">
           <input
@@ -124,14 +124,14 @@ export function ResetPasswordForm() {
             autoComplete="new-password"
             {...register("password")}
             className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Min. 8 characters"
+            placeholder="Tối thiểu 8 ký tự"
             aria-describedby={errors.password ? "password-error" : undefined}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
           >
             {showPassword ? (
               <EyeOff className="h-4 w-4" />
@@ -156,7 +156,7 @@ export function ResetPasswordForm() {
           htmlFor="passwordConfirm"
           className="block text-sm font-medium text-foreground"
         >
-          Confirm Password
+          Xác nhận mật khẩu
         </label>
         <div className="relative">
           <input
@@ -165,7 +165,7 @@ export function ResetPasswordForm() {
             autoComplete="new-password"
             {...register("passwordConfirm")}
             className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Repeat your new password"
+            placeholder="Nhập lại mật khẩu mới"
             aria-describedby={
               errors.passwordConfirm ? "passwordConfirm-error" : undefined
             }
@@ -174,7 +174,7 @@ export function ResetPasswordForm() {
             type="button"
             onClick={() => setShowConfirm(!showConfirm)}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label={showConfirm ? "Hide password" : "Show password"}
+            aria-label={showConfirm ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
           >
             {showConfirm ? (
               <EyeOff className="h-4 w-4" />
@@ -200,14 +200,14 @@ export function ResetPasswordForm() {
           role="alert"
         >
           {serverError}
-          {serverError.includes("expired or is invalid") && (
+          {serverError.includes("hết hạn hoặc không hợp lệ") && (
             <span>
               {" "}
               <Link
                 href="/forgot-password"
                 className="font-medium underline"
               >
-                Request a new link
+                Yêu cầu liên kết mới
               </Link>
             </span>
           )}
@@ -219,7 +219,7 @@ export function ResetPasswordForm() {
         disabled={isSubmitting}
         className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
       >
-        {isSubmitting ? "Resetting..." : "Reset Password"}
+        {isSubmitting ? "Đang đặt lại..." : "Đặt lại mật khẩu"}
       </button>
     </form>
   );

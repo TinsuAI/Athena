@@ -10,9 +10,9 @@ export default function RegisterPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground">Create Account</h1>
+          <h1 className="text-2xl font-bold text-foreground">Tạo tài khoản</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Sign up to access personalized features
+            Đăng ký để truy cập các tính năng cá nhân hóa
           </p>
         </div>
         <RegisterForm />

@@ -34,7 +34,7 @@ export default function LookupsPage() {
       setTotal(data.total);
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to load lookups";
+        err instanceof Error ? err.message : "Không thể tải lịch sử tra cứu";
       setError(message);
     } finally {
       setIsLoading(false);
@@ -70,9 +70,9 @@ export default function LookupsPage() {
   };
 
   const filterButtons: { label: string; value: VerifiedFilter }[] = [
-    { label: "All", value: "all" },
-    { label: "Verified", value: "verified" },
-    { label: "Unverified", value: "unverified" },
+    { label: "Tất cả", value: "all" },
+    { label: "Đã xác minh", value: "verified" },
+    { label: "Chưa xác minh", value: "unverified" },
   ];
 
   return (
@@ -80,10 +80,10 @@ export default function LookupsPage() {
       {/* Page header */}
       <div className="mb-5">
         <h1 className="text-[22px] font-bold text-slate-900 tracking-tight">
-          Lookup History
+          Lịch sử tra cứu
         </h1>
         <p className="mt-0.5 text-[13px] text-slate-500 font-medium">
-          Browse past HS code lookups and their verification status
+          Xem lại các tra cứu mã HS và trạng thái xác minh
         </p>
       </div>
 
@@ -133,17 +133,17 @@ export default function LookupsPage() {
               disabled={offset === 0}
               className="rounded-md border border-slate-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-slate-600 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 disabled:hover:border-slate-200"
             >
-              &larr; Previous
+              &larr; Trước
             </button>
             <span className="text-[11px] text-slate-400 font-medium">
-              Page {currentPage} of {totalPages}
+              Trang {currentPage} / {totalPages}
             </span>
             <button
               onClick={handleNext}
               disabled={offset + PAGE_SIZE >= total}
               className="rounded-md border border-slate-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-slate-600 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 disabled:hover:border-slate-200"
             >
-              Next &rarr;
+              Sau &rarr;
             </button>
           </div>
         </div>
@@ -158,10 +158,10 @@ export default function LookupsPage() {
             </svg>
           </div>
           <p className="text-[14px] font-semibold text-slate-700">
-            No lookups found
+            Không tìm thấy tra cứu nào
           </p>
           <p className="mt-1 text-[13px] text-slate-400">
-            Search for HS codes to start building history.
+            Bắt đầu tra cứu mã HS để xây dựng lịch sử.
           </p>
         </div>
       )}

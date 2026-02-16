@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a7f3e9d2b5c1"  # Simulated hash for expand_tariff_import
+revision: str = "expand_tariff_import"
 down_revision: Union[str, None] = "add_jsonb_to_lookup_records"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

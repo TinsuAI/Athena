@@ -10,19 +10,19 @@ export function Sidebar() {
           href="/search"
           className="rounded-md px-3 py-2 text-sm font-medium hover:bg-accent"
         >
-          Search
+          Tìm kiếm
         </Link>
         <Link
           href="/favorites"
           className="rounded-md px-3 py-2 text-sm font-medium hover:bg-accent"
         >
-          Favorites
+          Yêu thích
         </Link>
         <Link
           href="/lookups"
           className="rounded-md px-3 py-2 text-sm font-medium hover:bg-accent"
         >
-          Lookups
+          Tra cứu
         </Link>
       </nav>
     </aside>

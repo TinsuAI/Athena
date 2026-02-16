@@ -42,10 +42,10 @@ export function UserList() {
           window.location.href = "/login";
           return;
         }
-        setError(response.error?.detail || "Failed to fetch users");
+        setError(response.error?.detail || "Không thể tải danh sách người dùng");
       }
     } catch {
-      setError("Failed to fetch users");
+      setError("Không thể tải danh sách người dùng");
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export function UserList() {
 
   const handleRoleChange = async (userId: number, newRole: string) => {
     const confirmed = window.confirm(
-      `Are you sure you want to change this user's role to "${newRole}"?`
+      `Bạn có chắc muốn thay đổi vai trò của người dùng này thành "${newRole === "admin" ? "Quản trị viên" : "Người dùng"}"?`
     );
     if (!confirmed) return;
 
@@ -72,7 +72,7 @@ export function UserList() {
       );
 
       if (response.success) {
-        setSuccessMessage("Role updated successfully");
+        setSuccessMessage("Cập nhật vai trò thành công");
         setTimeout(() => setSuccessMessage(null), 3000);
         await fetchUsers();
       } else {
@@ -81,17 +81,17 @@ export function UserList() {
           window.location.href = "/login";
           return;
         }
-        setError(response.error?.detail || "Failed to update role");
+        setError(response.error?.detail || "Cập nhật vai trò thất bại");
       }
     } catch {
-      setError("Failed to update role");
+      setError("Cập nhật vai trò thất bại");
     } finally {
       setUpdatingId(null);
     }
   };
 
   if (loading && !data) {
-    return <div className="text-slate-400 text-sm py-8">Loading users...</div>;
+    return <div className="text-slate-400 text-sm py-8">Đang tải danh sách...</div>;
   }
 
   if (error && !data) {
@@ -121,10 +121,10 @@ export function UserList() {
                 Email
               </th>
               <th className="px-4 py-3 text-left font-medium text-slate-600">
-                Role
+                Vai trò
               </th>
               <th className="px-4 py-3 text-left font-medium text-slate-600">
-                Created
+                Ngày tạo
               </th>
             </tr>
           </thead>
@@ -140,8 +140,8 @@ export function UserList() {
                     className="rounded border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 disabled:opacity-50"
                     aria-label={`Role for ${user.email}`}
                   >
-                    <option value="user">user</option>
-                    <option value="admin">admin</option>
+                    <option value="user">Người dùng</option>
+                    <option value="admin">Quản trị viên</option>
                   </select>
                 </td>
                 <td className="px-4 py-3 text-slate-500">
@@ -156,7 +156,7 @@ export function UserList() {
       {data.pages > 1 && (
         <div className="flex items-center justify-between mt-4 text-sm">
           <span className="text-slate-500">
-            Page {data.page} of {data.pages} ({data.total} users)
+            Trang {data.page} / {data.pages} ({data.total} người dùng)
           </span>
           <div className="flex gap-2">
             <button
@@ -164,14 +164,14 @@ export function UserList() {
               disabled={page <= 1}
               className="rounded border border-slate-200 px-3 py-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Previous
+              Trước
             </button>
             <button
               onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
               disabled={page >= data.pages}
               className="rounded border border-slate-200 px-3 py-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next
+              Sau
             </button>
           </div>
         </div>

@@ -23,7 +23,7 @@ export default function AdminLayout({
   if (status === "loading") {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-slate-400 text-sm">Loading...</div>
+        <div className="text-slate-400 text-sm">Đang tải...</div>
       </div>
     );
   }
@@ -32,12 +32,12 @@ export default function AdminLayout({
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-900">Access Denied</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Truy cập bị từ chối</h1>
           <p className="text-slate-500 mt-2">
-            You do not have admin privileges.
+            Bạn không có quyền quản trị.
           </p>
           <p className="text-slate-400 text-sm mt-1">
-            Redirecting to search...
+            Đang chuyển hướng...
           </p>
         </div>
       </div>

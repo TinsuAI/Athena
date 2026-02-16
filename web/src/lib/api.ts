@@ -3,7 +3,7 @@
  * Uses fetch with credentials for auth cookie handling.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 interface ApiError {
   type: string;
