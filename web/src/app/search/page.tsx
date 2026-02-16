@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useCallback, useState } from "react";
+import { useSession } from "next-auth/react";
 import { SearchBar } from "./components/SearchBar";
 import { CorrectionButton } from "./components/CorrectionButton";
 import { CorrectionPanel } from "./components/CorrectionPanel";
@@ -17,6 +18,10 @@ export default function SearchPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [correctionPanelOpen, setCorrectionPanelOpen] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+  const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string })?.role === "admin";
 
   // Zustand store selectors
   const searchQuery = useStore((state) => state.searchQuery);
@@ -64,7 +69,7 @@ export default function SearchPage() {
         return;
       }
       const message =
-        err instanceof Error ? err.message : "Search failed. Please try again.";
+        err instanceof Error ? err.message : "Tìm kiếm thất bại. Vui lòng thử lại.";
       setSearchError(message);
       setSearchResult(null);
     } finally {
@@ -89,7 +94,7 @@ export default function SearchPage() {
             Athena
           </h1>
           <p className="text-[14px] text-slate-400 font-medium">
-            HS Code Lookup Tool &mdash; Search by product description
+            Công cụ tra cứu mã HS &mdash; Tìm kiếm theo mô tả sản phẩm
           </p>
         </div>
 
@@ -105,7 +110,7 @@ export default function SearchPage() {
             autoFocus
           />
           <p className="text-[12px] text-slate-400 mt-2.5 text-center font-medium">
-            Press Enter or click Search to find HS codes
+            Nhấn Enter hoặc bấm Tìm kiếm để tra cứu mã HS
           </p>
         </div>
 
@@ -140,7 +145,7 @@ export default function SearchPage() {
               {/* Rate pills */}
               <div className="flex gap-2.5 mb-5">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-blue-50 text-blue-800 border border-blue-100">
-                  <span className="font-sans font-medium text-[10px] opacity-70">Import</span>
+                  <span className="font-sans font-medium text-[10px] opacity-70">NK</span>
                   {searchResult.duty_rate}
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-amber-50 text-amber-800 border border-amber-100">
@@ -153,15 +158,15 @@ export default function SearchPage() {
               {searchResult.classification && (
                 <div className="border-t border-slate-100 pt-4 mt-4">
                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">
-                    Classification Reasoning
+                    Phân tích phân loại
                   </h3>
                   <div className="space-y-2.5">
                     <div className="flex gap-3">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 pt-0.5 shrink-0">Material</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 pt-0.5 shrink-0">Chất liệu</span>
                       <span className="text-[13px] text-slate-700 font-medium">{searchResult.classification.material}</span>
                     </div>
                     <div className="flex gap-3">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 pt-0.5 shrink-0">Function</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 pt-0.5 shrink-0">Công dụng</span>
                       <span className="text-[13px] text-slate-700 font-medium">{searchResult.classification.function}</span>
                     </div>
                   </div>
@@ -172,7 +177,7 @@ export default function SearchPage() {
               {searchResult.practical_notes && searchResult.practical_notes.length > 0 && (
                 <div className="border-t border-slate-100 pt-4 mt-4">
                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">
-                    Practical Notes
+                    Ghi chú thực tế
                   </h3>
                   <ul className="space-y-1.5">
                     {searchResult.practical_notes.map((note, index) => (
@@ -198,6 +203,70 @@ export default function SearchPage() {
 
             {/* HS Code Hierarchy Tree */}
             <HSCodeTree hsCode={searchResult.hs_code} />
+
+            {/* Process Logs Panel (admin only) */}
+            {isAdmin && searchResult.process_logs && searchResult.process_logs.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)]">
+                <button
+                  type="button"
+                  onClick={() => setShowLogs(!showLogs)}
+                  className="w-full flex items-center justify-between px-6 py-4 text-left"
+                  aria-expanded={showLogs}
+                >
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Nhật ký xử lý
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    {searchResult.process_logs.length} bước
+                    <span className="ml-2 inline-block transition-transform duration-150" style={{ transform: showLogs ? "rotate(180deg)" : "rotate(0deg)" }}>
+                      &#9662;
+                    </span>
+                  </span>
+                </button>
+                {showLogs && (
+                  <div className="border-t border-slate-100">
+                    {searchResult.process_logs.map((log, i) => (
+                      <div key={i} className="border-b border-slate-50 last:border-b-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExpandedLogs((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(i)) next.delete(i);
+                              else next.add(i);
+                              return next;
+                            });
+                          }}
+                          className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-slate-50/50"
+                        >
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${
+                            log.status === "completed" ? "bg-emerald-500" :
+                            log.status === "failed" ? "bg-red-500" :
+                            log.status === "skipped" ? "bg-slate-300" :
+                            "bg-amber-400"
+                          }`} />
+                          <span className="text-[12px] font-semibold text-slate-600 w-28 shrink-0">{log.step}</span>
+                          <span className="text-[12px] text-slate-500 flex-1 truncate">{log.message}</span>
+                          {typeof log.duration_ms === "number" && (
+                            <span className="text-[11px] font-mono text-slate-400 shrink-0">{log.duration_ms}ms</span>
+                          )}
+                          {log.details && (
+                            <span className="text-[10px] text-slate-300 shrink-0" style={{ transform: expandedLogs.has(i) ? "rotate(180deg)" : "rotate(0deg)" }}>
+                              &#9662;
+                            </span>
+                          )}
+                        </button>
+                        {expandedLogs.has(i) && log.details && (
+                          <pre className="mx-6 mb-3 p-3 bg-slate-50 rounded-lg text-[11px] text-slate-600 font-mono overflow-x-auto max-h-60 overflow-y-auto">
+                            {JSON.stringify(log.details, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -215,9 +284,9 @@ export default function SearchPage() {
         {/* Empty state */}
         {!searchQuery && !isSearching && !searchResult && !searchError && (
           <div className="text-center py-16">
-            <p className="text-[14px] text-slate-400 font-medium mb-1.5">Enter a product description to search</p>
+            <p className="text-[14px] text-slate-400 font-medium mb-1.5">Nhập mô tả sản phẩm để tìm kiếm</p>
             <p className="text-[12.5px] text-slate-300">
-              Try: &quot;coffee beans&quot;, &quot;máy xay&quot;, or an HS code like &quot;0901&quot;
+              Thử: &quot;coffee beans&quot;, &quot;máy xay&quot;, hoặc mã HS như &quot;0901&quot;
             </p>
           </div>
         )}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { getLookupDetail } from "@/lib/api";
 import { CorrectionButton } from "@/app/search/components/CorrectionButton";
@@ -43,6 +44,9 @@ export default function LookupDetailPage() {
   const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCorrectionPanel, setShowCorrectionPanel] = useState(false);
+  const [showProcessLogs, setShowProcessLogs] = useState(false);
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string })?.role === "admin";
 
   const fetchDetail = useCallback(async (isRefetch = false) => {
     if (isRefetch) {
@@ -240,6 +244,48 @@ export default function LookupDetailPage() {
       {lookup.matched_hs_code && (
         <div className="mb-6">
           <HSCodeTree hsCode={lookup.matched_hs_code.code} />
+        </div>
+      )}
+
+      {/* Process Logs Section (admin only) */}
+      {isAdmin && lookup.process_logs && lookup.process_logs.length > 0 && (
+        <div className="mb-6 rounded-xl border border-border bg-card shadow-sm">
+          <button
+            type="button"
+            onClick={() => setShowProcessLogs(!showProcessLogs)}
+            className="w-full flex items-center justify-between px-6 py-4 text-left"
+            aria-expanded={showProcessLogs}
+            aria-label={`Nhật ký xử lý, ${lookup.process_logs.length} bước`}
+          >
+            <span className="text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
+              Nhật ký xử lý
+            </span>
+            <span className="text-[11px] font-semibold text-muted-foreground">
+              {lookup.process_logs.length} bước
+              <span className="ml-2 inline-block transition-transform duration-150" style={{ transform: showProcessLogs ? "rotate(180deg)" : "rotate(0deg)" }}>
+                &#9662;
+              </span>
+            </span>
+          </button>
+          {showProcessLogs && (
+            <div className="border-t border-border">
+              {lookup.process_logs.map((log, i) => (
+                <div key={i} className="flex items-center gap-3 px-6 py-3 text-sm border-b border-border/50 last:border-b-0">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${
+                    log.status === "completed" ? "bg-emerald-500" :
+                    log.status === "failed" ? "bg-red-500" :
+                    log.status === "skipped" ? "bg-slate-300" :
+                    "bg-amber-400"
+                  }`} />
+                  <span className="text-xs font-semibold text-foreground w-28 shrink-0">{log.step}</span>
+                  <span className="text-xs text-muted-foreground flex-1 truncate">{log.message}</span>
+                  {typeof log.duration_ms === "number" && (
+                    <span className="text-[11px] font-mono text-muted-foreground shrink-0">{log.duration_ms}ms</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
