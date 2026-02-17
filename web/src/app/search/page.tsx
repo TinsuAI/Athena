@@ -139,8 +139,11 @@ export default function SearchPage() {
                     {searchResult.description}
                   </p>
                 </div>
-                <span className="inline-flex items-center px-3.5 py-1 rounded-full text-[12px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0 ml-4">
-                  {searchResult.confidence}% match
+                <span className="relative group inline-flex items-center px-3.5 py-1 rounded-full text-[12px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0 ml-4 cursor-help">
+                  {searchResult.confidence}%
+                  <span className="pointer-events-none absolute bottom-full right-0 mb-2 w-56 rounded-lg bg-slate-800 px-3 py-2 text-[11px] font-normal leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    Điểm tin cậy dựa trên phân tích ngữ nghĩa và đánh giá AI về mức độ phù hợp giữa mô tả sản phẩm và mã HS.
+                  </span>
                 </span>
               </div>
 

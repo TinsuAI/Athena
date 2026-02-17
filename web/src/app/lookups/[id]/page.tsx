@@ -21,8 +21,11 @@ function ConfidenceBadge({ score }: { score: number | null }) {
     colorClass = "bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-800";
   }
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${colorClass}`}>
+    <span className={`relative group inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold tracking-wide cursor-help ${colorClass}`}>
       {rounded}%
+      <span className="pointer-events-none absolute bottom-full right-0 mb-2 w-56 rounded-lg bg-slate-800 px-3 py-2 text-[11px] font-normal leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+        Điểm tin cậy dựa trên phân tích ngữ nghĩa và đánh giá AI về mức độ phù hợp giữa mô tả sản phẩm và mã HS.
+      </span>
     </span>
   );
 }
@@ -181,9 +184,6 @@ export default function LookupDetailPage() {
             </div>
             <div className="flex flex-col items-end gap-2.5">
               <ConfidenceBadge score={lookup.confidence_score} />
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                {lookup.search_method}
-              </span>
             </div>
           </div>
           <div className="mt-5 flex gap-4 text-sm">
