@@ -7,16 +7,23 @@ from fastapi import HTTPException
 
 from app.api.admin import (
     create_user,
+    get_role_permissions,
+    get_user_permissions,
     list_users,
     toggle_user_status,
+    update_role_permissions,
     update_user,
+    update_user_permissions,
     update_user_role,
     list_audit_log,
 )
 from app.schemas.admin import (
     AdminCreateUserRequest,
     AdminUpdateUserRequest,
+    PermissionOverrideItem,
     RoleUpdateRequest,
+    UpdateRolePermissionsRequest,
+    UpdateUserPermissionsRequest,
     UserStatusRequest,
 )
 from app.schemas.user import UserResponse
@@ -471,3 +478,250 @@ class TestListAuditLog:
         assert result["data"][0]["action"] == "role_change"
         assert result["data"][0]["admin_email"] == "admin@example.com"
         assert result["data"][0]["target_email"] == "user@example.com"
+
+
+# ==================== Permission endpoint tests ====================
+
+
+class TestGetRolePermissions:
+    """Tests for GET /api/admin/permissions/roles."""
+
+    @pytest.mark.asyncio
+    async def test_get_role_permissions_returns_all_roles(self):
+        """Test GET role permissions returns all roles with their permissions."""
+        mock_db = AsyncMock()
+        admin_user = {"id": 1, "email": "admin@example.com", "role": "admin"}
+
+        with patch("app.api.admin.PermissionService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.get_all_role_permissions.return_value = {
+                "all_permissions": [
+                    {"code": "correction.submit", "name": "Gui chinh sua", "description": None},
+                    {"code": "user.manage", "name": "Quan ly nguoi dung", "description": None},
+                ],
+                "roles": [
+                    {"role": "user", "permissions": ["correction.submit"]},
+                    {"role": "expert", "permissions": ["correction.submit", "correction.approve"]},
+                    {"role": "admin", "permissions": ["correction.submit", "user.manage"]},
+                ],
+            }
+            mock_service_class.return_value = mock_service
+
+            result = await get_role_permissions(current_user=admin_user, db=mock_db)
+
+        assert result["success"] is True
+        assert len(result["data"]["roles"]) == 3
+        assert len(result["data"]["all_permissions"]) == 2
+
+
+class TestUpdateRolePermissions:
+    """Tests for PUT /api/admin/permissions/roles/{role}."""
+
+    @pytest.mark.asyncio
+    async def test_put_role_permissions_updates_role(self):
+        """Test PUT role permissions updates a role's permissions."""
+        mock_db = AsyncMock()
+        admin_user = {"id": 1, "email": "admin@example.com", "role": "admin"}
+
+        with (
+            patch("app.api.admin.PermissionService") as mock_service_class,
+            patch("app.api.admin.AuditLogRepository") as mock_audit_class,
+        ):
+            mock_service = AsyncMock()
+            mock_service.update_role_permissions.return_value = ["correction.submit", "user.manage"]
+            mock_service_class.return_value = mock_service
+
+            mock_audit = AsyncMock()
+            mock_audit_class.return_value = mock_audit
+
+            body = UpdateRolePermissionsRequest(permissions=["correction.submit", "user.manage"])
+            result = await update_role_permissions(
+                role="expert", body=body, current_user=admin_user, db=mock_db
+            )
+
+        assert result["success"] is True
+        assert result["data"]["role"] == "expert"
+        assert result["data"]["permissions"] == ["correction.submit", "user.manage"]
+        mock_audit.create.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_put_role_permissions_invalid_code_returns_400(self):
+        """Test PUT role permissions with invalid code returns 400."""
+        mock_db = AsyncMock()
+        admin_user = {"id": 1, "email": "admin@example.com", "role": "admin"}
+
+        with patch("app.api.admin.PermissionService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.update_role_permissions.side_effect = ValueError(
+                "Unknown permission code: fake.perm"
+            )
+            mock_service_class.return_value = mock_service
+
+            body = UpdateRolePermissionsRequest(permissions=["fake.perm"])
+            result = await update_role_permissions(
+                role="user", body=body, current_user=admin_user, db=mock_db
+            )
+
+        assert result["success"] is False
+        assert result["error"]["status"] == 400
+        assert "Unknown permission code" in result["error"]["detail"]
+
+
+class TestGetUserPermissions:
+    """Tests for GET /api/admin/permissions/users/{user_id}."""
+
+    @pytest.mark.asyncio
+    async def test_get_user_permissions_returns_effective(self):
+        """Test GET user permissions returns effective permissions."""
+        mock_db = AsyncMock()
+        admin_user = {"id": 1, "email": "admin@example.com", "role": "admin"}
+
+        with (
+            patch("app.api.admin.UserRepository") as mock_user_repo_class,
+            patch("app.api.admin.PermissionService") as mock_service_class,
+        ):
+            mock_user_repo = AsyncMock()
+            target = MagicMock()
+            target.role = "expert"
+            mock_user_repo.get_by_id.return_value = target
+            mock_user_repo_class.return_value = mock_user_repo
+
+            mock_service = AsyncMock()
+            mock_service.get_user_effective_permissions.return_value = {
+                "user_id": 2,
+                "role": "expert",
+                "role_permissions": ["correction.submit", "correction.approve"],
+                "overrides": [{"code": "correction.approve", "granted": False}],
+                "effective": ["correction.submit"],
+            }
+            mock_service_class.return_value = mock_service
+
+            result = await get_user_permissions(
+                user_id=2, current_user=admin_user, db=mock_db
+            )
+
+        assert result["success"] is True
+        assert result["data"]["user_id"] == 2
+        assert "correction.submit" in result["data"]["effective"]
+        assert "correction.approve" not in result["data"]["effective"]
+
+    @pytest.mark.asyncio
+    async def test_get_user_permissions_not_found_returns_404(self):
+        """Test GET user permissions for non-existent user returns 404."""
+        mock_db = AsyncMock()
+        admin_user = {"id": 1, "email": "admin@example.com", "role": "admin"}
+
+        with patch("app.api.admin.UserRepository") as mock_user_repo_class:
+            mock_user_repo = AsyncMock()
+            mock_user_repo.get_by_id.return_value = None
+            mock_user_repo_class.return_value = mock_user_repo
+
+            result = await get_user_permissions(
+                user_id=999, current_user=admin_user, db=mock_db
+            )
+
+        assert result["success"] is False
+        assert result["error"]["status"] == 404
+
+
+class TestUpdateUserPermissions:
+    """Tests for PUT /api/admin/permissions/users/{user_id}."""
+
+    @pytest.mark.asyncio
+    async def test_put_user_permissions_updates_overrides(self):
+        """Test PUT user permissions updates overrides."""
+        mock_db = AsyncMock()
+        admin_user = {"id": 1, "email": "admin@example.com", "role": "admin"}
+
+        with (
+            patch("app.api.admin.UserRepository") as mock_user_repo_class,
+            patch("app.api.admin.PermissionService") as mock_service_class,
+            patch("app.api.admin.AuditLogRepository") as mock_audit_class,
+        ):
+            mock_user_repo = AsyncMock()
+            target = MagicMock()
+            target.role = "expert"
+            mock_user_repo.get_by_id.return_value = target
+            mock_user_repo_class.return_value = mock_user_repo
+
+            mock_service = AsyncMock()
+            mock_service.get_user_effective_permissions.return_value = {
+                "user_id": 2,
+                "role": "expert",
+                "role_permissions": ["correction.submit", "correction.approve"],
+                "overrides": [{"code": "correction.approve", "granted": False}],
+                "effective": ["correction.submit"],
+            }
+            mock_service_class.return_value = mock_service
+
+            mock_audit = AsyncMock()
+            mock_audit_class.return_value = mock_audit
+
+            body = UpdateUserPermissionsRequest(
+                overrides=[PermissionOverrideItem(code="correction.approve", granted=False)]
+            )
+            result = await update_user_permissions(
+                user_id=2, body=body, current_user=admin_user, db=mock_db
+            )
+
+        assert result["success"] is True
+        assert result["data"]["user_id"] == 2
+        mock_service.update_user_overrides.assert_awaited_once()
+        mock_audit.create.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_put_user_permissions_invalid_code_returns_400(self):
+        """Test PUT user permissions with invalid code returns 400."""
+        mock_db = AsyncMock()
+        admin_user = {"id": 1, "email": "admin@example.com", "role": "admin"}
+
+        with (
+            patch("app.api.admin.UserRepository") as mock_user_repo_class,
+            patch("app.api.admin.PermissionService") as mock_service_class,
+        ):
+            mock_user_repo = AsyncMock()
+            target = MagicMock()
+            target.role = "expert"
+            mock_user_repo.get_by_id.return_value = target
+            mock_user_repo_class.return_value = mock_user_repo
+
+            mock_service = AsyncMock()
+            mock_service.update_user_overrides.side_effect = ValueError(
+                "Unknown permission code: fake.perm"
+            )
+            mock_service_class.return_value = mock_service
+
+            body = UpdateUserPermissionsRequest(
+                overrides=[PermissionOverrideItem(code="fake.perm", granted=True)]
+            )
+            result = await update_user_permissions(
+                user_id=2, body=body, current_user=admin_user, db=mock_db
+            )
+
+        assert result["success"] is False
+        assert result["error"]["status"] == 400
+
+
+class TestPermissionEndpointsRequireAdmin:
+    """Tests that permission endpoints require admin role (403 for user/expert)."""
+
+    @pytest.mark.asyncio
+    async def test_permission_endpoints_require_admin_role(self):
+        """Test require_admin dependency raises 403 for non-admin roles on permission endpoints."""
+        from app.core.auth import require_admin
+
+        mock_request = MagicMock()
+
+        # Test with "user" role
+        with patch("app.core.auth.JWT") as mock_jwt:
+            mock_jwt.return_value = {"id": "2", "email": "user@example.com", "role": "user"}
+            with pytest.raises(HTTPException) as exc_info:
+                await require_admin(mock_request)
+            assert exc_info.value.status_code == 403
+
+        # Test with "expert" role
+        with patch("app.core.auth.JWT") as mock_jwt:
+            mock_jwt.return_value = {"id": "3", "email": "expert@example.com", "role": "expert"}
+            with pytest.raises(HTTPException) as exc_info:
+                await require_admin(mock_request)
+            assert exc_info.value.status_code == 403

@@ -225,7 +225,7 @@ class TestSubmitCorrection:
     """Test POST /api/corrections endpoint (authenticated, pending status)."""
 
     def _make_mock_user(self, user_id: int = 7) -> dict:
-        """Create mock authenticated user dict returned by require_authenticated."""
+        """Create mock authenticated user dict returned by require_permission("correction.submit")."""
         return {"id": user_id, "email": "user@example.com", "role": "user"}
 
     def _make_mock_record(self, **kwargs):
@@ -255,9 +255,9 @@ class TestSubmitCorrection:
         from fastapi import HTTPException
 
         from app.api.corrections import submit_correction
-        from app.core.auth import require_authenticated
+        from app.core.auth import require_permission
 
-        # Simulate require_authenticated raising 401
+        # Simulate require_permission("correction.submit") raising 401 (no JWT)
         async def raise_401():
             raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -265,18 +265,14 @@ class TestSubmitCorrection:
         mock_db = AsyncMock()
         mock_redis = AsyncMock()
 
-        # require_authenticated dependency raises HTTPException when no JWT
+        # require_permission dependency raises HTTPException when no JWT is present
         with pytest.raises(HTTPException) as exc_info:
-            # Call require_authenticated directly to verify it raises
-            from app.core.auth import require_authenticated as real_req_auth
-            # We patch it to simulate unauthenticated
-            with patch("app.api.corrections.require_authenticated", side_effect=HTTPException(status_code=401)):
-                await submit_correction(
-                    body=body,
-                    user=await raise_401(),
-                    db=mock_db,
-                    redis_client=mock_redis,
-                )
+            await submit_correction(
+                body=body,
+                user=await raise_401(),
+                db=mock_db,
+                redis_client=mock_redis,
+            )
 
         assert exc_info.value.status_code == 401
 

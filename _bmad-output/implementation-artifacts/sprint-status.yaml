@@ -86,7 +86,7 @@ development_status:
   5-2-authenticated-corrections-with-pending-status: done  # NEW: Sprint Change 2026-02-18 - replace anonymous corrections, pending status (Code review: 2 high + 3 medium issues fixed)
   5-3-expert-correction-approval-workflow: done  # NEW: Sprint Change 2026-02-18 - expert review page, approve/reject (Code review: 1 high + 3 medium issues fixed)
   5-4-admin-user-management: done  # NEW: Sprint Change 2026-02-18 - create, edit, deactivate, search users (Code review: 2 high + 2 medium issues fixed)
-  5-5-admin-permission-management: backlog  # NEW: Sprint Change 2026-02-18 - permission model, role defaults, per-user overrides
+  5-5-admin-permission-management: done  # NEW: Sprint Change 2026-02-18 - permission model, role defaults, per-user overrides (Code review: 2 high + 4 medium issues fixed)
   epic-5-retrospective: optional
 
   # Epic 6: Personalization - Favorites & History (was Epic 5, was Epic 4, was Epic 3, 8 stories)

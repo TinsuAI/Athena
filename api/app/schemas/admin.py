@@ -108,3 +108,57 @@ class AuditLogResponse(BaseModel):
     target_email: str | None
     details: dict | None
     created_at: datetime
+
+
+# --- Permission management schemas ---
+
+
+class PermissionItem(BaseModel):
+    """A single permission definition."""
+
+    code: str
+    name: str
+    description: str | None = None
+
+
+class RolePermissionsItem(BaseModel):
+    """A role with its permission codes."""
+
+    role: str
+    permissions: list[str]
+
+
+class RolePermissionsListResponse(BaseModel):
+    """Response for listing all role permissions."""
+
+    all_permissions: list[PermissionItem]
+    roles: list[RolePermissionsItem]
+
+
+class UpdateRolePermissionsRequest(BaseModel):
+    """Request to update a role's permissions."""
+
+    permissions: list[str]
+
+
+class PermissionOverrideItem(BaseModel):
+    """A single user permission override."""
+
+    code: str
+    granted: bool
+
+
+class UserPermissionsResponse(BaseModel):
+    """Response for a user's effective permissions."""
+
+    user_id: int
+    role: str
+    role_permissions: list[str]
+    overrides: list[PermissionOverrideItem]
+    effective: list[str]
+
+
+class UpdateUserPermissionsRequest(BaseModel):
+    """Request to update a user's permission overrides."""
+
+    overrides: list[PermissionOverrideItem]

@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import require_expert
+from app.core.auth import require_permission
 from app.core.database import get_db
 from app.schemas.base import error_response, success_response
 from app.schemas.expert import (
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/expert", tags=["expert"])
 async def get_pending_corrections(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=100),
-    current_user: dict = Depends(require_expert),
+    current_user: dict = Depends(require_permission("correction.approve")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """List pending corrections for expert review. Requires expert or admin role."""
@@ -37,7 +37,7 @@ async def get_pending_corrections(
 @router.post("/corrections/{record_id}/approve", response_model=None)
 async def approve_correction(
     record_id: int,
-    current_user: dict = Depends(require_expert),
+    current_user: dict = Depends(require_permission("correction.approve")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Approve a pending correction. Requires expert or admin role."""
@@ -87,7 +87,7 @@ async def approve_correction(
 async def reject_correction(
     record_id: int,
     body: RejectRequest,
-    current_user: dict = Depends(require_expert),
+    current_user: dict = Depends(require_permission("correction.approve")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Reject a pending correction with a reason. Requires expert or admin role."""

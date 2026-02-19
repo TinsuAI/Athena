@@ -11,6 +11,7 @@ from app.models.hs_section import HSSection
 from app.models.hs_subheading import HSSubheading
 from app.models.lookup_record import LookupRecord
 from app.models.password_reset_token import PasswordResetToken
+from app.models.permission import Permission, RolePermission, UserPermissionOverride
 from app.models.user import User
 
 __all__ = [
@@ -25,5 +26,8 @@ __all__ = [
     "HSSubheading",
     "LookupRecord",
     "PasswordResetToken",
+    "Permission",
+    "RolePermission",
     "User",
+    "UserPermissionOverride",
 ]

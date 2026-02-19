@@ -69,3 +69,48 @@ async def get_optional_user(request: Request) -> dict | None:
         return await get_current_user(request)
     except HTTPException:
         return None
+
+
+def require_permission(permission_code: str):
+    """Create a dependency that checks if user has a specific permission.
+
+    Usage in route:
+        @router.post("/endpoint")
+        async def handler(
+            current_user: dict = Depends(require_permission("correction.approve")),
+            db: AsyncSession = Depends(get_db_session),
+        ):
+
+    Resolution: user_permission_overrides > role_permissions > deny
+    """
+    from fastapi import Depends
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.api.deps import get_db_session
+
+    async def _check_permission(
+        request: Request,
+        db: AsyncSession = Depends(get_db_session),
+    ) -> dict:
+        user = await get_current_user(request)
+        user_id = user.get("id")
+        role = user.get("role")
+        if user_id is None or role is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        # Lazy import to avoid circular imports
+        from app.services.permission_service import PermissionService
+
+        service = PermissionService(db)
+        has_perm = await service.has_permission(
+            user_id=user_id,
+            role=role,
+            permission_code=permission_code,
+        )
+        if not has_perm:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission required: {permission_code}",
+            )
+        return user
+
+    return _check_permission

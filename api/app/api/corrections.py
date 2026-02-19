@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import require_authenticated
+from app.core.auth import require_permission
 from app.core.database import get_db
 from app.core.redis import get_redis
 from app.models.hs_code import HSCode
@@ -136,7 +136,7 @@ async def get_unverified_lookups(
 )
 async def submit_correction(
     body: CorrectionRequest,
-    user: dict = Depends(require_authenticated),
+    user: dict = Depends(require_permission("correction.submit")),
     db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis),  # type: ignore[type-arg]
 ) -> dict[str, Any]:

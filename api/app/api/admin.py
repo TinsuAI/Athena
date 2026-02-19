@@ -1,4 +1,4 @@
-"""Admin API endpoints for user management."""
+"""Admin API endpoints for user management and permission management."""
 
 from typing import Any
 
@@ -7,18 +7,22 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session
-from app.core.auth import require_admin
+from app.core.auth import require_admin, require_permission
 from app.core.redis import get_redis
 from app.repositories.audit_log_repository import AuditLogRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.admin import (
     AdminCreateUserRequest,
     AdminUpdateUserRequest,
     AuditLogResponse,
     RoleUpdateRequest,
+    UpdateRolePermissionsRequest,
+    UpdateUserPermissionsRequest,
     UserStatusRequest,
 )
 from app.schemas.base import error_response, success_response
 from app.services.admin_service import AdminService
+from app.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -45,10 +49,10 @@ async def list_users(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=100),
     search: str = Query(default=""),
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(require_permission("user.manage")),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
-    """List all users with pagination and optional email search. Requires admin role."""
+    """List all users with pagination and optional email search. Requires user.manage permission."""
     service = AdminService(db)
     result = await service.list_users(page=page, per_page=per_page, search=search)
     return success_response(result)
@@ -57,10 +61,10 @@ async def list_users(
 @router.post("/users", response_model=None)
 async def create_user(
     body: AdminCreateUserRequest,
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(require_permission("user.manage")),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
-    """Create a new user account. Requires admin role."""
+    """Create a new user account. Requires user.manage permission."""
     admin_id = current_user["id"]
     service = AdminService(db)
     result = await service.create_user(
@@ -86,10 +90,10 @@ async def create_user(
 async def update_user(
     user_id: int,
     body: AdminUpdateUserRequest,
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(require_permission("user.manage")),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
-    """Update a user's email and/or role. Requires admin role."""
+    """Update a user's email and/or role. Requires user.manage permission."""
     admin_id = current_user["id"]
     service = AdminService(db)
     result = await service.update_user(
@@ -124,10 +128,10 @@ async def update_user(
 async def toggle_user_status(
     user_id: int,
     body: UserStatusRequest,
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(require_permission("user.manage")),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
-    """Toggle a user's active status. Requires admin role."""
+    """Toggle a user's active status. Requires user.manage permission."""
     admin_id = current_user["id"]
     service = AdminService(db)
     result = await service.toggle_user_status(
@@ -161,11 +165,11 @@ async def toggle_user_status(
 async def update_user_role(
     user_id: int,
     body: RoleUpdateRequest,
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(require_permission("user.manage")),
     db: AsyncSession = Depends(get_db_session),
     redis: Redis = Depends(get_redis),  # type: ignore[type-arg]
 ) -> dict[str, Any]:
-    """Update a user's role. Requires admin role. Rate limited to 10 changes per minute."""
+    """Update a user's role. Requires user.manage permission. Rate limited to 10 changes per minute."""
     admin_id = current_user["id"]
 
     # Rate limiting check
@@ -232,3 +236,123 @@ async def list_audit_log(
         )
 
     return success_response(items)
+
+
+# --- Permission management endpoints ---
+
+
+@router.get("/permissions/roles", response_model=None)
+async def get_role_permissions(
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """List all roles with their permissions. Requires admin role."""
+    service = PermissionService(db)
+    result = await service.get_all_role_permissions()
+    return success_response(result)
+
+
+@router.put("/permissions/roles/{role}", response_model=None)
+async def update_role_permissions(
+    role: str,
+    body: UpdateRolePermissionsRequest,
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Update a role's permissions. Requires admin role."""
+    service = PermissionService(db)
+
+    try:
+        updated = await service.update_role_permissions(role, body.permissions)
+    except ValueError as e:
+        return error_response(
+            type_uri="https://athena.example/errors/validation",
+            title="Bad Request",
+            status=400,
+            detail=str(e),
+            instance=f"/api/admin/permissions/roles/{role}",
+        )
+
+    # Audit log
+    audit_repo = AuditLogRepository(db)
+    await audit_repo.create(
+        admin_user_id=current_user["id"],
+        action="role_permissions_updated",
+        details={"role": role, "permissions": updated},
+    )
+
+    return success_response({"role": role, "permissions": updated})
+
+
+@router.get("/permissions/users/{user_id}", response_model=None)
+async def get_user_permissions(
+    user_id: int,
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Get a user's effective permissions (role defaults + overrides). Requires admin role."""
+    # Verify user exists
+    user_repo = UserRepository(db)
+    target = await user_repo.get_by_id(user_id)
+    if target is None:
+        return error_response(
+            type_uri="https://athena.example/errors/not-found",
+            title="User Not Found",
+            status=404,
+            detail=f"No user with id {user_id} exists.",
+            instance=f"/api/admin/permissions/users/{user_id}",
+        )
+
+    service = PermissionService(db)
+    result = await service.get_user_effective_permissions(user_id, target.role)
+    return success_response(result)
+
+
+@router.put("/permissions/users/{user_id}", response_model=None)
+async def update_user_permissions(
+    user_id: int,
+    body: UpdateUserPermissionsRequest,
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Update a user's permission overrides. Requires admin role."""
+    # Verify user exists
+    user_repo = UserRepository(db)
+    target = await user_repo.get_by_id(user_id)
+    if target is None:
+        return error_response(
+            type_uri="https://athena.example/errors/not-found",
+            title="User Not Found",
+            status=404,
+            detail=f"No user with id {user_id} exists.",
+            instance=f"/api/admin/permissions/users/{user_id}",
+        )
+
+    service = PermissionService(db)
+    overrides_data = [
+        {"code": ov.code, "granted": ov.granted} for ov in body.overrides
+    ]
+
+    try:
+        await service.update_user_overrides(user_id, overrides_data)
+    except ValueError as e:
+        return error_response(
+            type_uri="https://athena.example/errors/validation",
+            title="Bad Request",
+            status=400,
+            detail=str(e),
+            instance=f"/api/admin/permissions/users/{user_id}",
+        )
+
+    # Audit log
+    audit_repo = AuditLogRepository(db)
+    await audit_repo.create(
+        admin_user_id=current_user["id"],
+        action="user_permissions_updated",
+        target_user_id=user_id,
+        details={"overrides": overrides_data},
+    )
+
+    # Return updated effective permissions
+    result = await service.get_user_effective_permissions(user_id, target.role)
+    return success_response(result)

@@ -21,6 +21,17 @@ export default function AdminDashboard() {
             Xem người dùng, phân quyền và quản lý truy cập
           </p>
         </Link>
+        <Link
+          href="/admin/permissions"
+          className="block rounded-lg border border-slate-200 bg-white p-6 hover:border-emerald-300 hover:shadow-sm transition-all"
+        >
+          <h2 className="text-lg font-semibold text-slate-900">
+            Quản lý quyền hạn
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Cấu hình quyền truy cập theo vai trò và người dùng
+          </p>
+        </Link>
       </div>
     </div>
   );
