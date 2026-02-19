@@ -14,8 +14,8 @@ class RoleUpdateRequest(BaseModel):
     @classmethod
     def validate_role(cls, v: str) -> str:
         """Validate role is one of the allowed values."""
-        if v not in ("user", "admin"):
-            raise ValueError("Role must be 'user' or 'admin'")
+        if v not in ("user", "expert", "admin"):
+            raise ValueError("Role must be 'user', 'expert', or 'admin'")
         return v
 
 

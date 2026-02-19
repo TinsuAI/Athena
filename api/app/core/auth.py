@@ -41,3 +41,31 @@ async def get_current_user(request: Request) -> dict:
 
         logging.getLogger(__name__).warning(f"JWT validation failed: {e}")
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+
+async def require_authenticated(request: Request) -> dict:
+    """Require any authenticated user (user/expert/admin).
+
+    Semantic alias for get_current_user -- use in route declarations for clarity.
+    """
+    return await get_current_user(request)
+
+
+async def require_expert(request: Request) -> dict:
+    """Require expert or admin role.
+
+    Calls get_current_user() first (handles 401),
+    then checks role in ("expert", "admin") (handles 403).
+    """
+    user = await get_current_user(request)
+    if user.get("role") not in ("expert", "admin"):
+        raise HTTPException(status_code=403, detail="Expert access required")
+    return user
+
+
+async def get_optional_user(request: Request) -> dict | None:
+    """Return user if authenticated, None otherwise. Never raises."""
+    try:
+        return await get_current_user(request)
+    except HTTPException:
+        return None

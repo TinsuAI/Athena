@@ -275,11 +275,23 @@ data_versions (id, name, source_file, uploaded_at, activated_at, is_active)
 
 lookup_records (id, query_text, query_hash, query_language, matched_hs_code_id,
                correct_hs_code_id, is_verified, verified_by_user_id, verified_at,
+               submitted_by_user_id, correction_status, rejection_reason,
                confidence_score, search_method, notes,
                classification_data JSONB, practical_notes JSONB, process_logs JSONB,
                created_at, updated_at)
+    -- correction_status: "pending" | "approved" | "rejected" | null (Sprint Change 2026-02-18)
 
-users (id, email, password_hash, role, created_at)
+users (id, email, password_hash, role, is_active, created_at)
+    -- role: "user" | "expert" | "admin"; is_active: bool (Sprint Change 2026-02-18)
+
+permissions (id, code, name, description)
+    -- Predefined: correction.submit, correction.approve, user.manage, data.manage, lookup.view_all
+
+role_permissions (id, role, permission_code)
+    -- Default permissions per role (Sprint Change 2026-02-18)
+
+user_permission_overrides (id, user_id, permission_code, granted)
+    -- Per-user permission grants/revokes (Sprint Change 2026-02-18)
 
 favorites (id, user_id, hs_code_id, notes, created_at)
 
@@ -315,7 +327,7 @@ WHERE h.chapter_id = (SELECT id FROM hs_chapters WHERE chapter_code = '01');
 | **Frontend Auth** | NextAuth.js v5 | Modern, Next.js native, session management |
 | **Backend Validation** | fastapi-nextauth-jwt | Decrypts NextAuth JWTs, shared secret |
 | **Password Hashing** | bcrypt (passlib) | Industry standard |
-| **Authorization** | Role-based (user/admin) | Simple, sufficient for MVP |
+| **Authorization** | Role-based (user/expert/admin) + permission model | Expert role for correction approval; permission tables for granular control (Sprint Change 2026-02-18) |
 
 **Auth Flow:**
 1. User logs in via NextAuth.js (credentials provider)
@@ -358,6 +370,18 @@ GET  /api/browse/sections                  # All sections with chapter counts
 GET  /api/browse/chapters?section_id={id}  # Chapters in section with counts + notes
 GET  /api/browse/chapters/{chapter_code}   # Full chapter: headings → subheadings → codes with inline rates
 GET  /api/browse/search?q={text}&chapter={code}  # Text search within browse (pg_trgm + exact code)
+
+GET  /api/expert/corrections?status=pending  # List pending corrections (expert/admin)
+POST /api/expert/corrections/{id}/approve   # Approve correction (expert/admin)
+POST /api/expert/corrections/{id}/reject    # Reject correction (expert/admin)
+
+POST /api/admin/users                    # Create user (admin)
+PATCH /api/admin/users/{id}              # Edit user (admin)
+PATCH /api/admin/users/{id}/status       # Activate/deactivate user (admin)
+GET  /api/admin/permissions/roles        # List role permissions (admin)
+PUT  /api/admin/permissions/roles/{role} # Update role permissions (admin)
+GET  /api/admin/permissions/users/{id}   # User effective permissions (admin)
+PUT  /api/admin/permissions/users/{id}   # User permission overrides (admin)
 
 POST /api/admin/data/upload   # Upload tariff Excel
 POST /api/admin/data/preview  # Preview changes

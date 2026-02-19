@@ -99,7 +99,7 @@ describe("UserList", () => {
     await user.selectOptions(selects[1], "admin");
 
     await waitFor(() => {
-      expect(screen.getByText("Role updated successfully")).toBeInTheDocument();
+      expect(screen.getByText("Cập nhật vai trò thành công")).toBeInTheDocument();
     });
   });
 
@@ -126,6 +126,47 @@ describe("UserList", () => {
     });
   });
 
+  it("role dropdown has three options: user, expert, admin", async () => {
+    render(<UserList />);
+
+    await waitFor(() => {
+      expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    });
+
+    const selects = screen.getAllByRole("combobox");
+    const firstSelect = selects[0];
+    const options = firstSelect.querySelectorAll("option");
+
+    expect(options).toHaveLength(3);
+    expect(options[0]).toHaveValue("user");
+    expect(options[0]).toHaveTextContent("Người dùng");
+    expect(options[1]).toHaveValue("expert");
+    expect(options[1]).toHaveTextContent("Chuyên gia");
+    expect(options[2]).toHaveValue("admin");
+    expect(options[2]).toHaveTextContent("Quản trị viên");
+  });
+
+  it("can change role to expert", async () => {
+    const user = userEvent.setup();
+    window.confirm = vi.fn(() => true);
+    mockPatch.mockResolvedValue({
+      success: true,
+      data: { id: 2, email: "user@example.com", role: "expert", created_at: "2026-02-15T00:00:00Z" },
+      error: null,
+    });
+
+    render(<UserList />);
+
+    await waitFor(() => {
+      expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    });
+
+    const selects = screen.getAllByRole("combobox");
+    await user.selectOptions(selects[1], "expert");
+
+    expect(mockPatch).toHaveBeenCalledWith("/api/admin/users/2/role", { role: "expert" });
+  });
+
   it("pagination controls work", async () => {
     mockGet.mockResolvedValue({
       success: true,
@@ -140,10 +181,10 @@ describe("UserList", () => {
     render(<UserList />);
 
     await waitFor(() => {
-      expect(screen.getByText("Page 1 of 2 (40 users)")).toBeInTheDocument();
+      expect(screen.getByText("Trang 1 / 2 (40 người dùng)")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Previous")).toBeDisabled();
-    expect(screen.getByText("Next")).not.toBeDisabled();
+    expect(screen.getByText("Trước")).toBeDisabled();
+    expect(screen.getByText("Sau")).not.toBeDisabled();
   });
 });

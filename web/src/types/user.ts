@@ -2,7 +2,7 @@
  * User related type definitions.
  */
 
-export type UserRole = "user" | "admin";
+export type UserRole = "user" | "expert" | "admin";
 
 export interface User {
   id: string;

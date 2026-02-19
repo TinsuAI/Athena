@@ -1,5 +1,5 @@
 # generated: 2026-01-26
-# updated: 2026-02-15 (Story 3-3: Store full NLM raw response)
+# updated: 2026-02-18 (Sprint Change: Advanced RBAC, Permissions & User Management)
 # project: athena
 # tracking_system: file-system
 # story_location: _bmad-output/implementation-artifacts
@@ -51,7 +51,7 @@ development_status:
   1-7-error-handling-system-feedback: backlog
   1-8-knowledge-base-schema-lookup-storage: done  # NEW: Sprint Change 2026-02-10 - KB foundation (Code review: 4 medium + 3 low issues fixed)
   1-9-knowledge-enhanced-search: review  # NEW: Sprint Change 2026-02-10 - KB as primary search, AI fallback
-  1-10-expert-review-correction-interface: done  # NEW: Sprint Change 2026-02-10 - human-in-the-loop (Code review: 3 high + 3 medium + 2 low issues fixed)
+  1-10-expert-review-correction-interface: done  # NEW: Sprint Change 2026-02-10 - human-in-the-loop (Code review: 3 high + 3 medium + 2 low issues fixed). NOTE: Superseded by Epic 5 stories (Sprint Change 2026-02-18)
   1-11-persist-full-lookup-details: done  # NEW: Sprint Change 2026-02-10 - persist classification, notes, logs (Code review: 1 high + 3 medium issues fixed)
   1-12-lookup-history-api-list-page: review  # NEW: Sprint Change 2026-02-10 - lookup history list
   1-13-lookup-detail-page: done  # NEW: Sprint Change 2026-02-10 - lookup detail + correction (Code review: 6 high + 4 medium issues fixed)
@@ -80,30 +80,39 @@ development_status:
   4-5-role-based-access-control: done  # was 3-5, was 2-5 (Code review: 4 high + 4 medium issues fixed)
   epic-4-retrospective: optional
 
-  # Epic 5: Personalization - Favorites & History (was Epic 4, was Epic 3, 8 stories)
-  epic-5: backlog
-  5-1-save-hs-code-to-favorites: backlog  # was 4-1, was 3-1
-  5-2-add-notes-to-favorites: backlog  # was 4-2, was 3-2
-  5-3-view-and-manage-favorites-list: backlog  # was 4-3, was 3-3
-  5-4-search-within-favorites: backlog  # was 4-4, was 3-4
-  5-5-quick-favorites-access-during-search: backlog  # was 4-5, was 3-5
-  5-6-automatic-search-history-recording: backlog  # was 4-6, was 3-6
-  5-7-view-and-re-execute-search-history: backlog  # was 4-7, was 3-7
-  5-8-clear-search-history: backlog  # was 4-8, was 3-8
+  # Epic 5: Advanced RBAC, Permissions & User Management (NEW - Sprint Change 2026-02-18, 5 stories)
+  epic-5: in-progress
+  5-1-add-expert-role-and-auth-middleware: done  # NEW: Sprint Change 2026-02-18 - expert role, is_active, require_expert/require_authenticated (Code review: 1 high + 2 medium issues fixed)
+  5-2-authenticated-corrections-with-pending-status: backlog  # NEW: Sprint Change 2026-02-18 - replace anonymous corrections, pending status
+  5-3-expert-correction-approval-workflow: backlog  # NEW: Sprint Change 2026-02-18 - expert review page, approve/reject
+  5-4-admin-user-management: backlog  # NEW: Sprint Change 2026-02-18 - create, edit, deactivate, search users
+  5-5-admin-permission-management: backlog  # NEW: Sprint Change 2026-02-18 - permission model, role defaults, per-user overrides
   epic-5-retrospective: optional
 
-  # Epic 6: Advanced Search & Discovery (was Epic 5, was Epic 4, 3 stories)
+  # Epic 6: Personalization - Favorites & History (was Epic 5, was Epic 4, was Epic 3, 8 stories)
   epic-6: backlog
-  6-1-chapter-filter-on-search-results: backlog  # was 5-1, was 4-2
-  6-2-low-confidence-search-guidance: backlog  # was 5-2, was 4-3
-  6-3-data-feedback-mechanism: backlog  # was 5-3, was 4-4
+  6-1-save-hs-code-to-favorites: backlog  # was 5-1, was 4-1, was 3-1
+  6-2-add-notes-to-favorites: backlog  # was 5-2, was 4-2, was 3-2
+  6-3-view-and-manage-favorites-list: backlog  # was 5-3, was 4-3, was 3-3
+  6-4-search-within-favorites: backlog  # was 5-4, was 4-4, was 3-4
+  6-5-quick-favorites-access-during-search: backlog  # was 5-5, was 4-5, was 3-5
+  6-6-automatic-search-history-recording: backlog  # was 5-6, was 4-6, was 3-6
+  6-7-view-and-re-execute-search-history: backlog  # was 5-7, was 4-7, was 3-7
+  6-8-clear-search-history: backlog  # was 5-8, was 4-8, was 3-8
   epic-6-retrospective: optional
 
-  # Epic 7: Admin Data Management (was Epic 6, was Epic 5, 5 stories)
+  # Epic 7: Advanced Search & Discovery (was Epic 6, was Epic 5, was Epic 4, 3 stories)
   epic-7: backlog
-  7-1-tariff-data-upload: backlog  # was 6-1, was 5-1
-  7-2-preview-uploaded-data: backlog  # was 6-2, was 5-2
-  7-3-activate-tariff-data: backlog  # was 6-3, was 5-3
-  7-4-rollback-to-previous-version: backlog  # was 6-4, was 5-4
-  7-5-data-version-history: backlog  # was 6-5, was 5-5
+  7-1-chapter-filter-on-search-results: backlog  # was 6-1, was 5-1, was 4-2
+  7-2-low-confidence-search-guidance: backlog  # was 6-2, was 5-2, was 4-3
+  7-3-data-feedback-mechanism: backlog  # was 6-3, was 5-3, was 4-4
   epic-7-retrospective: optional
+
+  # Epic 8: Admin Data Management (was Epic 7, was Epic 6, was Epic 5, 5 stories)
+  epic-8: backlog
+  8-1-tariff-data-upload: backlog  # was 7-1, was 6-1, was 5-1
+  8-2-preview-uploaded-data: backlog  # was 7-2, was 6-2, was 5-2
+  8-3-activate-tariff-data: backlog  # was 7-3, was 6-3, was 5-3
+  8-4-rollback-to-previous-version: backlog  # was 7-4, was 6-4, was 5-4
+  8-5-data-version-history: backlog  # was 7-5, was 6-5, was 5-5
+  epic-8-retrospective: optional

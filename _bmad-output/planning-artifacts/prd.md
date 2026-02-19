@@ -524,7 +524,7 @@ The core hypothesis to validate: **Semantic search can reliably match ambiguous 
 | Requirement | Implementation |
 |-------------|----------------|
 | **Authentication** | JWT tokens, bcrypt password hashing |
-| **Authorization** | Role-based (user, admin) |
+| **Authorization** | Role-based (user, expert, admin) with permission model |
 | **HTTPS** | Required for all traffic |
 | **Input Validation** | Server-side validation on all inputs |
 | **SQL Injection** | Parameterized queries only |
@@ -713,7 +713,7 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 - **FR32:** Users can log out of the system
 - **FR33:** Users can reset their password if forgotten
 - **FR34:** The system maintains user sessions across browser sessions
-- **FR35:** Admins can assign user roles (standard user, admin)
+- **FR35:** Admins can assign user roles (standard user, expert, admin)
 
 ### Admin Data Management
 
@@ -761,6 +761,14 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 - **FR63:** NotebookLM classification results are automatically stored in the knowledge base for future instant retrieval (self-improving accuracy)
 - **FR64:** System falls back to vector/fuzzy search when NotebookLM is unavailable (rate limit, timeout, or service outage)
 
+**Role-Based Permissions & User Management (FR65-FR70):** _(added via sprint change 2026-02-18)_
+- **FR65:** Only users with the "expert" role can approve or reject pending corrections to lookup records
+- **FR66:** Only authenticated (logged-in) users can submit corrections to lookup records
+- **FR67:** Admins can view and configure default permissions for each role (user, expert, admin)
+- **FR68:** Admins can override permissions for individual users (grant or revoke specific permissions)
+- **FR69:** Admins can create, edit, deactivate, and search user accounts
+- **FR70:** Corrections follow a status workflow: pending → approved/rejected by expert
+
 ---
 
 **FR Coverage Validation:**
@@ -778,6 +786,7 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 | Lookup history & details (from implementation) | FR51-FR53 |
 | Tariff schedule browser (from sprint change 2026-02-11) | FR54-FR61 |
 | NotebookLM AI search (from sprint change 2026-02-15) | FR62-FR64 |
+| Role-based permissions & user management (from sprint change 2026-02-18) | FR65-FR70 |
 
 ---
 

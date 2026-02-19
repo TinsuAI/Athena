@@ -127,6 +127,30 @@ class TestLoginEndpoint:
         assert "Invalid" in response["error"]["detail"]
 
 
+    @pytest.mark.asyncio
+    async def test_login_inactive_user_returns_403_with_deactivated_message(self):
+        """Test login with inactive user returns 403 with deactivated message."""
+        from app.api.auth import login
+        from app.schemas.user import UserLogin
+        from app.services.auth_service import InactiveUserError
+
+        mock_db = AsyncMock()
+        credentials = UserLogin(email="inactive@example.com", password="securepass123")
+
+        with patch("app.api.auth.AuthService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.authenticate_user.side_effect = InactiveUserError(
+                "Account has been deactivated"
+            )
+            mock_service_class.return_value = mock_service
+
+            response = await login(credentials=credentials, db=mock_db)
+
+        assert response["success"] is False
+        assert response["error"]["status"] == 403
+        assert "Tai khoan da bi vo hieu hoa" in response["error"]["detail"]
+
+
 class TestForgotPasswordEndpoint:
     """Tests for POST /api/auth/forgot-password."""
 

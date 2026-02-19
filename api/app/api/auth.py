@@ -14,7 +14,7 @@ from app.schemas.user import (
     UserCreate,
     UserLogin,
 )
-from app.services.auth_service import AuthService
+from app.services.auth_service import AuthService, InactiveUserError
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -67,7 +67,16 @@ async def login(
     Called by NextAuth.js authorize() callback to validate credentials.
     """
     service = AuthService(db)
-    result = await service.authenticate_user(credentials.email, credentials.password)
+    try:
+        result = await service.authenticate_user(credentials.email, credentials.password)
+    except InactiveUserError:
+        return error_response(
+            type_uri="https://athena.example/errors/account-deactivated",
+            title="Account Deactivated",
+            status=403,
+            detail="Tai khoan da bi vo hieu hoa",
+            instance="/api/auth/login",
+        )
     if result is None:
         return error_response(
             type_uri="https://athena.example/errors/authentication",

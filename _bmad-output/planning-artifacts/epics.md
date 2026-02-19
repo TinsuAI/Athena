@@ -2,9 +2,9 @@
 stepsCompleted: [1, 2, 3, 4]
 status: complete
 completedAt: '2026-01-26'
-totalEpics: 7  # Added Epic 3 (NotebookLM AI Search, 2026-02-15), renumbered 3→4, 4→5, 5→6, 6→7
-totalStories: 39  # Added Stories 3-1, 3-2 (NotebookLM, Sprint Change 2026-02-15). Previous: 37.
-frCoverage: '64/64 (100%)'  # Added FR62-FR64 (2026-02-15)
+totalEpics: 8  # Added Epic 5 (Advanced RBAC, 2026-02-18), renumbered 5→6, 6→7, 7→8. Previous: 7.
+totalStories: 44  # Added Stories 5-1 through 5-5 (Sprint Change 2026-02-18). Previous: 39.
+frCoverage: '70/70 (100%)'  # Added FR65-FR70 (2026-02-18). Previous: 64/64.
 inputDocuments:
   - path: _bmad-output/planning-artifacts/prd.md
     type: prd
@@ -238,17 +238,17 @@ This document provides the complete epic and story breakdown for Athena, decompo
 | FR32 | Epic 4 | Logout |
 | FR33 | Epic 4 | Password reset |
 | FR34 | Epic 4 | Persistent sessions |
-| FR35 | Epic 4 | Role assignment |
-| FR36 | Epic 7 | Upload tariff Excel |
-| FR37 | Epic 7 | Preview uploaded data |
-| FR38 | Epic 7 | Compare changes |
-| FR39 | Epic 7 | Activate new data |
-| FR40 | Epic 7 | Rollback to previous |
-| FR41 | Epic 7 | View upload history |
-| FR42 | Epic 7 | Validate Excel format |
+| FR35 | Epic 4+5 | Role assignment (expanded to include expert) |
+| FR36 | Epic 8 | Upload tariff Excel |
+| FR37 | Epic 8 | Preview uploaded data |
+| FR38 | Epic 8 | Compare changes |
+| FR39 | Epic 8 | Activate new data |
+| FR40 | Epic 8 | Rollback to previous |
+| FR41 | Epic 8 | View upload history |
+| FR42 | Epic 8 | Validate Excel format |
 | FR43 | Epic 1 | No results feedback |
-| FR44 | Epic 6 | Low-confidence suggestions |
-| FR45 | Epic 6 | Report data issues |
+| FR44 | Epic 7 | Low-confidence suggestions |
+| FR45 | Epic 7 | Report data issues |
 | FR46 | Epic 1 | System error messages |
 | FR47 | Epic 1 | Loading indicators |
 | FR48 | Epic 1 | Preserve HS code format |
@@ -268,6 +268,12 @@ This document provides the complete epic and story breakdown for Athena, decompo
 | FR62 | Epic 3 | NotebookLM query for novel descriptions |
 | FR63 | Epic 3 | Auto-store NotebookLM results in KB |
 | FR64 | Epic 3 | Fallback to vector search when NotebookLM unavailable |
+| FR65 | Epic 5 | Expert can approve/reject pending corrections |
+| FR66 | Epic 5 | Only logged-in users can submit corrections |
+| FR67 | Epic 5 | Admin manages permissions per role |
+| FR68 | Epic 5 | Admin manages per-user permission overrides |
+| FR69 | Epic 5 | Admin full user management (create/edit/deactivate/search) |
+| FR70 | Epic 5 | Corrections follow pending/approved/rejected workflow |
 
 ## Epic List
 
@@ -320,10 +326,22 @@ Users can create accounts, log in securely, and maintain persistent sessions acr
 **Implementation Notes:**
 - NextAuth.js v5 with credentials provider
 - FastAPI JWT validation with fastapi-nextauth-jwt
-- Role-based access (user/admin)
+- Role-based access (user/admin/expert)
 - Password reset flow
 
-### Epic 5: Personalization - Favorites & History (was Epic 4, was Epic 3)
+### Epic 5: Advanced RBAC, Permissions & User Management (NEW - Sprint Change 2026-02-18)
+Expand the authentication system with an Expert role for correction approval, authenticated correction submission, a permission management system with role defaults and per-user overrides, and comprehensive admin user management.
+
+**FRs covered:** FR35 (modified), FR65, FR66, FR67, FR68, FR69, FR70
+
+**Implementation Notes:**
+- Expert role for correction approval workflow
+- Corrections change from anonymous/auto-verified to authenticated/pending approval
+- Permission model: permissions table, role_permissions, user_permission_overrides
+- Admin user management: create, edit, deactivate, search
+- Supersedes Story 1-10's anonymous correction design
+
+### Epic 6: Personalization - Favorites & History (was Epic 5, was Epic 4, was Epic 3)
 Users can save frequently-used HS codes to favorites with personal notes, and access their complete search history for quick re-lookups. Completes the daily workflow optimization.
 
 **FRs covered:** FR19, FR20, FR21, FR22, FR23, FR24, FR25, FR26, FR27, FR28, FR29
@@ -334,7 +352,7 @@ Users can save frequently-used HS codes to favorites with personal notes, and ac
 - Search within favorites
 - One-click history re-execution
 
-### Epic 6: Advanced Search & Discovery (was Epic 5, was Epic 4)
+### Epic 7: Advanced Search & Discovery (was Epic 6, was Epic 5, was Epic 4)
 Users can filter search results by chapter, receive guidance when search results have low confidence, and report data issues. Handles edge cases and ambiguous queries.
 
 **FRs covered:** FR9, FR44, FR45
@@ -345,7 +363,7 @@ Users can filter search results by chapter, receive guidance when search results
 - Feedback mechanism for reporting data issues
 - Note: Hierarchical browsing (FR8) moved to Epic 2
 
-### Epic 7: Admin Data Management (was Epic 6, was Epic 5)
+### Epic 8: Admin Data Management (was Epic 7, was Epic 6, was Epic 5)
 Admins can upload new tariff data (Excel), preview changes, activate updates, and rollback if needed. Enables annual tariff updates.
 
 **FRs covered:** FR36, FR37, FR38, FR39, FR40, FR41, FR42
@@ -1542,11 +1560,331 @@ So that **I can control who has admin access to data management**.
 
 ---
 
-## Epic 5: Personalization - Favorites & History (was Epic 4, was Epic 3)
+## Epic 5: Advanced RBAC, Permissions & User Management (NEW - Sprint Change 2026-02-18)
+
+Expand the authentication system with an Expert role for correction approval, authenticated correction submission, a permission management system with role defaults and per-user overrides, and comprehensive admin user management.
+
+### Story 5.1: Add Expert Role and Auth Middleware
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-18.md`
+
+As an **administrator**,
+I want **to assign the "expert" role to users**,
+So that **designated experts can approve corrections to the knowledge base**.
+
+**Acceptance Criteria:**
+
+**Given** the user model
+**When** I check the role field
+**Then** it supports three values: "user", "expert", "admin"
+
+**Given** the user model
+**When** I check the schema
+**Then** it includes an `is_active` boolean field (default: true)
+
+**Given** a user with `is_active = false`
+**When** they attempt to log in
+**Then** they receive "Tài khoản đã bị vô hiệu hóa" (Account has been deactivated)
+
+**Given** a protected endpoint requiring authentication
+**When** any logged-in user accesses it
+**Then** the `require_authenticated` dependency validates their JWT
+
+**Given** an endpoint requiring expert access
+**When** a user with "expert" or "admin" role accesses it
+**Then** the `require_expert` dependency allows access
+
+**Given** an endpoint that optionally uses user context
+**When** a non-authenticated user accesses it
+**Then** the `get_optional_user` dependency returns None (no error)
+
+**Given** the admin user management page
+**When** an admin changes a user's role
+**Then** the dropdown includes "Người dùng" (user), "Chuyên gia" (expert), "Quản trị viên" (admin)
+
+**Technical Tasks:**
+1. DB migration: Add `is_active` (bool, default=true) to `users` table
+2. Update `User` model with `is_active` field
+3. Update `auth.py`: add `require_authenticated`, `require_expert`, `get_optional_user`
+4. Update `RoleUpdateRequest` validator to accept "user", "expert", "admin"
+5. Update `UserList.tsx` dropdown to include "Chuyên gia" (Expert)
+6. Update login flow (NextAuth + FastAPI) to reject inactive users
+7. Tests for all new auth dependencies
+
+**Definition of Done:**
+- [ ] User model supports user/expert/admin roles and is_active
+- [ ] Auth middleware provides require_authenticated, require_expert, get_optional_user
+- [ ] Inactive users cannot log in
+- [ ] Admin can assign expert role via UI
+- [ ] All existing auth flows unaffected
+- [ ] Tests pass
+
+---
+
+### Story 5.2: Authenticated Corrections with Pending Status
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-18.md`
+
+As a **logged-in user**,
+I want **to submit corrections to lookup records**,
+So that **the knowledge base improves through accountable user contributions**.
+
+**Background:**
+This story supersedes Story 1-10's anonymous correction design. Corrections now require authentication and go through an approval workflow instead of auto-verifying.
+
+**Acceptance Criteria:**
+
+**Given** I am not logged in
+**When** I try to submit a correction
+**Then** I see "Đăng nhập để gửi chỉnh sửa" (Login to submit corrections)
+**And** the correction panel shows a login link
+
+**Given** I am logged in
+**When** I submit a correction for a lookup record
+**Then** the correction is saved with `correction_status = "pending"` and `is_verified = false`
+**And** `submitted_by_user_id` is set to my user ID
+**And** I see "Chỉnh sửa đã được gửi, đang chờ duyệt" (Correction submitted, pending approval)
+
+**Given** a lookup with a pending correction
+**When** I view the lookup detail page
+**Then** I see a "Đang chờ duyệt" (Pending) badge on the correction section
+
+**Given** a lookup already has an approved correction
+**When** I try to submit another correction
+**Then** I see "Tra cứu này đã được chỉnh sửa" (This lookup has already been corrected)
+
+**Given** I am logged in
+**When** I submit more than 10 corrections per hour
+**Then** I see rate limit message (per-user, not per-IP)
+
+**Technical Tasks:**
+1. DB migration: Add `submitted_by_user_id` (FK→users), `correction_status` (varchar), `rejection_reason` (text) to `lookup_records`
+2. Update `LookupRecord` model with new fields
+3. Modify `corrections.py`: replace anonymous access with `require_authenticated`
+4. Change rate limiting from IP-based to user-based
+5. Set `correction_status = "pending"`, `is_verified = false` on submit
+6. Update `CorrectionPanel` component: require login, show pending state
+7. Update lookup detail page: show correction_status badges (pending/approved/rejected)
+8. Tests for authenticated correction flow
+
+**Definition of Done:**
+- [ ] Anonymous corrections no longer possible
+- [ ] Corrections require login and set pending status
+- [ ] submitted_by_user_id tracked
+- [ ] Rate limiting is user-based
+- [ ] UI shows login prompt for unauthenticated users
+- [ ] Pending badge displayed on corrections
+- [ ] Tests pass
+
+---
+
+### Story 5.3: Expert Correction Approval Workflow
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-18.md`
+
+As an **expert user**,
+I want **to review and approve or reject pending corrections**,
+So that **the knowledge base maintains high quality through expert verification**.
+
+**Acceptance Criteria:**
+
+**Given** I am logged in with "expert" or "admin" role
+**When** I navigate to `/expert/corrections`
+**Then** I see a paginated list of pending corrections with:
+- Original query text
+- Matched HS code and description
+- Suggested correct HS code and description
+- Submitter email and submission date
+- Notes from submitter
+
+**Given** I am viewing a pending correction
+**When** I click "Phê duyệt" (Approve)
+**Then** the correction is applied: `is_verified = true`, `correction_status = "approved"`, `verified_by_user_id = my ID`
+**And** the knowledge base is updated for future searches
+**And** I see "Đã phê duyệt chỉnh sửa" (Correction approved)
+
+**Given** I am viewing a pending correction
+**When** I click "Từ chối" (Reject) and provide a reason
+**Then** `correction_status = "rejected"`, `rejection_reason` is saved
+**And** the original matched HS code remains unchanged
+**And** I see "Đã từ chối chỉnh sửa" (Correction rejected)
+
+**Given** I am a standard "user" role
+**When** I try to access `/expert/corrections`
+**Then** I am shown "Không có quyền truy cập" (Access denied)
+
+**Given** an expert approves or rejects a correction
+**When** the action completes
+**Then** an audit log entry is created
+
+**API Endpoints:**
+- GET /api/expert/corrections?status=pending&page=1&per_page=20
+- POST /api/expert/corrections/{id}/approve
+- POST /api/expert/corrections/{id}/reject  Body: { reason }
+
+**Technical Tasks:**
+1. Create `api/app/api/expert.py` with review endpoints
+2. Create `api/app/services/expert_service.py`
+3. Build `/expert/corrections` page
+4. Build `PendingCorrectionsList` component
+5. Build `CorrectionReviewCard` component (approve/reject)
+6. Update lookup detail page to show approved/rejected status
+7. Add audit logging for expert actions
+8. Tests for approval/rejection workflow
+
+**Definition of Done:**
+- [ ] Expert review page shows pending corrections
+- [ ] Approve sets is_verified=true and updates KB
+- [ ] Reject saves reason and preserves original match
+- [ ] Only expert/admin roles can access review endpoints
+- [ ] Audit log tracks all review actions
+- [ ] Tests pass
+
+---
+
+### Story 5.4: Admin User Management
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-18.md`
+
+As an **administrator**,
+I want **to create, edit, deactivate, and search user accounts**,
+So that **I have full control over who can access the system**.
+
+**Acceptance Criteria:**
+
+**Given** I am an admin on the user management page
+**When** I click "Tạo người dùng" (Create user)
+**Then** I can enter email, temporary password, and role
+**And** the new user account is created
+
+**Given** I am viewing the user list
+**When** I click edit on a user
+**Then** I can modify their email and role
+**And** changes are saved with audit logging
+
+**Given** I am viewing the user list
+**When** I click "Vô hiệu hóa" (Deactivate) on a user
+**Then** a confirmation dialog appears
+**And** upon confirmation, the user is deactivated (cannot log in)
+
+**Given** I am viewing a deactivated user
+**When** I click "Kích hoạt lại" (Reactivate)
+**Then** the user account is reactivated
+
+**Given** I am on the user management page
+**When** I type in the search field
+**Then** users are filtered by email in real-time
+
+**Given** I try to deactivate my own account
+**When** I click deactivate
+**Then** I see "Không thể vô hiệu hóa tài khoản của chính mình" (Cannot deactivate your own account)
+
+**API Endpoints:**
+- POST /api/admin/users  Body: { email, password, role }
+- PATCH /api/admin/users/{id}  Body: { email?, role? }
+- PATCH /api/admin/users/{id}/status  Body: { is_active }
+- GET /api/admin/users?search=query&page=1&per_page=20
+
+**Technical Tasks:**
+1. Add `create_user` endpoint to `admin.py`
+2. Add `update_user` endpoint to `admin.py`
+3. Add `toggle_user_status` endpoint to `admin.py`
+4. Add `search` parameter to `list_users` endpoint
+5. Expand `UserList.tsx` with create/edit/deactivate actions
+6. Add user search input to admin users page
+7. Add status column (active/inactive indicator) to user table
+8. Tests for all CRUD operations
+
+**Definition of Done:**
+- [ ] Admin can create users with email, password, role
+- [ ] Admin can edit user email and role
+- [ ] Admin can deactivate/reactivate users
+- [ ] Admin can search users by email
+- [ ] Self-deactivation prevented
+- [ ] All actions audit-logged
+- [ ] Tests pass
+
+---
+
+### Story 5.5: Admin Permission Management
+
+**Sprint Change Proposal:** `sprint-change-proposal-2026-02-18.md`
+
+As an **administrator**,
+I want **to manage permissions per role and per individual user**,
+So that **I can fine-tune access control beyond the default role-based system**.
+
+**Acceptance Criteria:**
+
+**Given** the permission system
+**When** I check the predefined permissions
+**Then** the following exist:
+- `correction.submit`: Can submit corrections
+- `correction.approve`: Can approve/reject corrections
+- `user.manage`: Can manage users
+- `data.manage`: Can manage tariff data
+- `lookup.view_all`: Can view all lookups (not just own)
+
+**Given** the default role permissions
+**When** I check each role
+**Then** defaults are:
+- user: `correction.submit`
+- expert: `correction.submit`, `correction.approve`, `lookup.view_all`
+- admin: ALL permissions
+
+**Given** I am an admin on the permission management page (`/admin/permissions`)
+**When** I view the "Vai trò" (Roles) tab
+**Then** I see each role with its default permissions as checkboxes
+
+**Given** I am an admin on the permission management page
+**When** I view the "Người dùng" (Users) tab and select a user
+**Then** I see their effective permissions (role defaults + overrides)
+**And** I can grant or revoke individual permissions
+
+**Given** a user has a per-user override revoking `correction.submit`
+**When** the system checks their permissions
+**Then** the override takes priority over the role default
+
+**Given** a permission check is performed
+**When** the middleware calls `has_permission(user, "permission.code")`
+**Then** it checks: role_permissions + user_permission_overrides (overrides win)
+
+**Database Tables:**
+- `permissions` (id, code, name, description)
+- `role_permissions` (id, role, permission_code) — unique(role, permission_code)
+- `user_permission_overrides` (id, user_id, permission_code, granted) — unique(user_id, permission_code)
+
+**API Endpoints:**
+- GET /api/admin/permissions/roles  — list all roles with their permissions
+- PUT /api/admin/permissions/roles/{role}  Body: { permissions: ["code1", "code2"] }
+- GET /api/admin/permissions/users/{id}  — user's effective permissions + overrides
+- PUT /api/admin/permissions/users/{id}  Body: { overrides: [{ code, granted }] }
+
+**Technical Tasks:**
+1. DB migration: Create `permissions`, `role_permissions`, `user_permission_overrides` tables
+2. Create `Permission`, `RolePermission`, `UserPermissionOverride` models
+3. Create `permission_service.py` with `has_permission()` check
+4. Seed default permissions and role mappings via migration
+5. Create permission API endpoints in `admin.py`
+6. Build `/admin/permissions` page with roles tab and users tab
+7. Integrate permission checks into existing endpoints (replace hardcoded role checks)
+8. Tests for permission checking logic
+
+**Definition of Done:**
+- [ ] Permission tables created and seeded with defaults
+- [ ] has_permission() works with role defaults + per-user overrides
+- [ ] Admin can view/edit role-level permissions
+- [ ] Admin can view/edit per-user permission overrides
+- [ ] Existing endpoints use permission checks
+- [ ] Tests pass
+
+---
+
+## Epic 6: Personalization - Favorites & History (was Epic 5, was Epic 4, was Epic 3)
 
 Users can save frequently-used HS codes to favorites with personal notes, and access their complete search history for quick re-lookups.
 
-### Story 5.1: Save HS Code to Favorites (was Story 4.1, was Story 3.1)
+### Story 6.1: Save HS Code to Favorites (was Story 5.1, was Story 4.1, was Story 3.1)
 
 As a **logged-in user**,
 I want **to save an HS code to my favorites**,
@@ -1576,7 +1914,7 @@ So that **I can quickly access frequently-used codes**.
 
 ---
 
-### Story 5.2: Add Notes to Favorites (was Story 4.2, was Story 3.2)
+### Story 6.2: Add Notes to Favorites (was Story 5.2, was Story 4.2, was Story 3.2)
 
 As a **logged-in user**,
 I want **to add personal notes to my favorited HS codes**,
@@ -1605,7 +1943,7 @@ So that **I can remember why I saved them or add context**.
 
 ---
 
-### Story 5.3: View and Manage Favorites List (was Story 4.3, was Story 3.3)
+### Story 6.3: View and Manage Favorites List (was Story 5.3, was Story 4.3, was Story 3.3)
 
 As a **logged-in user**,
 I want **to view and manage my complete favorites list**,
@@ -1639,7 +1977,7 @@ So that **I can quickly access my saved HS codes**.
 
 ---
 
-### Story 5.4: Search Within Favorites (was Story 4.4, was Story 3.4)
+### Story 6.4: Search Within Favorites (was Story 5.4, was Story 4.4, was Story 3.4)
 
 As a **logged-in user**,
 I want **to search within my favorites**,
@@ -1667,7 +2005,7 @@ So that **I can quickly find a specific saved code**.
 
 ---
 
-### Story 5.5: Quick Favorites Access During Search (was Story 4.5, was Story 3.5)
+### Story 6.5: Quick Favorites Access During Search (was Story 5.5, was Story 4.5, was Story 3.5)
 
 As a **logged-in user**,
 I want **to quickly access my favorites while searching**,
@@ -1692,7 +2030,7 @@ So that **I can reference saved codes without leaving the search workflow**.
 
 ---
 
-### Story 5.6: Automatic Search History Recording (was Story 4.6, was Story 3.6)
+### Story 6.6: Automatic Search History Recording (was Story 5.6, was Story 4.6, was Story 3.6)
 
 As a **logged-in user**,
 I want **my searches to be recorded automatically**,
@@ -1723,7 +2061,7 @@ So that **I can review and re-use past searches**.
 
 ---
 
-### Story 5.7: View and Re-execute Search History (was Story 4.7, was Story 3.7)
+### Story 6.7: View and Re-execute Search History (was Story 5.7, was Story 4.7, was Story 3.7)
 
 As a **logged-in user**,
 I want **to view my search history and re-execute past searches**,
@@ -1752,7 +2090,7 @@ So that **I can quickly repeat common lookups**.
 
 ---
 
-### Story 5.8: Clear Search History (was Story 4.8, was Story 3.8)
+### Story 6.8: Clear Search History (was Story 5.8, was Story 4.8, was Story 3.8)
 
 As a **logged-in user**,
 I want **to clear my search history**,
@@ -1782,13 +2120,13 @@ So that **I can maintain privacy or remove clutter**.
 
 ---
 
-## Epic 6: Advanced Search & Discovery (was Epic 5, was Epic 4)
+## Epic 7: Advanced Search & Discovery (was Epic 6, was Epic 5, was Epic 4)
 
 Users can filter search results by chapter, receive guidance when search results have low confidence, and report data issues. Handles edge cases and ambiguous queries.
 
 > **Note:** Story 4.1/5.1 (Hierarchical HS Code Browser) has been moved to Epic 2 as Stories 2.2 and 2.3 (Sprint Change 2026-02-11).
 
-### Story 6.1: Chapter Filter on Search Results (was Story 5.1, was Story 4.2)
+### Story 7.1: Chapter Filter on Search Results (was Story 6.1, was Story 5.1, was Story 4.2)
 
 As a **user**,
 I want **to filter search results by HS code chapter**,
@@ -1823,7 +2161,7 @@ So that **I can narrow down results when I know the general category**.
 
 ---
 
-### Story 6.2: Low-Confidence Search Guidance (was Story 5.2, was Story 4.3)
+### Story 7.2: Low-Confidence Search Guidance (was Story 6.2, was Story 5.2, was Story 4.3)
 
 As a **user**,
 I want **to receive guidance when search results have low confidence**,
@@ -1859,7 +2197,7 @@ So that **I can refine my search or try alternative approaches**.
 
 ---
 
-### Story 6.3: Data Feedback Mechanism (was Story 5.3, was Story 4.4)
+### Story 7.3: Data Feedback Mechanism (was Story 6.3, was Story 5.3, was Story 4.4)
 
 As a **user**,
 I want **to report incorrect or missing HS code data**,
@@ -1894,11 +2232,11 @@ So that **administrators can improve the data quality**.
 
 ---
 
-## Epic 7: Admin Data Management (was Epic 6, was Epic 5)
+## Epic 8: Admin Data Management (was Epic 7, was Epic 6, was Epic 5)
 
 Admins can upload new tariff data (Excel), preview changes, activate updates, and rollback if needed.
 
-### Story 7.1: Tariff Data Upload (was Story 6.1, was Story 5.1)
+### Story 8.1: Tariff Data Upload (was Story 7.1, was Story 6.1, was Story 5.1)
 
 As an **admin**,
 I want **to upload new tariff data files**,
@@ -1933,7 +2271,7 @@ So that **I can update the system with the latest Vietnam Customs data**.
 
 ---
 
-### Story 7.2: Preview Uploaded Data (was Story 6.2, was Story 5.2)
+### Story 8.2: Preview Uploaded Data (was Story 7.2, was Story 6.2, was Story 5.2)
 
 As an **admin**,
 I want **to preview uploaded data before activation**,
@@ -1969,7 +2307,7 @@ So that **I can verify the data is correct**.
 
 ---
 
-### Story 7.3: Activate Tariff Data (was Story 6.3, was Story 5.3)
+### Story 8.3: Activate Tariff Data (was Story 7.3, was Story 6.3, was Story 5.3)
 
 As an **admin**,
 I want **to activate uploaded tariff data to make it live**,
@@ -2006,7 +2344,7 @@ So that **users can search the new data**.
 
 ---
 
-### Story 7.4: Rollback to Previous Version (was Story 6.4, was Story 5.4)
+### Story 8.4: Rollback to Previous Version (was Story 7.4, was Story 6.4, was Story 5.4)
 
 As an **admin**,
 I want **to rollback to the previous tariff data version**,
@@ -2037,7 +2375,7 @@ So that **I can recover from a bad data update**.
 
 ---
 
-### Story 7.5: Data Version History (was Story 6.5, was Story 5.5)
+### Story 8.5: Data Version History (was Story 7.5, was Story 6.5, was Story 5.5)
 
 As an **admin**,
 I want **to view the history of data uploads and activations**,

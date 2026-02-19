@@ -28,6 +28,7 @@ This document defines the automated agent team workflow for implementing epics s
 ```
 - Implements all code changes defined in the story
 - Follows project conventions from CLAUDE.md
+- **For all UI-related tasks** (new pages, components, UI updates): MUST use the `/frontend-design` skill to generate the UI code. This ensures distinctive, production-grade frontend design that avoids generic AI aesthetics.
 - Ensures tests are written and passing
 - **Status update:** `sprint-status.yaml` story status → `review`
 
@@ -155,6 +156,14 @@ Your ONLY task: Use the Skill tool to run /bmad-bmm-dev-story {story-number}
 You MUST use the Skill tool to invoke this command. Do NOT attempt to implement the story
 manually or read the story file directly. The Skill tool will load the full BMAD workflow
 which you must follow step by step — including status updates in sprint-status.yaml.
+
+IMPORTANT — Frontend Design Requirement:
+For ANY UI-related tasks (new pages, new components, component updates, layout changes),
+you MUST use the Skill tool to invoke /frontend-design BEFORE writing UI code. This skill
+generates distinctive, production-grade frontend code. Pass it a clear description of the
+UI you need (what component, what it should display, interactions, and the tech stack:
+Next.js 16, React 19, TypeScript, Tailwind v4, shadcn/ui). Then integrate its output into
+the codebase. Do NOT write UI code from scratch without using /frontend-design first.
 
 After completion, verify that sprint-status.yaml shows the story as "review".
 Report back what files were created/modified and confirm the status update.

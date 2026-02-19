@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 from app.schemas.user import UserCreate
-from app.services.auth_service import AuthService, hash_password, verify_password
+from app.services.auth_service import AuthService, InactiveUserError, hash_password, verify_password
 
 
 class TestPasswordHashing:
@@ -181,6 +181,57 @@ class TestAuthServiceAuthenticate:
             result = await service.authenticate_user("nobody@example.com", "anypassword")
 
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_authenticate_inactive_user_raises_error(self):
+        """Test that inactive user login raises InactiveUserError.
+
+        Note: is_active is checked after password verification to preserve constant-time
+        behavior (prevent timing attacks that reveal account existence). The InactiveUserError
+        is only raised when both user exists AND password is valid AND is_active=False.
+        """
+        session = AsyncMock()
+        hashed = hash_password("securepass123")
+
+        with patch("app.services.auth_service.UserRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_user = MagicMock(spec=User)
+            mock_user.id = 1
+            mock_user.email = "inactive@example.com"
+            mock_user.password_hash = hashed
+            mock_user.role = "user"
+            mock_user.is_active = False
+            mock_user.created_at = "2026-02-15T00:00:00+00:00"
+            mock_repo.get_by_email.return_value = mock_user
+            mock_repo_class.return_value = mock_repo
+
+            service = AuthService(session)
+            with pytest.raises(InactiveUserError):
+                await service.authenticate_user("inactive@example.com", "securepass123")
+
+    @pytest.mark.asyncio
+    async def test_authenticate_active_user_succeeds(self):
+        """Test that active user login succeeds normally."""
+        session = AsyncMock()
+        hashed = hash_password("securepass123")
+
+        with patch("app.services.auth_service.UserRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_user = MagicMock(spec=User)
+            mock_user.id = 1
+            mock_user.email = "active@example.com"
+            mock_user.password_hash = hashed
+            mock_user.role = "user"
+            mock_user.is_active = True
+            mock_user.created_at = "2026-02-15T00:00:00+00:00"
+            mock_repo.get_by_email.return_value = mock_user
+            mock_repo_class.return_value = mock_repo
+
+            service = AuthService(session)
+            result = await service.authenticate_user("active@example.com", "securepass123")
+
+        assert result is not None
+        assert result.email == "active@example.com"
 
 
 class TestRequestPasswordReset:

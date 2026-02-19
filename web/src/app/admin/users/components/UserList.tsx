@@ -55,9 +55,15 @@ export function UserList() {
     fetchUsers();
   }, [fetchUsers]);
 
+  const roleLabels: Record<string, string> = {
+    user: "Người dùng",
+    expert: "Chuyên gia",
+    admin: "Quản trị viên",
+  };
+
   const handleRoleChange = async (userId: number, newRole: string) => {
     const confirmed = window.confirm(
-      `Bạn có chắc muốn thay đổi vai trò của người dùng này thành "${newRole === "admin" ? "Quản trị viên" : "Người dùng"}"?`
+      `Bạn có chắc muốn thay đổi vai trò của người dùng này thành "${roleLabels[newRole] || newRole}"?`
     );
     if (!confirmed) return;
 
@@ -141,6 +147,7 @@ export function UserList() {
                     aria-label={`Role for ${user.email}`}
                   >
                     <option value="user">Người dùng</option>
+                    <option value="expert">Chuyên gia</option>
                     <option value="admin">Quản trị viên</option>
                   </select>
                 </td>

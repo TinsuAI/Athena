@@ -18,6 +18,12 @@ from app.services.email_service import EmailService
 logger = logging.getLogger(__name__)
 
 
+class InactiveUserError(Exception):
+    """Raised when an inactive user attempts to log in."""
+
+    pass
+
+
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt with cost factor 12."""
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
@@ -64,8 +70,11 @@ class AuthService:
         """Authenticate a user by email and password.
 
         Returns UserResponse on success, None if credentials are invalid.
+        Raises InactiveUserError if user exists, password is valid, but account is deactivated.
 
         Note: Uses constant-time password verification to prevent timing attacks.
+        The is_active check occurs after password verification to avoid leaking
+        account existence information to attackers.
         """
         user = await self.repo.get_by_email(email)
 
@@ -78,6 +87,8 @@ class AuthService:
 
         # Only return user if both user exists AND password is valid
         if user is not None and password_valid:
+            if not user.is_active:
+                raise InactiveUserError("Account has been deactivated")
             return UserResponse(
                 id=user.id,
                 email=user.email,
