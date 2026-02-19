@@ -50,5 +50,7 @@ export interface LookupDetail {
   notes: string | null;
   correction_status: string | null;
   submitted_by_user_id: number | null;
+  verified_by_user_id: number | null;
+  rejection_reason: string | null;
   created_at: string;
 }

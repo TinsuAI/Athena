@@ -126,6 +126,8 @@ async def get_lookup_detail(
         notes=record.notes,
         correction_status=record.correction_status,
         submitted_by_user_id=record.submitted_by_user_id,
+        verified_by_user_id=record.verified_by_user_id,
+        rejection_reason=record.rejection_reason,
         created_at=record.created_at.isoformat(),
     )
     return success_response(response.model_dump())

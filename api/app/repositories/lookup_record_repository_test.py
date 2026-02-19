@@ -779,3 +779,98 @@ class TestLookupRecordRepository:
         assert result is updated_record
         assert result.notes is None
         assert result.correction_status == "pending"
+
+    # --- Tests for get_pending_corrections (Story 5-3, Task 10.10) ---
+
+    @pytest.mark.asyncio
+    async def test_get_pending_corrections_returns_only_pending(self):
+        """Test get_pending_corrections returns only records with correction_status='pending'."""
+        mock_session = AsyncMock()
+        pending_records = [
+            self._make_record(id=i, correction_status="pending") for i in range(2)
+        ]
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = pending_records
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.get_pending_corrections(limit=20, offset=0)
+
+        assert len(result) == 2
+        mock_session.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_count_pending_corrections(self):
+        """Test count_pending_corrections returns correct count."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 5
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.count_pending_corrections()
+
+        assert result == 5
+
+    # --- Tests for approve_correction (Story 5-3, Task 10.11) ---
+
+    @pytest.mark.asyncio
+    async def test_approve_correction_sets_all_fields(self):
+        """Test approve_correction sets is_verified, correction_status, verified_by_user_id, verified_at."""
+        mock_session = AsyncMock()
+
+        approved_record = self._make_record(
+            id=1,
+            is_verified=True,
+            correction_status="approved",
+            verified_by_user_id=10,
+        )
+
+        mock_select_result = MagicMock()
+        mock_select_result.scalar_one.return_value = approved_record
+        mock_session.execute.side_effect = [
+            AsyncMock(),  # UPDATE result
+            mock_select_result,  # SELECT result
+        ]
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.approve_correction(record_id=1, verified_by_user_id=10)
+
+        assert result is approved_record
+        assert result.is_verified is True
+        assert result.correction_status == "approved"
+        assert result.verified_by_user_id == 10
+        assert mock_session.execute.await_count == 2
+
+    # --- Tests for reject_correction (Story 5-3, Task 10.12) ---
+
+    @pytest.mark.asyncio
+    async def test_reject_correction_sets_status_and_reason(self):
+        """Test reject_correction sets correction_status='rejected' and rejection_reason."""
+        mock_session = AsyncMock()
+
+        rejected_record = self._make_record(
+            id=1,
+            correction_status="rejected",
+            rejection_reason="Ma HS khong phu hop",
+        )
+
+        mock_select_result = MagicMock()
+        mock_select_result.scalar_one.return_value = rejected_record
+        mock_session.execute.side_effect = [
+            AsyncMock(),  # UPDATE result
+            mock_select_result,  # SELECT result
+        ]
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.reject_correction(
+            record_id=1, rejection_reason="Ma HS khong phu hop"
+        )
+
+        assert result is rejected_record
+        assert result.correction_status == "rejected"
+        assert result.rejection_reason == "Ma HS khong phu hop"
+        assert mock_session.execute.await_count == 2

@@ -251,3 +251,78 @@ class LookupRecordRepository:
             .where(LookupRecord.id == record_id)
             .values(updated_at=func.now())
         )
+
+    async def get_pending_corrections(
+        self, limit: int = 20, offset: int = 0
+    ) -> list[LookupRecord]:
+        """Get pending corrections with eager-loaded HS codes and submitter.
+
+        Returns records with correction_status='pending', ordered by oldest first
+        (FIFO review queue).
+        """
+        result = await self.session.execute(
+            select(LookupRecord)
+            .where(LookupRecord.correction_status == "pending")
+            .options(
+                selectinload(LookupRecord.matched_hs_code),
+                selectinload(LookupRecord.correct_hs_code),
+                selectinload(LookupRecord.submitted_by_user),
+            )
+            .order_by(LookupRecord.created_at.asc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(result.scalars().all())
+
+    async def count_pending_corrections(self) -> int:
+        """Count total pending corrections."""
+        result = await self.session.execute(
+            select(func.count(LookupRecord.id)).where(
+                LookupRecord.correction_status == "pending"
+            )
+        )
+        return result.scalar_one()
+
+    async def approve_correction(
+        self, record_id: int, verified_by_user_id: int
+    ) -> LookupRecord:
+        """Approve a pending correction.
+
+        Sets is_verified=True, correction_status='approved',
+        verified_by_user_id, and verified_at=now().
+        """
+        now = datetime.now(timezone.utc)
+        await self.session.execute(
+            update(LookupRecord)
+            .where(LookupRecord.id == record_id)
+            .values(
+                is_verified=True,
+                correction_status="approved",
+                verified_by_user_id=verified_by_user_id,
+                verified_at=now,
+            )
+        )
+        result = await self.session.execute(
+            select(LookupRecord).where(LookupRecord.id == record_id)
+        )
+        return result.scalar_one()
+
+    async def reject_correction(
+        self, record_id: int, rejection_reason: str
+    ) -> LookupRecord:
+        """Reject a pending correction.
+
+        Sets correction_status='rejected' and stores the rejection_reason.
+        """
+        await self.session.execute(
+            update(LookupRecord)
+            .where(LookupRecord.id == record_id)
+            .values(
+                correction_status="rejected",
+                rejection_reason=rejection_reason,
+            )
+        )
+        result = await self.session.execute(
+            select(LookupRecord).where(LookupRecord.id == record_id)
+        )
+        return result.scalar_one()

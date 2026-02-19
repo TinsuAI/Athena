@@ -412,6 +412,11 @@ export default function LookupDetailPage() {
                   })}
                 </p>
               )}
+              {lookup.verified_by_user_id && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Người xác minh: ID #{lookup.verified_by_user_id}
+                </p>
+              )}
               {lookup.notes && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   Ghi chú: {lookup.notes}
@@ -427,6 +432,22 @@ export default function LookupDetailPage() {
             {lookup.notes && (
               <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
                 Ghi chú: {lookup.notes}
+              </p>
+            )}
+          </div>
+        ) : lookup.correction_status === "rejected" ? (
+          <div className="rounded-lg border border-red-200 bg-red-50/50 p-4 dark:border-red-800 dark:bg-red-900/10">
+            <p className="text-sm font-medium text-red-800 dark:text-red-300">
+              Đề xuất hiệu chỉnh đã bị từ chối.
+            </p>
+            {lookup.rejection_reason && (
+              <p className="mt-2 text-xs text-red-700 dark:text-red-400">
+                Lý do: {lookup.rejection_reason}
+              </p>
+            )}
+            {lookup.notes && (
+              <p className="mt-1 text-xs text-red-600/70 dark:text-red-400/70">
+                Ghi chú ban đầu: {lookup.notes}
               </p>
             )}
           </div>

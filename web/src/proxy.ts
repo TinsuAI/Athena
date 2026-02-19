@@ -6,5 +6,5 @@
 export { auth as default } from "@/lib/auth";
 
 export const config = {
-  matcher: ["/favorites/:path*", "/history/:path*", "/admin/:path*"],
+  matcher: ["/favorites/:path*", "/history/:path*", "/admin/:path*", "/expert/:path*"],
 };

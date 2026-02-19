@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useStore } from "@/lib/store";
-import { Menu, X, Search, BookOpen, ClipboardList, Shield, LogOut, LogIn, UserPlus } from "lucide-react";
+import { Menu, X, Search, BookOpen, ClipboardList, Shield, ClipboardCheck, LogOut, LogIn, UserPlus } from "lucide-react";
 
 const navLinks = [
   { href: "/search", label: "Tìm kiếm", icon: Search },
@@ -46,7 +46,9 @@ export function Header() {
     }
   }, [logout]);
 
-  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+  const userRole = (session?.user as { role?: string } | undefined)?.role;
+  const isAdmin = userRole === "admin";
+  const isExpertOrAdmin = userRole === "expert" || userRole === "admin";
 
   return (
     <>
@@ -109,6 +111,18 @@ export function Header() {
               </span>
             ) : session?.user ? (
               <>
+                {isExpertOrAdmin && (
+                  <Link
+                    href="/expert/corrections"
+                    className={
+                      pathname?.startsWith("/expert")
+                        ? "text-emerald-400 font-semibold"
+                        : "text-white/50 hover:text-emerald-400 transition-colors duration-150"
+                    }
+                  >
+                    Duyệt chỉnh sửa
+                  </Link>
+                )}
                 {isAdmin && (
                   <Link
                     href="/admin"
@@ -233,6 +247,28 @@ export function Header() {
               );
             })}
 
+            {/* Expert link for expert and admin users */}
+            {isExpertOrAdmin && (
+              <Link
+                href="/expert/corrections"
+                className={`flex items-center gap-3 px-3 py-3 rounded-lg text-[14px] font-medium transition-all duration-200 ${
+                  pathname?.startsWith("/expert")
+                    ? "bg-emerald-500/[0.12] text-emerald-400"
+                    : "text-white/60 hover:text-white hover:bg-white/[0.05] active:bg-white/[0.08]"
+                }`}
+              >
+                <ClipboardCheck
+                  size={18}
+                  strokeWidth={pathname?.startsWith("/expert") ? 2.2 : 1.8}
+                  className={pathname?.startsWith("/expert") ? "text-emerald-400" : "text-white/40"}
+                />
+                <span>Duyệt chỉnh sửa</span>
+                {pathname?.startsWith("/expert") && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                )}
+              </Link>
+            )}
+
             {/* Admin link for admin users */}
             {isAdmin && (
               <Link
@@ -277,7 +313,7 @@ export function Header() {
                       {session.user.email}
                     </div>
                     <div className="text-[11px] text-white/30 mt-0.5">
-                      {isAdmin ? "Quản trị viên" : "Người dùng"}
+                      {isAdmin ? "Quản trị viên" : userRole === "expert" ? "Chuyên gia" : "Người dùng"}
                     </div>
                   </div>
                 </div>

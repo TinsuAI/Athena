@@ -57,4 +57,6 @@ class LookupDetailResponse(BaseModel):
     notes: str | None
     correction_status: str | None = None
     submitted_by_user_id: int | None = None
+    verified_by_user_id: int | None = None
+    rejection_reason: str | None = None
     created_at: str
