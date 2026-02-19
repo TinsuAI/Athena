@@ -81,7 +81,7 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Advanced RBAC, Permissions & User Management (NEW - Sprint Change 2026-02-18, 5 stories)
-  epic-5: in-progress
+  epic-5: done
   5-1-add-expert-role-and-auth-middleware: done  # NEW: Sprint Change 2026-02-18 - expert role, is_active, require_expert/require_authenticated (Code review: 1 high + 2 medium issues fixed)
   5-2-authenticated-corrections-with-pending-status: done  # NEW: Sprint Change 2026-02-18 - replace anonymous corrections, pending status (Code review: 2 high + 3 medium issues fixed)
   5-3-expert-correction-approval-workflow: done  # NEW: Sprint Change 2026-02-18 - expert review page, approve/reject (Code review: 1 high + 3 medium issues fixed)
