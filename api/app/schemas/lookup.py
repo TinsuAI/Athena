@@ -55,4 +55,6 @@ class LookupDetailResponse(BaseModel):
     is_verified: bool
     verified_at: str | None
     notes: str | None
+    correction_status: str | None = None
+    submitted_by_user_id: int | None = None
     created_at: str

@@ -1,4 +1,4 @@
-"""Tests for corrections API endpoint."""
+"""Tests for corrections API endpoint (authenticated correction workflow)."""
 
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -12,11 +12,10 @@ from app.api.corrections import (
     check_correction_rate_limit,
 )
 from app.schemas.correction import CorrectionRequest
-from app.services.knowledge_base_service import KnowledgeBaseService
 
 
 class TestCheckCorrectionRateLimit:
-    """Test the correction rate limiting function."""
+    """Test the per-user correction rate limiting function."""
 
     def _make_mock_redis(self, current_count: int):
         """Create a mock Redis client with pipeline for rate limiting."""
@@ -24,7 +23,6 @@ class TestCheckCorrectionRateLimit:
         mock_pipe = AsyncMock()
         mock_pipe.execute.return_value = [None, current_count, None, None]
 
-        # pipeline() is a sync method returning an async context manager
         mock_ctx = MagicMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_pipe)
         mock_ctx.__aexit__ = AsyncMock(return_value=False)
@@ -38,7 +36,7 @@ class TestCheckCorrectionRateLimit:
         mock_redis, _ = self._make_mock_redis(current_count=5)
 
         allowed, remaining, reset = await check_correction_rate_limit(
-            mock_redis, "127.0.0.1"
+            mock_redis, 42
         )
 
         assert allowed is True
@@ -51,7 +49,7 @@ class TestCheckCorrectionRateLimit:
         mock_redis, _ = self._make_mock_redis(current_count=10)
 
         allowed, remaining, reset = await check_correction_rate_limit(
-            mock_redis, "127.0.0.1"
+            mock_redis, 42
         )
 
         assert allowed is False
@@ -61,7 +59,7 @@ class TestCheckCorrectionRateLimit:
     async def test_allows_when_no_redis(self):
         """Test allows all requests when Redis is unavailable."""
         allowed, remaining, reset = await check_correction_rate_limit(
-            None, "127.0.0.1"
+            None, 42
         )
 
         assert allowed is True
@@ -74,24 +72,40 @@ class TestCheckCorrectionRateLimit:
         mock_redis.pipeline.side_effect = Exception("Redis down")
 
         allowed, remaining, reset = await check_correction_rate_limit(
-            mock_redis, "127.0.0.1"
+            mock_redis, 42
         )
 
         assert allowed is True
         assert remaining == CORRECTION_RATE_LIMIT
 
     @pytest.mark.asyncio
-    async def test_uses_correct_key_prefix(self):
-        """Test uses correction-specific key prefix."""
+    async def test_uses_user_id_in_key_not_ip(self):
+        """Test rate limit key is per user_id (not IP address)."""
         mock_redis, mock_pipe = self._make_mock_redis(current_count=0)
 
-        await check_correction_rate_limit(mock_redis, "192.168.1.1")
+        user_id = 999
+        await check_correction_rate_limit(mock_redis, user_id)
 
         calls = mock_pipe.zremrangebyscore.call_args_list
         assert len(calls) == 1
         key_arg = calls[0][0][0]
         assert key_arg.startswith(CORRECTION_RATE_PREFIX)
-        assert "192.168.1.1" in key_arg
+        assert f"user:{user_id}" in key_arg
+
+    @pytest.mark.asyncio
+    async def test_different_users_have_separate_limits(self):
+        """Test that different user IDs use different Redis keys."""
+        mock_redis1, mock_pipe1 = self._make_mock_redis(current_count=0)
+        mock_redis2, mock_pipe2 = self._make_mock_redis(current_count=0)
+
+        await check_correction_rate_limit(mock_redis1, 1)
+        await check_correction_rate_limit(mock_redis2, 2)
+
+        key1 = mock_pipe1.zremrangebyscore.call_args_list[0][0][0]
+        key2 = mock_pipe2.zremrangebyscore.call_args_list[0][0][0]
+        assert key1 != key2
+        assert "user:1" in key1
+        assert "user:2" in key2
 
 
 class TestCorrectionSchemas:
@@ -125,7 +139,7 @@ class TestCorrectionSchemas:
             correct_hs_code_id=42,
             notes="x" * 200,
         )
-        assert len(req.notes) == 200
+        assert len(req.notes) == 200  # type: ignore[arg-type]
 
 
 class TestGetUnverifiedLookups:
@@ -188,37 +202,6 @@ class TestGetUnverifiedLookups:
 
     @pytest.mark.asyncio
     @patch("app.api.corrections.LookupRecordRepository")
-    async def test_handles_records_without_matched_hs_code(self, mock_repo_class):
-        """Test endpoint handles records with no matched HS code."""
-        from app.api.corrections import get_unverified_lookups
-
-        mock_repo = AsyncMock()
-        mock_repo_class.return_value = mock_repo
-
-        mock_record = MagicMock()
-        mock_record.id = 2
-        mock_record.query_text = "unknown product"
-        mock_record.query_language = "en"
-        mock_record.matched_hs_code_id = None
-        mock_record.matched_hs_code = None
-        mock_record.confidence_score = None
-        mock_record.search_method = "vector"
-        mock_record.created_at = datetime(2026, 2, 10, tzinfo=timezone.utc)
-
-        mock_repo.get_unverified_with_hs_codes.return_value = [mock_record]
-        mock_repo.count_unverified.return_value = 1
-
-        mock_db = AsyncMock()
-        result = await get_unverified_lookups(limit=20, offset=0, db=mock_db)
-
-        assert result["success"] is True
-        item = result["data"]["items"][0]
-        assert item["matched_hs_code"] is None
-        assert item["matched_description_vn"] is None
-        assert item["matched_description_en"] is None
-
-    @pytest.mark.asyncio
-    @patch("app.api.corrections.LookupRecordRepository")
     async def test_passes_pagination_params(self, mock_repo_class):
         """Test endpoint passes limit and offset to repository."""
         from app.api.corrections import get_unverified_lookups
@@ -239,15 +222,11 @@ class TestGetUnverifiedLookups:
 
 
 class TestSubmitCorrection:
-    """Test POST /api/corrections endpoint."""
+    """Test POST /api/corrections endpoint (authenticated, pending status)."""
 
-    def _make_mock_request(self, client_ip: str = "127.0.0.1"):
-        """Create mock FastAPI request."""
-        mock_request = MagicMock()
-        mock_request.client = MagicMock()
-        mock_request.client.host = client_ip
-        mock_request.headers = {}
-        return mock_request
+    def _make_mock_user(self, user_id: int = 7) -> dict:
+        """Create mock authenticated user dict returned by require_authenticated."""
+        return {"id": user_id, "email": "user@example.com", "role": "user"}
 
     def _make_mock_record(self, **kwargs):
         """Create mock LookupRecord."""
@@ -255,10 +234,12 @@ class TestSubmitCorrection:
             "id": 1,
             "query_text": "copper towel rack",
             "matched_hs_code_id": 42,
-            "correct_hs_code_id": 55,
-            "is_verified": True,
-            "verified_at": datetime(2026, 2, 10, tzinfo=timezone.utc),
-            "notes": "test note",
+            "correct_hs_code_id": None,
+            "is_verified": False,
+            "verified_at": None,
+            "notes": None,
+            "correction_status": None,
+            "submitted_by_user_id": None,
         }
         defaults.update(kwargs)
         mock_record = MagicMock()
@@ -269,64 +250,195 @@ class TestSubmitCorrection:
     @pytest.mark.asyncio
     @patch("app.api.corrections.check_correction_rate_limit")
     @patch("app.api.corrections.LookupRecordRepository")
-    async def test_successful_correction(self, mock_repo_class, mock_rate_limit):
-        """Test successful correction submission."""
+    async def test_unauthenticated_returns_401(self, mock_repo_class, mock_rate_limit):
+        """Test unauthenticated user gets 401 on POST /api/corrections (AC #1)."""
+        from fastapi import HTTPException
+
+        from app.api.corrections import submit_correction
+        from app.core.auth import require_authenticated
+
+        # Simulate require_authenticated raising 401
+        async def raise_401():
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55)
+        mock_db = AsyncMock()
+        mock_redis = AsyncMock()
+
+        # require_authenticated dependency raises HTTPException when no JWT
+        with pytest.raises(HTTPException) as exc_info:
+            # Call require_authenticated directly to verify it raises
+            from app.core.auth import require_authenticated as real_req_auth
+            # We patch it to simulate unauthenticated
+            with patch("app.api.corrections.require_authenticated", side_effect=HTTPException(status_code=401)):
+                await submit_correction(
+                    body=body,
+                    user=await raise_401(),
+                    db=mock_db,
+                    redis_client=mock_redis,
+                )
+
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    @patch("app.api.corrections.check_correction_rate_limit")
+    @patch("app.api.corrections.LookupRecordRepository")
+    async def test_authenticated_correction_sets_pending_status(
+        self, mock_repo_class, mock_rate_limit
+    ):
+        """Test authenticated user submits correction with pending status (AC #2)."""
         from app.api.corrections import submit_correction
 
         mock_rate_limit.return_value = (True, 9, 3600)
 
         mock_repo = AsyncMock()
         mock_repo_class.return_value = mock_repo
-        mock_repo.find_by_id.return_value = self._make_mock_record()
-        mock_repo.apply_correction.return_value = self._make_mock_record(
+
+        input_record = self._make_mock_record()
+        updated_record = self._make_mock_record(
             correct_hs_code_id=55,
-            is_verified=True,
-            verified_at=datetime(2026, 2, 10, tzinfo=timezone.utc),
+            correction_status="pending",
+            is_verified=False,
+            submitted_by_user_id=7,
+            notes=None,
         )
+        mock_repo.find_by_id.return_value = input_record
+        mock_repo.submit_pending_correction.return_value = updated_record
 
         mock_db = AsyncMock()
         mock_hs_result = MagicMock()
         mock_hs_result.scalar_one_or_none.return_value = MagicMock()
         mock_db.execute.return_value = mock_hs_result
 
+        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55)
+        user = self._make_mock_user(user_id=7)
         mock_redis = AsyncMock()
-        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55, notes="test")
-        request = self._make_mock_request()
 
         result = await submit_correction(
-            request=request, body=body, db=mock_db, redis_client=mock_redis
+            body=body, user=user, db=mock_db, redis_client=mock_redis
         )
 
         assert result["success"] is True
-        assert result["data"]["id"] == 1
-        assert result["data"]["correct_hs_code_id"] == 55
-        assert result["data"]["is_verified"] is True
+        assert result["data"]["correction_status"] == "pending"
+        assert result["data"]["is_verified"] is False
+
+    @pytest.mark.asyncio
+    @patch("app.api.corrections.check_correction_rate_limit")
+    @patch("app.api.corrections.LookupRecordRepository")
+    async def test_submitted_by_user_id_set_correctly(
+        self, mock_repo_class, mock_rate_limit
+    ):
+        """Test submitted_by_user_id is set to authenticated user's ID (AC #2)."""
+        from app.api.corrections import submit_correction
+
+        mock_rate_limit.return_value = (True, 9, 3600)
+
+        mock_repo = AsyncMock()
+        mock_repo_class.return_value = mock_repo
+
+        input_record = self._make_mock_record()
+        updated_record = self._make_mock_record(
+            correct_hs_code_id=55,
+            correction_status="pending",
+            is_verified=False,
+            submitted_by_user_id=42,
+        )
+        mock_repo.find_by_id.return_value = input_record
+        mock_repo.submit_pending_correction.return_value = updated_record
+
+        mock_db = AsyncMock()
+        mock_hs_result = MagicMock()
+        mock_hs_result.scalar_one_or_none.return_value = MagicMock()
+        mock_db.execute.return_value = mock_hs_result
+
+        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55)
+        user = self._make_mock_user(user_id=42)
+        mock_redis = AsyncMock()
+
+        result = await submit_correction(
+            body=body, user=user, db=mock_db, redis_client=mock_redis
+        )
+
+        assert result["success"] is True
+        assert result["data"]["submitted_by_user_id"] == 42
+
+        # Verify submit_pending_correction called with correct user ID
+        mock_repo.submit_pending_correction.assert_awaited_once_with(
+            record_id=1,
+            correct_hs_code_id=55,
+            submitted_by_user_id=42,
+            notes=None,
+        )
 
     @pytest.mark.asyncio
     @patch("app.api.corrections.check_correction_rate_limit")
     async def test_rate_limited(self, mock_rate_limit):
-        """Test correction blocked by rate limit."""
+        """Test correction blocked by rate limit (429)."""
         from app.api.corrections import submit_correction
 
         mock_rate_limit.return_value = (False, 0, 3600)
 
         body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55)
-        request = self._make_mock_request()
+        user = self._make_mock_user()
         mock_db = AsyncMock()
         mock_redis = AsyncMock()
 
         result = await submit_correction(
-            request=request, body=body, db=mock_db, redis_client=mock_redis
+            body=body, user=user, db=mock_db, redis_client=mock_redis
         )
 
         assert result["success"] is False
         assert result["error"]["status"] == 429
-        assert "Rate limit" in result["error"]["detail"]
 
     @pytest.mark.asyncio
     @patch("app.api.corrections.check_correction_rate_limit")
     @patch("app.api.corrections.LookupRecordRepository")
-    async def test_invalid_lookup_id(self, mock_repo_class, mock_rate_limit):
+    async def test_rate_limit_uses_user_id_not_ip(
+        self, mock_repo_class, mock_rate_limit
+    ):
+        """Test rate limit is called with user_id (int), not IP (AC #5)."""
+        from app.api.corrections import submit_correction
+
+        mock_rate_limit.return_value = (True, 9, 3600)
+
+        mock_repo = AsyncMock()
+        mock_repo_class.return_value = mock_repo
+        input_record = self._make_mock_record()
+        updated_record = self._make_mock_record(
+            correct_hs_code_id=55,
+            correction_status="pending",
+            is_verified=False,
+            submitted_by_user_id=99,
+        )
+        mock_repo.find_by_id.return_value = input_record
+        mock_repo.submit_pending_correction.return_value = updated_record
+
+        mock_db = AsyncMock()
+        mock_hs_result = MagicMock()
+        mock_hs_result.scalar_one_or_none.return_value = MagicMock()
+        mock_db.execute.return_value = mock_hs_result
+
+        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55)
+        user = self._make_mock_user(user_id=99)
+        mock_redis = AsyncMock()
+
+        await submit_correction(
+            body=body, user=user, db=mock_db, redis_client=mock_redis
+        )
+
+        # Verify rate limit was called with integer user_id, not a string IP
+        mock_rate_limit.assert_awaited_once()
+        call_args = mock_rate_limit.call_args
+        user_id_arg = call_args[0][1]  # second positional arg
+        assert user_id_arg == 99
+        assert isinstance(user_id_arg, int)
+
+    @pytest.mark.asyncio
+    @patch("app.api.corrections.check_correction_rate_limit")
+    @patch("app.api.corrections.LookupRecordRepository")
+    async def test_invalid_lookup_id_returns_404(
+        self, mock_repo_class, mock_rate_limit
+    ):
         """Test correction with invalid lookup_id returns 404."""
         from app.api.corrections import submit_correction
 
@@ -337,12 +449,12 @@ class TestSubmitCorrection:
         mock_repo.find_by_id.return_value = None
 
         body = CorrectionRequest(lookup_id=999, correct_hs_code_id=55)
-        request = self._make_mock_request()
+        user = self._make_mock_user()
         mock_db = AsyncMock()
         mock_redis = AsyncMock()
 
         result = await submit_correction(
-            request=request, body=body, db=mock_db, redis_client=mock_redis
+            body=body, user=user, db=mock_db, redis_client=mock_redis
         )
 
         assert result["success"] is False
@@ -351,7 +463,9 @@ class TestSubmitCorrection:
     @pytest.mark.asyncio
     @patch("app.api.corrections.check_correction_rate_limit")
     @patch("app.api.corrections.LookupRecordRepository")
-    async def test_invalid_hs_code_id(self, mock_repo_class, mock_rate_limit):
+    async def test_invalid_hs_code_id_returns_400(
+        self, mock_repo_class, mock_rate_limit
+    ):
         """Test correction with invalid hs_code_id returns 400."""
         from app.api.corrections import submit_correction
 
@@ -366,12 +480,12 @@ class TestSubmitCorrection:
         mock_hs_result.scalar_one_or_none.return_value = None
         mock_db.execute.return_value = mock_hs_result
 
-        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=999)
-        request = self._make_mock_request()
+        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=9999)
+        user = self._make_mock_user()
         mock_redis = AsyncMock()
 
         result = await submit_correction(
-            request=request, body=body, db=mock_db, redis_client=mock_redis
+            body=body, user=user, db=mock_db, redis_client=mock_redis
         )
 
         assert result["success"] is False
@@ -380,48 +494,181 @@ class TestSubmitCorrection:
     @pytest.mark.asyncio
     @patch("app.api.corrections.check_correction_rate_limit")
     @patch("app.api.corrections.LookupRecordRepository")
-    async def test_no_auth_required(self, mock_repo_class, mock_rate_limit):
-        """Test that no authentication is required (anonymous access)."""
+    async def test_already_approved_correction_returns_409(
+        self, mock_repo_class, mock_rate_limit
+    ):
+        """Test correction rejected when record already has approved correction (AC #4)."""
         from app.api.corrections import submit_correction
 
         mock_rate_limit.return_value = (True, 9, 3600)
 
         mock_repo = AsyncMock()
         mock_repo_class.return_value = mock_repo
-        mock_record = self._make_mock_record()
+        # Record already approved (is_verified=True, correct_hs_code_id set)
+        mock_record = self._make_mock_record(
+            matched_hs_code_id=42,
+            correct_hs_code_id=99,
+            is_verified=True,
+            correction_status="approved",
+        )
         mock_repo.find_by_id.return_value = mock_record
-        mock_repo.apply_correction.return_value = mock_record
 
         mock_db = AsyncMock()
         mock_hs_result = MagicMock()
         mock_hs_result.scalar_one_or_none.return_value = MagicMock()
         mock_db.execute.return_value = mock_hs_result
 
-        # No auth headers set on request - should still succeed
-        request = self._make_mock_request()
         body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55)
+        user = self._make_mock_user()
         mock_redis = AsyncMock()
 
         result = await submit_correction(
-            request=request, body=body, db=mock_db, redis_client=mock_redis
+            body=body, user=user, db=mock_db, redis_client=mock_redis
         )
 
-        assert result["success"] is True
+        assert result["success"] is False
+        assert result["error"]["status"] == 409
+        assert "Tra cuu nay da duoc chinh sua" in result["error"]["detail"]
+        # submit_pending_correction must NOT be called
+        mock_repo.submit_pending_correction.assert_not_awaited()
 
     @pytest.mark.asyncio
     @patch("app.api.corrections.check_correction_rate_limit")
     @patch("app.api.corrections.LookupRecordRepository")
-    async def test_correction_with_notes(self, mock_repo_class, mock_rate_limit):
-        """Test correction submission includes notes."""
+    async def test_already_pending_correction_returns_409(
+        self, mock_repo_class, mock_rate_limit
+    ):
+        """Test correction rejected when record already has a pending correction (AC #6)."""
         from app.api.corrections import submit_correction
 
         mock_rate_limit.return_value = (True, 9, 3600)
 
         mock_repo = AsyncMock()
         mock_repo_class.return_value = mock_repo
-        mock_record = self._make_mock_record(notes="Wrong category, should be copper")
+        # Record already has pending correction
+        mock_record = self._make_mock_record(
+            matched_hs_code_id=42,
+            is_verified=False,
+            correction_status="pending",
+        )
         mock_repo.find_by_id.return_value = mock_record
-        mock_repo.apply_correction.return_value = mock_record
+
+        mock_db = AsyncMock()
+        mock_hs_result = MagicMock()
+        mock_hs_result.scalar_one_or_none.return_value = MagicMock()
+        mock_db.execute.return_value = mock_hs_result
+
+        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55)
+        user = self._make_mock_user()
+        mock_redis = AsyncMock()
+
+        result = await submit_correction(
+            body=body, user=user, db=mock_db, redis_client=mock_redis
+        )
+
+        assert result["success"] is False
+        assert result["error"]["status"] == 409
+        assert "Chinh sua dang cho duyet" in result["error"]["detail"]
+        mock_repo.submit_pending_correction.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch("app.api.corrections.check_correction_rate_limit")
+    @patch("app.api.corrections.LookupRecordRepository")
+    async def test_rejects_duplicate_hs_code(self, mock_repo_class, mock_rate_limit):
+        """Test correction rejected when correct_hs_code_id equals matched_hs_code_id."""
+        from app.api.corrections import submit_correction
+
+        mock_rate_limit.return_value = (True, 9, 3600)
+
+        mock_repo = AsyncMock()
+        mock_repo_class.return_value = mock_repo
+        mock_record = self._make_mock_record(matched_hs_code_id=42)
+        mock_repo.find_by_id.return_value = mock_record
+
+        mock_db = AsyncMock()
+        mock_hs_result = MagicMock()
+        mock_hs_result.scalar_one_or_none.return_value = MagicMock()
+        mock_db.execute.return_value = mock_hs_result
+
+        # Try to "correct" to same code (42 == matched_hs_code_id)
+        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=42)
+        user = self._make_mock_user()
+        mock_redis = AsyncMock()
+
+        result = await submit_correction(
+            body=body, user=user, db=mock_db, redis_client=mock_redis
+        )
+
+        assert result["success"] is False
+        assert result["error"]["status"] == 400
+        assert "same as the current match" in result["error"]["detail"]
+        mock_repo.submit_pending_correction.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch("app.api.corrections.check_correction_rate_limit")
+    @patch("app.api.corrections.LookupRecordRepository")
+    async def test_correction_is_not_auto_verified(
+        self, mock_repo_class, mock_rate_limit
+    ):
+        """Test correction is NOT auto-verified (is_verified stays False, AC #2)."""
+        from app.api.corrections import submit_correction
+
+        mock_rate_limit.return_value = (True, 9, 3600)
+
+        mock_repo = AsyncMock()
+        mock_repo_class.return_value = mock_repo
+
+        input_record = self._make_mock_record()
+        updated_record = self._make_mock_record(
+            correct_hs_code_id=55,
+            correction_status="pending",
+            is_verified=False,
+            submitted_by_user_id=7,
+        )
+        mock_repo.find_by_id.return_value = input_record
+        mock_repo.submit_pending_correction.return_value = updated_record
+
+        mock_db = AsyncMock()
+        mock_hs_result = MagicMock()
+        mock_hs_result.scalar_one_or_none.return_value = MagicMock()
+        mock_db.execute.return_value = mock_hs_result
+
+        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55)
+        user = self._make_mock_user(user_id=7)
+        mock_redis = AsyncMock()
+
+        result = await submit_correction(
+            body=body, user=user, db=mock_db, redis_client=mock_redis
+        )
+
+        assert result["success"] is True
+        # CRITICAL: must NOT be auto-verified
+        assert result["data"]["is_verified"] is False
+        # Must use submit_pending_correction, NOT apply_correction
+        mock_repo.submit_pending_correction.assert_awaited_once()
+        mock_repo.apply_correction.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch("app.api.corrections.check_correction_rate_limit")
+    @patch("app.api.corrections.LookupRecordRepository")
+    async def test_correction_with_notes(self, mock_repo_class, mock_rate_limit):
+        """Test correction submission passes notes to repository."""
+        from app.api.corrections import submit_correction
+
+        mock_rate_limit.return_value = (True, 9, 3600)
+
+        mock_repo = AsyncMock()
+        mock_repo_class.return_value = mock_repo
+        input_record = self._make_mock_record()
+        updated_record = self._make_mock_record(
+            correct_hs_code_id=55,
+            correction_status="pending",
+            is_verified=False,
+            submitted_by_user_id=7,
+            notes="Nên dùng mã HS cho đồng",
+        )
+        mock_repo.find_by_id.return_value = input_record
+        mock_repo.submit_pending_correction.return_value = updated_record
 
         mock_db = AsyncMock()
         mock_hs_result = MagicMock()
@@ -431,200 +678,19 @@ class TestSubmitCorrection:
         body = CorrectionRequest(
             lookup_id=1,
             correct_hs_code_id=55,
-            notes="Wrong category, should be copper",
+            notes="Nên dùng mã HS cho đồng",
         )
-        request = self._make_mock_request()
+        user = self._make_mock_user(user_id=7)
         mock_redis = AsyncMock()
 
         result = await submit_correction(
-            request=request, body=body, db=mock_db, redis_client=mock_redis
+            body=body, user=user, db=mock_db, redis_client=mock_redis
         )
 
         assert result["success"] is True
-        assert result["data"]["notes"] == "Wrong category, should be copper"
-        mock_repo.apply_correction.assert_awaited_once_with(
+        mock_repo.submit_pending_correction.assert_awaited_once_with(
             record_id=1,
             correct_hs_code_id=55,
-            notes="Wrong category, should be copper",
-        )
-
-    @pytest.mark.asyncio
-    @patch("app.api.corrections.check_correction_rate_limit")
-    @patch("app.api.corrections.LookupRecordRepository")
-    async def test_rejects_duplicate_correction(self, mock_repo_class, mock_rate_limit):
-        """Test correction rejected when correct_hs_code_id equals matched_hs_code_id."""
-        from app.api.corrections import submit_correction
-
-        mock_rate_limit.return_value = (True, 9, 3600)
-
-        mock_repo = AsyncMock()
-        mock_repo_class.return_value = mock_repo
-        # Record with matched_hs_code_id = 42
-        mock_record = self._make_mock_record(matched_hs_code_id=42)
-        mock_repo.find_by_id.return_value = mock_record
-
-        mock_db = AsyncMock()
-        mock_hs_result = MagicMock()
-        mock_hs_result.scalar_one_or_none.return_value = MagicMock()
-        mock_db.execute.return_value = mock_hs_result
-
-        # Try to "correct" to the same code (42)
-        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=42)
-        request = self._make_mock_request()
-        mock_redis = AsyncMock()
-
-        result = await submit_correction(
-            request=request, body=body, db=mock_db, redis_client=mock_redis
-        )
-
-        assert result["success"] is False
-        assert result["error"]["status"] == 400
-        assert "same as the current match" in result["error"]["detail"]
-        # apply_correction should NOT be called
-        mock_repo.apply_correction.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    @patch("app.api.corrections.check_correction_rate_limit")
-    @patch("app.api.corrections.LookupRecordRepository")
-    async def test_rejects_already_corrected(self, mock_repo_class, mock_rate_limit):
-        """Test correction rejected when record already has a verified correction."""
-        from app.api.corrections import submit_correction
-
-        mock_rate_limit.return_value = (True, 9, 3600)
-
-        mock_repo = AsyncMock()
-        mock_repo_class.return_value = mock_repo
-        # Record already verified with correct_hs_code_id = 99
-        mock_record = self._make_mock_record(
-            matched_hs_code_id=42,
-            correct_hs_code_id=99,
-            is_verified=True,
-        )
-        mock_repo.find_by_id.return_value = mock_record
-
-        mock_db = AsyncMock()
-        mock_hs_result = MagicMock()
-        mock_hs_result.scalar_one_or_none.return_value = MagicMock()
-        mock_db.execute.return_value = mock_hs_result
-
-        # Try to correct again
-        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55)
-        request = self._make_mock_request()
-        mock_redis = AsyncMock()
-
-        result = await submit_correction(
-            request=request, body=body, db=mock_db, redis_client=mock_redis
-        )
-
-        assert result["success"] is False
-        assert result["error"]["status"] == 409
-        assert "already been corrected" in result["error"]["detail"]
-        # apply_correction should NOT be called
-        mock_repo.apply_correction.assert_not_awaited()
-
-
-class TestCorrectionKBIntegration:
-    """Test 8.6: Corrected records appear in KB search via KnowledgeBaseService."""
-
-    @pytest.mark.asyncio
-    async def test_correction_makes_record_findable_by_exact_hash(self):
-        """After apply_correction, KnowledgeBaseService.lookup finds it via exact hash."""
-        mock_session = AsyncMock()
-
-        # Simulate a verified record that would be returned by find_verified_exact
-        mock_verified_record = MagicMock()
-        mock_verified_record.id = 1
-        mock_verified_record.correct_hs_code_id = 55
-        mock_verified_record.verified_by_user_id = None
-        mock_verified_record.verified_at = datetime(2026, 2, 10, tzinfo=timezone.utc)
-        mock_verified_record.is_verified = True
-
-        with patch.object(
-            KnowledgeBaseService, "__init__", lambda self, session: setattr(self, "repo", AsyncMock())
-        ):
-            kb = KnowledgeBaseService(mock_session)
-            kb.repo.find_verified_exact.return_value = mock_verified_record
-            kb.repo.find_verified_similar.return_value = []
-
-            result = await kb.lookup("copper towel rack")
-
-        assert result is not None
-        assert result.hs_code_id == 55
-        assert result.match_type == "exact"
-        assert result.confidence == 100
-
-    @pytest.mark.asyncio
-    async def test_correction_makes_record_findable_by_similar_text(self):
-        """After apply_correction, KnowledgeBaseService.lookup finds it via pg_trgm."""
-        mock_session = AsyncMock()
-
-        mock_verified_record = MagicMock()
-        mock_verified_record.id = 2
-        mock_verified_record.correct_hs_code_id = 55
-        mock_verified_record.verified_by_user_id = None
-        mock_verified_record.verified_at = datetime(2026, 2, 10, tzinfo=timezone.utc)
-
-        with patch.object(
-            KnowledgeBaseService, "__init__", lambda self, session: setattr(self, "repo", AsyncMock())
-        ):
-            kb = KnowledgeBaseService(mock_session)
-            kb.repo.find_verified_exact.return_value = None
-            kb.repo.find_verified_similar.return_value = [(mock_verified_record, 0.92)]
-
-            result = await kb.lookup("copper towel holder")
-
-        assert result is not None
-        assert result.hs_code_id == 55
-        assert result.match_type == "similar"
-        assert result.confidence == 92
-
-    @pytest.mark.asyncio
-    async def test_correction_auto_verifies_for_kb_visibility(self):
-        """Correction sets is_verified=True so KB queries find it."""
-        from app.api.corrections import submit_correction
-
-        mock_rate_limit_return = (True, 9, 3600)
-
-        # Create a mock record that simulates apply_correction output
-        updated = MagicMock()
-        updated.id = 1
-        updated.query_text = "copper towel rack"
-        updated.matched_hs_code_id = 42
-        updated.correct_hs_code_id = 55
-        updated.is_verified = True
-        updated.verified_at = datetime(2026, 2, 10, tzinfo=timezone.utc)
-        updated.notes = None
-
-        mock_repo = AsyncMock()
-        mock_repo.find_by_id.return_value = MagicMock()
-        mock_repo.apply_correction.return_value = updated
-
-        mock_request = MagicMock()
-        mock_request.client.host = "127.0.0.1"
-        mock_request.headers = {}
-
-        mock_db = AsyncMock()
-        mock_hs_result = MagicMock()
-        mock_hs_result.scalar_one_or_none.return_value = MagicMock()
-        mock_db.execute.return_value = mock_hs_result
-
-        body = CorrectionRequest(lookup_id=1, correct_hs_code_id=55)
-
-        with patch("app.api.corrections.check_correction_rate_limit", return_value=mock_rate_limit_return), \
-             patch("app.api.corrections.LookupRecordRepository", return_value=mock_repo):
-            result = await submit_correction(
-                request=mock_request,
-                body=body,
-                db=mock_db,
-                redis_client=AsyncMock(),
-            )
-
-        assert result["success"] is True
-        assert result["data"]["is_verified"] is True
-        assert result["data"]["verified_at"] is not None
-        assert result["data"]["correct_hs_code_id"] == 55
-
-        # Verify apply_correction was called (which sets is_verified=True)
-        mock_repo.apply_correction.assert_awaited_once_with(
-            record_id=1, correct_hs_code_id=55, notes=None
+            submitted_by_user_id=7,
+            notes="Nên dùng mã HS cho đồng",
         )

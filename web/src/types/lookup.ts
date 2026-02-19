@@ -48,5 +48,7 @@ export interface LookupDetail {
   is_verified: boolean;
   verified_at: string | null;
   notes: string | null;
+  correction_status: string | null;
+  submitted_by_user_id: number | null;
   created_at: string;
 }

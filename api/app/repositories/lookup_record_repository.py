@@ -208,6 +208,42 @@ class LookupRecordRepository:
         )
         return result.scalar_one()
 
+    async def submit_pending_correction(
+        self,
+        record_id: int,
+        correct_hs_code_id: int,
+        submitted_by_user_id: int,
+        notes: str | None = None,
+    ) -> LookupRecord:
+        """Submit a correction as pending (requires expert approval).
+
+        Sets correction_status='pending', is_verified=false, and tracks the submitter.
+
+        Args:
+            record_id: ID of the lookup record to correct.
+            correct_hs_code_id: ID of the proposed correct HS code.
+            submitted_by_user_id: ID of the user submitting the correction.
+            notes: Optional correction notes.
+
+        Returns:
+            The updated LookupRecord.
+        """
+        await self.session.execute(
+            update(LookupRecord)
+            .where(LookupRecord.id == record_id)
+            .values(
+                correct_hs_code_id=correct_hs_code_id,
+                correction_status="pending",
+                is_verified=False,
+                submitted_by_user_id=submitted_by_user_id,
+                notes=notes,
+            )
+        )
+        result = await self.session.execute(
+            select(LookupRecord).where(LookupRecord.id == record_id)
+        )
+        return result.scalar_one()
+
     async def touch_updated_at(self, record_id: int) -> None:
         """Update only the updated_at timestamp for deduplication."""
         await self.session.execute(

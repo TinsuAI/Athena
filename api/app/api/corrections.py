@@ -1,16 +1,16 @@
-"""Corrections API for anonymous correction submissions."""
+"""Corrections API for authenticated correction submissions."""
 
 import logging
 import time
 from typing import Any
 
 import redis.asyncio as redis
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import require_authenticated
 from app.core.database import get_db
-from app.core.rate_limiter import get_client_ip
 from app.core.redis import get_redis
 from app.models.hs_code import HSCode
 from app.repositories.lookup_record_repository import LookupRecordRepository
@@ -34,15 +34,15 @@ CORRECTION_RATE_PREFIX = "correction_rate:"
 
 async def check_correction_rate_limit(
     redis_client: "redis.Redis | None",
-    client_ip: str,
+    user_id: int,
 ) -> tuple[bool, int, int]:
-    """Check IP-based rate limit for corrections (10/hour).
+    """Check per-user rate limit for corrections (10/hour).
 
     Uses Redis sorted set sliding window pattern.
 
     Args:
         redis_client: Redis client
-        client_ip: Client IP address
+        user_id: Authenticated user's ID
 
     Returns:
         Tuple of (allowed, remaining, reset_seconds)
@@ -50,7 +50,7 @@ async def check_correction_rate_limit(
     if not redis_client:
         return True, CORRECTION_RATE_LIMIT, CORRECTION_RATE_WINDOW
 
-    key = f"{CORRECTION_RATE_PREFIX}{client_ip}"
+    key = f"{CORRECTION_RATE_PREFIX}user:{user_id}"
     current_time = int(time.time())
     window_start = current_time - CORRECTION_RATE_WINDOW
 
@@ -132,19 +132,19 @@ async def get_unverified_lookups(
     "",
     response_model=ApiResponse[CorrectionResponse],
     summary="Submit a correction",
-    description="Submit an anonymous correction for a lookup record. Rate limited to 10/hour per IP.",
+    description="Submit a correction for a lookup record. Requires authentication. Rate limited to 10/hour per user.",
 )
 async def submit_correction(
-    request: Request,
     body: CorrectionRequest,
+    user: dict = Depends(require_authenticated),
     db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis),  # type: ignore[type-arg]
 ) -> dict[str, Any]:
-    """Submit a correction for a lookup record (anonymous, rate-limited)."""
-    # Check correction-specific rate limit (10/hour per IP)
-    client_ip = get_client_ip(request)
+    """Submit a correction for a lookup record (authenticated, pending approval)."""
+    # Check correction-specific rate limit (10/hour per user)
+    user_id = user["id"]
     allowed, remaining, reset = await check_correction_rate_limit(
-        redis_client, client_ip
+        redis_client, user_id
     )
 
     if not allowed:
@@ -193,20 +193,31 @@ async def submit_correction(
             instance="/api/corrections",
         )
 
-    # Check if record already has a verified correction
+    # Check if record already has an approved correction
     if record.is_verified and record.correct_hs_code_id:
         return error_response(
             type_uri="https://athena.example/errors/already-corrected",
             title="Conflict",
             status=status.HTTP_409_CONFLICT,
-            detail=f"This lookup has already been corrected (HS code ID: {record.correct_hs_code_id}). Multiple corrections are not allowed.",
+            detail="Tra cuu nay da duoc chinh sua",
             instance="/api/corrections",
         )
 
-    # Apply correction (sets is_verified=true, verified_at=now(), notes)
-    updated_record = await repo.apply_correction(
+    # Check if record already has a pending correction
+    if record.correction_status == "pending":
+        return error_response(
+            type_uri="https://athena.example/errors/correction-pending",
+            title="Correction Already Pending",
+            status=status.HTTP_409_CONFLICT,
+            detail="Chinh sua dang cho duyet",
+            instance="/api/corrections",
+        )
+
+    # Submit as pending (NOT auto-verified)
+    updated_record = await repo.submit_pending_correction(
         record_id=body.lookup_id,
         correct_hs_code_id=body.correct_hs_code_id,
+        submitted_by_user_id=user_id,
         notes=body.notes,
     )
 
@@ -222,6 +233,8 @@ async def submit_correction(
             else None
         ),
         notes=updated_record.notes,
+        correction_status=updated_record.correction_status,
+        submitted_by_user_id=updated_record.submitted_by_user_id,
     )
 
     logger.info(
@@ -229,7 +242,7 @@ async def submit_correction(
         extra={
             "lookup_id": body.lookup_id,
             "correct_hs_code_id": body.correct_hs_code_id,
-            "client_ip": client_ip,
+            "user_id": user_id,
         },
     )
 

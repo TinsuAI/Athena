@@ -124,6 +124,8 @@ async def get_lookup_detail(
         is_verified=record.is_verified,
         verified_at=record.verified_at.isoformat() if record.verified_at else None,
         notes=record.notes,
+        correction_status=record.correction_status,
+        submitted_by_user_id=record.submitted_by_user_id,
         created_at=record.created_at.isoformat(),
     )
     return success_response(response.model_dump())

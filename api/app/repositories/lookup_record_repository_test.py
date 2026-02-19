@@ -676,3 +676,106 @@ class TestLookupRecordRepository:
 
         assert result is updated_record
         assert result.notes is None
+
+    # --- Tests for submit_pending_correction (Story 5-2, Task 5.1) ---
+
+    @pytest.mark.asyncio
+    async def test_submit_pending_correction_sets_all_fields(self):
+        """Test submit_pending_correction sets all required fields correctly."""
+        mock_session = AsyncMock()
+
+        updated_record = self._make_record(
+            id=1,
+            correct_hs_code_id=55,
+            correction_status="pending",
+            is_verified=False,
+            submitted_by_user_id=42,
+            notes="Cần mã HS đúng cho đồng",
+        )
+
+        mock_select_result = MagicMock()
+        mock_select_result.scalar_one.return_value = updated_record
+        mock_session.execute.side_effect = [
+            AsyncMock(),  # UPDATE result
+            mock_select_result,  # SELECT result
+        ]
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.submit_pending_correction(
+            record_id=1,
+            correct_hs_code_id=55,
+            submitted_by_user_id=42,
+            notes="Cần mã HS đúng cho đồng",
+        )
+
+        assert result is updated_record
+        assert result.correction_status == "pending"
+        assert result.is_verified is False
+        assert result.submitted_by_user_id == 42
+        assert result.correct_hs_code_id == 55
+        assert result.notes == "Cần mã HS đúng cho đồng"
+        assert mock_session.execute.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_submit_pending_correction_preserves_is_verified_false(self):
+        """Test submit_pending_correction never sets is_verified=True."""
+        mock_session = AsyncMock()
+
+        # Even if the record was previously verified (edge case), pending sets is_verified=False
+        updated_record = self._make_record(
+            id=1,
+            correct_hs_code_id=55,
+            correction_status="pending",
+            is_verified=False,
+            submitted_by_user_id=99,
+        )
+
+        mock_select_result = MagicMock()
+        mock_select_result.scalar_one.return_value = updated_record
+        mock_session.execute.side_effect = [
+            AsyncMock(),
+            mock_select_result,
+        ]
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.submit_pending_correction(
+            record_id=1,
+            correct_hs_code_id=55,
+            submitted_by_user_id=99,
+        )
+
+        # CRITICAL: is_verified must remain False — never auto-verified
+        assert result.is_verified is False
+        assert result.correction_status == "pending"
+
+    @pytest.mark.asyncio
+    async def test_submit_pending_correction_without_notes(self):
+        """Test submit_pending_correction works without optional notes."""
+        mock_session = AsyncMock()
+
+        updated_record = self._make_record(
+            id=1,
+            correct_hs_code_id=55,
+            correction_status="pending",
+            is_verified=False,
+            submitted_by_user_id=7,
+            notes=None,
+        )
+
+        mock_select_result = MagicMock()
+        mock_select_result.scalar_one.return_value = updated_record
+        mock_session.execute.side_effect = [
+            AsyncMock(),
+            mock_select_result,
+        ]
+
+        repo = LookupRecordRepository(session=mock_session)
+        result = await repo.submit_pending_correction(
+            record_id=1,
+            correct_hs_code_id=55,
+            submitted_by_user_id=7,
+        )
+
+        assert result is updated_record
+        assert result.notes is None
+        assert result.correction_status == "pending"

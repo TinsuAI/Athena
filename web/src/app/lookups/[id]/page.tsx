@@ -348,9 +348,26 @@ export default function LookupDetailPage() {
 
       {/* Correction Section */}
       <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
-          Hiệu chỉnh
-        </h2>
+        <div className="mb-4 flex items-center gap-3">
+          <h2 className="text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
+            Hiệu chỉnh
+          </h2>
+          {lookup.correction_status === "pending" && (
+            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full ring-1 ring-amber-200">
+              Đang chờ duyệt
+            </span>
+          )}
+          {lookup.correction_status === "approved" && (
+            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full ring-1 ring-emerald-200">
+              Đã phê duyệt
+            </span>
+          )}
+          {lookup.correction_status === "rejected" && (
+            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded-full ring-1 ring-red-200">
+              Đã từ chối
+            </span>
+          )}
+        </div>
         {lookup.is_verified && lookup.correct_hs_code ? (
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-800 px-3 py-1 text-sm font-semibold mb-4">
@@ -401,6 +418,17 @@ export default function LookupDetailPage() {
                 </p>
               )}
             </div>
+          </div>
+        ) : lookup.correction_status === "pending" ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800 dark:bg-amber-900/10">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              Có một đề xuất hiệu chỉnh đang chờ xét duyệt bởi chuyên gia.
+            </p>
+            {lookup.notes && (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                Ghi chú: {lookup.notes}
+              </p>
+            )}
           </div>
         ) : (
           <CorrectionButton

@@ -11,6 +11,7 @@ from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.hs_code import HSCode
+    from app.models.user import User
 
 
 class LookupRecord(Base):
@@ -41,6 +42,13 @@ class LookupRecord(Base):
     verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    submitted_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    correction_status: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )  # Valid values: null, "pending", "approved", "rejected"
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     search_method: Mapped[str] = mapped_column(String(20), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -68,6 +76,10 @@ class LookupRecord(Base):
     correct_hs_code: Mapped["HSCode | None"] = relationship(
         "HSCode",
         foreign_keys=[correct_hs_code_id],
+    )
+    submitted_by_user: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[submitted_by_user_id],
     )
 
     def __repr__(self) -> str:

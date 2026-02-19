@@ -25,6 +25,12 @@ class CorrectionResponse(BaseModel):
     is_verified: bool = Field(description="Verification status")
     verified_at: str | None = Field(description="Verification timestamp (ISO format)")
     notes: str | None = Field(description="Correction notes")
+    correction_status: str | None = Field(
+        default=None, description="Correction workflow status: null, pending, approved, rejected"
+    )
+    submitted_by_user_id: int | None = Field(
+        default=None, description="ID of the user who submitted the correction"
+    )
 
 
 class LookupRecordItem(BaseModel):
