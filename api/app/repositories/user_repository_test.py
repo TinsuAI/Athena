@@ -131,6 +131,52 @@ class TestUserRepository:
         assert len(users) == 1
 
     @pytest.mark.asyncio
+    async def test_list_all_with_search_filters_by_email(self):
+        """Test list_all with search parameter filters by email."""
+        repo, session = self._make_repo()
+        user1 = User(id=1, email="admin@example.com", password_hash="h", role="admin")
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 1
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [user1]
+        mock_list_result = MagicMock()
+        mock_list_result.scalars.return_value = mock_scalars
+
+        session.execute.side_effect = [mock_count_result, mock_list_result]
+
+        users, total = await repo.list_all(page=1, per_page=20, search="admin")
+
+        assert total == 1
+        assert len(users) == 1
+        assert users[0].email == "admin@example.com"
+        # Verify execute was called twice (count + query)
+        assert session.execute.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_list_all_without_search_returns_all(self):
+        """Test list_all without search returns all users."""
+        repo, session = self._make_repo()
+        user1 = User(id=1, email="a@example.com", password_hash="h", role="user")
+        user2 = User(id=2, email="b@example.com", password_hash="h", role="admin")
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 2
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [user1, user2]
+        mock_list_result = MagicMock()
+        mock_list_result.scalars.return_value = mock_scalars
+
+        session.execute.side_effect = [mock_count_result, mock_list_result]
+
+        users, total = await repo.list_all(page=1, per_page=20)
+
+        assert total == 2
+        assert len(users) == 2
+
+    @pytest.mark.asyncio
     async def test_update_role_changes_role(self):
         """Test update_role changes user role and returns updated user."""
         repo, session = self._make_repo()
@@ -159,3 +205,58 @@ class TestUserRepository:
         result = await repo.update_role(999, "admin")
 
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_update_user_changes_email_and_role(self):
+        """Test update_user changes email and role fields."""
+        repo, session = self._make_repo()
+        updated_user = User(id=1, email="new@example.com", password_hash="h", role="expert")
+
+        # First call: execute update
+        # Second call: get_by_id query (via flush + get_by_id)
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = updated_user
+        session.execute.side_effect = [MagicMock(), mock_result]
+
+        result = await repo.update_user(1, email="new@example.com", role="expert")
+
+        assert result is updated_user
+        assert result.email == "new@example.com"
+        assert result.role == "expert"
+        # Verify flush was called (update triggers flush)
+        session.flush.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_update_user_no_fields_returns_user(self):
+        """Test update_user with no fields returns the existing user."""
+        repo, session = self._make_repo()
+        existing_user = User(id=1, email="a@example.com", password_hash="h", role="user")
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = existing_user
+        session.execute.return_value = mock_result
+
+        result = await repo.update_user(1)
+
+        assert result is existing_user
+        # Flush should NOT be called since no update was made
+        session.flush.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_update_status_changes_is_active(self):
+        """Test update_status changes the is_active field."""
+        repo, session = self._make_repo()
+        updated_user = User(id=1, email="a@example.com", password_hash="h", role="user")
+        updated_user.is_active = False
+
+        # First call: execute update
+        # Second call: get_by_id query
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = updated_user
+        session.execute.side_effect = [MagicMock(), mock_result]
+
+        result = await repo.update_status(1, False)
+
+        assert result is updated_user
+        assert result.is_active is False
+        session.flush.assert_awaited()

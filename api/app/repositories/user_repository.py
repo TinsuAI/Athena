@@ -41,16 +41,39 @@ class UserRepository:
         )
         await self.session.flush()
 
-    async def list_all(self, page: int, per_page: int) -> tuple[list[User], int]:
-        """Return paginated user list with total count."""
-        # Get total count
-        count_result = await self.session.execute(select(func.count(User.id)))
+    async def update_user(self, user_id: int, **fields: str) -> User | None:
+        """Update user fields (email and/or role). Returns updated user or None."""
+        if not fields:
+            return await self.get_by_id(user_id)
+        await self.session.execute(
+            update(User).where(User.id == user_id).values(**fields)
+        )
+        await self.session.flush()
+        return await self.get_by_id(user_id)
+
+    async def update_status(self, user_id: int, is_active: bool) -> User | None:
+        """Update user is_active status. Returns updated user or None."""
+        await self.session.execute(
+            update(User).where(User.id == user_id).values(is_active=is_active)
+        )
+        await self.session.flush()
+        return await self.get_by_id(user_id)
+
+    async def list_all(self, page: int, per_page: int, search: str = "") -> tuple[list[User], int]:
+        """Return paginated user list with total count, optionally filtered by email."""
+        base_query = select(User)
+        count_query = select(func.count(User.id))
+
+        if search:
+            base_query = base_query.where(User.email.ilike(f"%{search}%"))
+            count_query = count_query.where(User.email.ilike(f"%{search}%"))
+
+        count_result = await self.session.execute(count_query)
         total = count_result.scalar_one()
 
-        # Get paginated users
         offset = (page - 1) * per_page
         result = await self.session.execute(
-            select(User).order_by(User.id).offset(offset).limit(per_page)
+            base_query.order_by(User.id).offset(offset).limit(per_page)
         )
         users = list(result.scalars().all())
 

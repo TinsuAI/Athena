@@ -1,5 +1,6 @@
 """Admin schemas for request/response validation."""
 
+import re
 from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
@@ -19,12 +20,72 @@ class RoleUpdateRequest(BaseModel):
         return v
 
 
+class AdminCreateUserRequest(BaseModel):
+    """Schema for admin creating a new user."""
+
+    email: str = Field(description="User email address")
+    password: str = Field(min_length=8, description="Temporary password (min 8 characters)")
+    role: str = Field(default="user", description="User role")
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        """Validate email format."""
+        pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not re.match(pattern, v):
+            raise ValueError("Please enter a valid email address")
+        return v.lower().strip()
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        """Validate role is one of the allowed values."""
+        if v not in ("user", "expert", "admin"):
+            raise ValueError("Role must be 'user', 'expert', or 'admin'")
+        return v
+
+
+class AdminUpdateUserRequest(BaseModel):
+    """Schema for admin updating a user's profile."""
+
+    email: str | None = Field(default=None, description="New email address")
+    role: str | None = Field(default=None, description="New role")
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        """Validate email format if provided."""
+        if v is None:
+            return None
+        pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not re.match(pattern, v):
+            raise ValueError("Please enter a valid email address")
+        return v.lower().strip()
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str | None) -> str | None:
+        """Validate role is one of the allowed values if provided."""
+        if v is None:
+            return None
+        if v not in ("user", "expert", "admin"):
+            raise ValueError("Role must be 'user', 'expert', or 'admin'")
+        return v
+
+
+class UserStatusRequest(BaseModel):
+    """Schema for toggling user active status."""
+
+    is_active: bool = Field(description="Whether user is active")
+
+
 class UserListItem(BaseModel):
     """Schema for a user item in the admin user list."""
 
     id: int
     email: str
     role: str
+    is_active: bool
     created_at: datetime
 
 
