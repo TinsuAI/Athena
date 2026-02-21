@@ -389,6 +389,31 @@ describe("FavoritesPage", () => {
     expect(screen.getByText("1 / 2 mã yêu thích")).toBeInTheDocument();
   });
 
+  it("shows 'Xóa bộ lọc' button in no-matches state and clicking it clears filter", async () => {
+    mockFavorites = [...sampleFavorites];
+    mockGetFavorites.mockResolvedValue(sampleFavorites);
+
+    render(<FavoritesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("01012100")).toBeInTheDocument();
+    });
+
+    const searchInput = screen.getByPlaceholderText("Tìm trong yêu thích...");
+    fireEvent.change(searchInput, { target: { value: "xyznotfound" } });
+
+    // No-matches state should show "Xóa bộ lọc" text button
+    const clearFilterBtn = screen.getByText("Xóa bộ lọc");
+    expect(clearFilterBtn).toBeInTheDocument();
+
+    // Click it to clear
+    fireEvent.click(clearFilterBtn);
+
+    // All favorites should be visible again
+    expect(screen.getByText("01012100")).toBeInTheDocument();
+    expect(screen.getByText("02013000")).toBeInTheDocument();
+  });
+
   it("search input not rendered when favorites list is empty", async () => {
     mockGetFavorites.mockResolvedValue([]);
 

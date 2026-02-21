@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { Star, Search, X, CheckCircle2, AlertCircle, Undo2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { getFavorites, removeFavorite, addFavorite } from "@/lib/api";
+import { getFavorites, removeFavorite } from "@/lib/api";
 import { FavoriteCard } from "./components/FavoriteCard";
 import type { Favorite } from "@/types/favorite";
 
@@ -146,8 +146,12 @@ export default function FavoritesPage() {
   );
 
   // Sort favorites by created_at descending (most recent first)
-  const sortedFavorites = [...favorites].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  const sortedFavorites = useMemo(
+    () =>
+      [...favorites].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ),
+    [favorites]
   );
 
   // Client-side filtering
