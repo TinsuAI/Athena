@@ -15,7 +15,7 @@ from app.services.search_history_service import SearchHistoryService
 router = APIRouter(prefix="/api/history", tags=["history"])
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def record_search(
     body: SearchHistoryCreate,
     current_user: dict = Depends(require_authenticated),
@@ -63,7 +63,7 @@ async def delete_history_entry(
     return success_response({"deleted": True})
 
 
-@router.get("/")
+@router.get("")
 async def list_history(
     current_user: dict = Depends(require_authenticated),
     db: AsyncSession = Depends(get_db_session),

@@ -15,7 +15,7 @@ from app.services.favorites_service import DuplicateFavoriteError, FavoritesServ
 router = APIRouter(prefix="/api/favorites", tags=["favorites"])
 
 
-@router.get("/")
+@router.get("")
 async def list_favorites(
     current_user: dict = Depends(require_authenticated),
     db: AsyncSession = Depends(get_db_session),
@@ -26,7 +26,7 @@ async def list_favorites(
     return success_response(favorites)
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def add_favorite(
     body: FavoriteCreate,
     current_user: dict = Depends(require_authenticated),

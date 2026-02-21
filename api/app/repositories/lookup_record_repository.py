@@ -283,6 +283,37 @@ class LookupRecordRepository:
         )
         return result.scalar_one()
 
+    async def get_resolved_corrections(
+        self, limit: int = 20, offset: int = 0
+    ) -> list[LookupRecord]:
+        """Get approved/rejected corrections with eager-loaded HS codes and submitter.
+
+        Returns records with correction_status in ('approved', 'rejected'),
+        ordered by most recently updated first.
+        """
+        result = await self.session.execute(
+            select(LookupRecord)
+            .where(LookupRecord.correction_status.in_(["approved", "rejected"]))
+            .options(
+                selectinload(LookupRecord.matched_hs_code),
+                selectinload(LookupRecord.correct_hs_code),
+                selectinload(LookupRecord.submitted_by_user),
+            )
+            .order_by(LookupRecord.updated_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(result.scalars().all())
+
+    async def count_resolved_corrections(self) -> int:
+        """Count total approved/rejected corrections."""
+        result = await self.session.execute(
+            select(func.count(LookupRecord.id)).where(
+                LookupRecord.correction_status.in_(["approved", "rejected"])
+            )
+        )
+        return result.scalar_one()
+
     async def approve_correction(
         self, record_id: int, verified_by_user_id: int
     ) -> LookupRecord:

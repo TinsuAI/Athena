@@ -90,6 +90,84 @@ class ExpertService:
             "per_page": per_page,
         }
 
+    async def list_correction_history(
+        self, page: int = 1, per_page: int = 20
+    ) -> dict:
+        """List approved/rejected corrections with pagination.
+
+        Args:
+            page: Page number (1-indexed).
+            per_page: Items per page.
+
+        Returns:
+            Dict with items, total, page, per_page for response serialization.
+        """
+        offset = (page - 1) * per_page
+        records = await self.lookup_repo.get_resolved_corrections(
+            limit=per_page, offset=offset
+        )
+        total = await self.lookup_repo.count_resolved_corrections()
+
+        items = []
+        for record in records:
+            items.append(
+                {
+                    "id": record.id,
+                    "query_text": record.query_text,
+                    "matched_hs_code": (
+                        record.matched_hs_code.code
+                        if record.matched_hs_code
+                        else None
+                    ),
+                    "matched_description_vn": (
+                        record.matched_hs_code.description_vn
+                        if record.matched_hs_code
+                        else None
+                    ),
+                    "matched_description_en": (
+                        record.matched_hs_code.description_en
+                        if record.matched_hs_code
+                        else None
+                    ),
+                    "correct_hs_code": (
+                        record.correct_hs_code.code
+                        if record.correct_hs_code
+                        else None
+                    ),
+                    "correct_description_vn": (
+                        record.correct_hs_code.description_vn
+                        if record.correct_hs_code
+                        else None
+                    ),
+                    "correct_description_en": (
+                        record.correct_hs_code.description_en
+                        if record.correct_hs_code
+                        else None
+                    ),
+                    "submitter_email": (
+                        record.submitted_by_user.email
+                        if record.submitted_by_user
+                        else None
+                    ),
+                    "submitted_at": record.created_at.isoformat(),
+                    "notes": record.notes,
+                    "correction_status": record.correction_status,
+                    "rejection_reason": record.rejection_reason,
+                    "verified_at": (
+                        record.verified_at.isoformat()
+                        if record.verified_at
+                        else None
+                    ),
+                }
+            )
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+        }
+
     async def approve_correction(
         self, record_id: int, expert_user_id: int
     ) -> LookupRecord:

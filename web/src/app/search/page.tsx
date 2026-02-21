@@ -57,7 +57,7 @@ function SearchPageInner() {
   useKeyboardShortcuts({ inputRef });
 
   // Execute search when button clicked or Enter pressed
-  const executeSearch = useCallback(async (queryOverride?: string) => {
+  const executeSearch = useCallback(async (queryOverride?: string, skipHistory = false) => {
     const query = (queryOverride ?? searchQuery).trim();
 
     // Skip empty queries
@@ -83,7 +83,8 @@ function SearchPageInner() {
       );
       setSearchResult(result);
       // Fire-and-forget: record search history for authenticated users
-      if (session?.user) {
+      // Skip when re-executing from history to avoid duplicating entries
+      if (session?.user && !skipHistory) {
         recordSearchHistory(query, result.hs_code_id ?? null).catch(() => {});
       }
     } catch (err) {
@@ -107,7 +108,7 @@ function SearchPageInner() {
     if (q && q.trim() && !initialQueryHandled.current) {
       initialQueryHandled.current = true;
       setSearchQuery(q);
-      executeSearch(q);
+      executeSearch(q, true);
     }
   }, [searchParams, setSearchQuery, executeSearch]);
 

@@ -34,6 +34,19 @@ async def get_pending_corrections(
     return success_response(result)
 
 
+@router.get("/corrections/history", response_model=None)
+async def get_correction_history(
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=20, ge=1, le=100),
+    current_user: dict = Depends(require_permission("correction.approve")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """List approved/rejected corrections for history view. Requires expert or admin role."""
+    service = ExpertService(db)
+    result = await service.list_correction_history(page=page, per_page=per_page)
+    return success_response(result)
+
+
 @router.post("/corrections/{record_id}/approve", response_model=None)
 async def approve_correction(
     record_id: int,
