@@ -1,6 +1,6 @@
 """Repository for search history data access."""
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, delete as delete_stmt, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -47,3 +47,25 @@ class SearchHistoryRepository:
             .where(SearchHistory.user_id == user_id)
         )
         return result.scalar_one()
+
+    async def delete(self, entry_id: int, user_id: int) -> bool:
+        """Delete a single history entry scoped to the owning user."""
+        result = await self.db.execute(
+            select(SearchHistory).where(
+                and_(SearchHistory.id == entry_id, SearchHistory.user_id == user_id)
+            )
+        )
+        entry = result.scalar_one_or_none()
+        if entry:
+            await self.db.delete(entry)
+            await self.db.flush()
+            return True
+        return False
+
+    async def delete_all_by_user(self, user_id: int) -> int:
+        """Delete all history entries for a user. Returns count deleted."""
+        result = await self.db.execute(
+            delete_stmt(SearchHistory).where(SearchHistory.user_id == user_id)
+        )
+        await self.db.flush()
+        return result.rowcount

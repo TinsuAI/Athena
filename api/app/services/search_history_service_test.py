@@ -120,3 +120,85 @@ class TestListHistory:
 
         assert result["items"] == []
         assert result["total"] == 0
+
+
+class TestDeleteEntry:
+    """Tests for SearchHistoryService.delete_entry."""
+
+    @pytest.mark.asyncio
+    async def test_delete_entry(self):
+        """Test deletes entry and commits, returns True."""
+        mock_db = AsyncMock()
+
+        with patch(
+            "app.services.search_history_service.SearchHistoryRepository"
+        ) as mock_repo_cls:
+            mock_repo = AsyncMock()
+            mock_repo.delete.return_value = True
+            mock_repo_cls.return_value = mock_repo
+
+            service = SearchHistoryService(mock_db)
+            result = await service.delete_entry(1, 10)
+
+        assert result is True
+        mock_repo.delete.assert_called_once_with(1, 10)
+        mock_db.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_delete_entry_not_found(self):
+        """Test returns False and does not commit when entry not found."""
+        mock_db = AsyncMock()
+
+        with patch(
+            "app.services.search_history_service.SearchHistoryRepository"
+        ) as mock_repo_cls:
+            mock_repo = AsyncMock()
+            mock_repo.delete.return_value = False
+            mock_repo_cls.return_value = mock_repo
+
+            service = SearchHistoryService(mock_db)
+            result = await service.delete_entry(999, 10)
+
+        assert result is False
+        mock_db.commit.assert_not_called()
+
+
+class TestClearHistory:
+    """Tests for SearchHistoryService.clear_history."""
+
+    @pytest.mark.asyncio
+    async def test_clear_history(self):
+        """Test deletes all entries, commits, and returns count."""
+        mock_db = AsyncMock()
+
+        with patch(
+            "app.services.search_history_service.SearchHistoryRepository"
+        ) as mock_repo_cls:
+            mock_repo = AsyncMock()
+            mock_repo.delete_all_by_user.return_value = 5
+            mock_repo_cls.return_value = mock_repo
+
+            service = SearchHistoryService(mock_db)
+            result = await service.clear_history(10)
+
+        assert result == 5
+        mock_repo.delete_all_by_user.assert_called_once_with(10)
+        mock_db.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_clear_history_empty(self):
+        """Test returns 0 and still commits when no entries."""
+        mock_db = AsyncMock()
+
+        with patch(
+            "app.services.search_history_service.SearchHistoryRepository"
+        ) as mock_repo_cls:
+            mock_repo = AsyncMock()
+            mock_repo.delete_all_by_user.return_value = 0
+            mock_repo_cls.return_value = mock_repo
+
+            service = SearchHistoryService(mock_db)
+            result = await service.clear_history(10)
+
+        assert result == 0
+        mock_db.commit.assert_called_once()

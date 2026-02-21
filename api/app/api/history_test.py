@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.api.history import list_history, record_search
+from app.api.history import clear_history, delete_history_entry, list_history, record_search
 from app.schemas.search_history import SearchHistoryCreate
 
 
@@ -133,3 +133,84 @@ class TestListHistory:
             await list_history(current_user=user, db=mock_db, limit=5, offset=10)
 
             mock_service.list_history.assert_called_once_with(10, 5, 10)
+
+
+class TestDeleteHistoryEntry:
+    """Tests for DELETE /api/history/{entry_id}."""
+
+    @pytest.mark.asyncio
+    async def test_delete_entry_authenticated(self):
+        """Test deletes entry and returns success envelope."""
+        mock_db = AsyncMock()
+        user = {"id": 10, "email": "user@example.com", "role": "user"}
+
+        with patch("app.api.history.SearchHistoryService") as mock_cls:
+            mock_service = AsyncMock()
+            mock_service.delete_entry.return_value = True
+            mock_cls.return_value = mock_service
+
+            result = await delete_history_entry(
+                entry_id=1, current_user=user, db=mock_db
+            )
+
+        assert result["success"] is True
+        assert result["data"]["deleted"] is True
+
+    @pytest.mark.asyncio
+    async def test_delete_entry_not_found(self):
+        """Test returns 404 when entry not found or not owned."""
+        mock_db = AsyncMock()
+        user = {"id": 10, "email": "user@example.com", "role": "user"}
+
+        with patch("app.api.history.SearchHistoryService") as mock_cls:
+            mock_service = AsyncMock()
+            mock_service.delete_entry.return_value = False
+            mock_cls.return_value = mock_service
+
+            result = await delete_history_entry(
+                entry_id=999, current_user=user, db=mock_db
+            )
+
+        assert result.status_code == 404
+
+
+class TestClearHistory:
+    """Tests for DELETE /api/history/clear."""
+
+    @pytest.mark.asyncio
+    async def test_clear_history_authenticated(self):
+        """Test clears all history and returns count."""
+        mock_db = AsyncMock()
+        user = {"id": 10, "email": "user@example.com", "role": "user"}
+
+        with patch("app.api.history.SearchHistoryService") as mock_cls:
+            mock_service = AsyncMock()
+            mock_service.clear_history.return_value = 5
+            mock_cls.return_value = mock_service
+
+            result = await clear_history(current_user=user, db=mock_db)
+
+        assert result["success"] is True
+        assert result["data"]["deleted_count"] == 5
+
+
+class TestAuthDependencies:
+    """Verify delete endpoints require authentication via FastAPI Depends."""
+
+    def test_delete_entry_requires_auth(self):
+        """Verify delete_history_entry has require_authenticated dependency."""
+        import inspect
+
+        sig = inspect.signature(delete_history_entry)
+        param = sig.parameters["current_user"]
+        assert param.default is not inspect.Parameter.empty
+        assert "require_authenticated" in str(param.default)
+
+    def test_clear_history_requires_auth(self):
+        """Verify clear_history has require_authenticated dependency."""
+        import inspect
+
+        sig = inspect.signature(clear_history)
+        param = sig.parameters["current_user"]
+        assert param.default is not inspect.Parameter.empty
+        assert "require_authenticated" in str(param.default)

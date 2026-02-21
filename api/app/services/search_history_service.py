@@ -31,6 +31,19 @@ class SearchHistoryService:
             "total": total,
         }
 
+    async def delete_entry(self, entry_id: int, user_id: int) -> bool:
+        """Delete a single history entry. Returns True if deleted."""
+        deleted = await self.repo.delete(entry_id, user_id)
+        if deleted:
+            await self.db.commit()
+        return deleted
+
+    async def clear_history(self, user_id: int) -> int:
+        """Delete all history entries for user. Returns count deleted."""
+        count = await self.repo.delete_all_by_user(user_id)
+        await self.db.commit()
+        return count
+
     def _to_response(self, entry) -> dict:  # type: ignore[no-untyped-def]
         """Convert a SearchHistory model to response dict."""
         return {
