@@ -247,6 +247,26 @@ export async function getSearchHistory(
   return response.data;
 }
 
+export async function deleteSearchHistoryItem(
+  entryId: number
+): Promise<void> {
+  const response = await apiClient.delete<{ deleted: boolean }>(
+    `/api/history/${entryId}`
+  );
+  if (!response.success) {
+    throw new Error(response.error?.detail || "Failed to delete history item");
+  }
+}
+
+export async function clearSearchHistory(): Promise<void> {
+  const response = await apiClient.delete<{ deleted_count: number }>(
+    "/api/history/clear"
+  );
+  if (!response.success) {
+    throw new Error(response.error?.detail || "Failed to clear history");
+  }
+}
+
 export async function recordSearchHistory(
   query: string,
   selectedHsCodeId: number | null
