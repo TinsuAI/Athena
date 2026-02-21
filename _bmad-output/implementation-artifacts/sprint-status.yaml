@@ -95,10 +95,10 @@ development_status:
   6-2-add-notes-to-favorites: done  # was 5-2, was 4-2, was 3-2 (Code review: 2 medium + 3 low issues fixed)
   6-3-view-and-manage-favorites-list: done  # was 5-3, was 4-3, was 3-3 (Code review: 1 high + 2 medium + 2 low issues fixed)
   6-4-search-within-favorites: done  # was 5-4, was 4-4, was 3-4 (Code review: 3 medium + 2 low issues fixed)
-  6-5-quick-favorites-access-during-search: in-progress  # was 5-5, was 4-5, was 3-5
-  6-6-automatic-search-history-recording: ready-for-dev  # was 5-6, was 4-6, was 3-6
+  6-5-quick-favorites-access-during-search: done  # was 5-5, was 4-5, was 3-5 (Code review: 2 medium + 3 low issues fixed)
+  6-6-automatic-search-history-recording: in-progress  # was 5-6, was 4-6, was 3-6
   6-7-view-and-re-execute-search-history: ready-for-dev  # was 5-7, was 4-7, was 3-7
-  6-8-clear-search-history: backlog  # was 5-8, was 4-8, was 3-8
+  6-8-clear-search-history: ready-for-dev  # was 5-8, was 4-8, was 3-8
   epic-6-retrospective: optional
 
   # Epic 7: Advanced Search & Discovery (was Epic 6, was Epic 5, was Epic 4, 3 stories)
