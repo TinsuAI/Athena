@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useRef, useCallback, useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { SearchBar } from "./components/SearchBar";
 import { CorrectionButton } from "./components/CorrectionButton";
 import { CorrectionPanel } from "./components/CorrectionPanel";
@@ -18,7 +19,8 @@ import { RecentFavorites } from "@/components/RecentFavorites";
  * Search page with SearchBar component.
  * Search is triggered by button click or Enter key to avoid unnecessary API calls.
  */
-export default function SearchPage() {
+function SearchPageInner() {
+  const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [correctionPanelOpen, setCorrectionPanelOpen] = useState(false);
@@ -97,6 +99,17 @@ export default function SearchPage() {
       setIsSearching(false);
     }
   }, [searchQuery, setSearchResult, setIsSearching, setSearchError, session]);
+
+  // Auto-execute search from URL query param (e.g., /search?q=laptop)
+  const initialQueryHandled = useRef(false);
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && q.trim() && !initialQueryHandled.current) {
+      initialQueryHandled.current = true;
+      setSearchQuery(q);
+      executeSearch(q);
+    }
+  }, [searchParams, setSearchQuery, executeSearch]);
 
   const handleQueryChange = (value: string) => {
     setSearchQuery(value);
@@ -393,5 +406,13 @@ export default function SearchPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense>
+      <SearchPageInner />
+    </Suspense>
   );
 }

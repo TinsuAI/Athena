@@ -224,6 +224,40 @@ export async function removeFavorite(favoriteId: number): Promise<void> {
   }
 }
 
+// Search History API
+import type { SearchHistoryItem } from "@/types/search-history";
+
+export async function getSearchHistory(
+  limit: number = 20,
+  offset: number = 0
+): Promise<{ items: SearchHistoryItem[]; total: number }> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const response = await apiClient.get<{
+    items: SearchHistoryItem[];
+    total: number;
+  }>(`/api/history?${params.toString()}`);
+  if (!response.success || !response.data) {
+    throw new Error(
+      response.error?.detail || "Failed to fetch search history"
+    );
+  }
+  return response.data;
+}
+
+export async function recordSearchHistory(
+  query: string,
+  selectedHsCodeId: number | null
+): Promise<void> {
+  await apiClient.post("/api/history", {
+    query,
+    selected_hs_code_id: selectedHsCodeId,
+  });
+  // Fire-and-forget — no return value needed
+}
+
 // Search API
 import type { SearchResult } from "@/types/hs-code";
 

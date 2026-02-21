@@ -13,6 +13,7 @@ from app.api.browse import router as browse_router
 from app.api.corrections import router as corrections_router
 from app.api.favorites import router as favorites_router
 from app.api.expert import router as expert_router
+from app.api.history import router as history_router
 from app.api.hs_codes import router as hs_codes_router
 from app.api.lookups import router as lookups_router
 from app.api.search import router as search_router
@@ -60,6 +61,7 @@ app.include_router(browse_router)
 app.include_router(corrections_router)
 app.include_router(expert_router)
 app.include_router(favorites_router)
+app.include_router(history_router)
 app.include_router(hs_codes_router)
 app.include_router(lookups_router)
 app.include_router(search_router)
