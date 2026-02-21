@@ -34,6 +34,7 @@ export interface ProcessLogEntry {
  */
 export interface SearchResult {
   hs_code: string;
+  hs_code_id?: number | null;
   description: string;
   duty_rate: string;
   vat_rate: string;

@@ -7,7 +7,7 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-JWT = NextAuthJWT(secret=settings.nextauth_secret)
+JWT = NextAuthJWT(secret=settings.nextauth_secret, csrf_prevention_enabled=False)
 
 
 async def require_admin(request: Request) -> dict:
@@ -30,8 +30,9 @@ async def get_current_user(request: Request) -> dict:
     """
     try:
         token = JWT(request)
+        user_id = token.get("id")
         return {
-            "id": token.get("id"),
+            "id": int(user_id) if user_id is not None else None,
             "email": token.get("email"),
             "role": token.get("role"),
         }

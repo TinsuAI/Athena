@@ -1,6 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
+import { useSession } from "next-auth/react";
 import type { BrowseHSCodeItem, BrowseFTARateItem } from "@/types/browse";
+import { FavoriteButton } from "@/components/FavoriteButton";
+import { useStore } from "@/lib/store";
+import { getFavorites } from "@/lib/api";
 
 interface HSCodeDetailProps {
   hsCode: BrowseHSCodeItem;
@@ -76,6 +81,19 @@ function FTARateTable({
 }
 
 export function HSCodeDetail({ hsCode }: HSCodeDetailProps) {
+  const { data: session } = useSession();
+  const setFavorites = useStore((s) => s.setFavorites);
+  const favorites = useStore((s) => s.favorites);
+
+  // Sync favorites from backend on mount when authenticated
+  useEffect(() => {
+    if (session?.user && favorites.length === 0) {
+      getFavorites()
+        .then((data) => setFavorites(data))
+        .catch(() => {}); // silent fail — favorites are non-critical
+    }
+  }, [session?.user, favorites.length, setFavorites]);
+
   const importRates = hsCode.fta_rates.filter((r) => !r.is_export);
   const exportRates = hsCode.fta_rates.filter((r) => r.is_export);
 
@@ -84,6 +102,14 @@ export function HSCodeDetail({ hsCode }: HSCodeDetailProps) {
       className="bg-gradient-to-b from-accent to-card border-t border-primary/20 pl-10 pr-3 py-3 sm:px-5 sm:py-5 sm:pl-[134px] space-y-3 sm:space-y-4 animate-in slide-in-from-top-2 duration-250"
       data-testid="hs-code-detail"
     >
+      {/* Favorite button */}
+      {session?.user && (
+        <div className="flex items-center gap-2">
+          <FavoriteButton hsCodeId={hsCode.id} size="sm" />
+          <span className="text-[11px] text-muted-foreground font-medium">Yêu thích</span>
+        </div>
+      )}
+
       {/* Detail fields grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {hsCode.description_en && (

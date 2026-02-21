@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import type { SearchResult } from "@/types/hs-code";
 import type { User } from "@/types/user";
+import type { Favorite } from "@/types/favorite";
 
 interface SearchState {
   searchQuery: string;
@@ -29,9 +30,15 @@ interface AuthState {
 }
 
 interface FavoritesState {
-  favoriteIds: string[];
-  addFavorite: (id: string) => void;
-  removeFavorite: (id: string) => void;
+  favorites: Favorite[];
+  favoriteIds: number[];
+  isFavoritesLoading: boolean;
+  favoritesError: string | null;
+  setFavorites: (favorites: Favorite[]) => void;
+  addFavoriteLocal: (favorite: Favorite) => void;
+  removeFavoriteLocal: (favoriteId: number) => void;
+  setIsFavoritesLoading: (loading: boolean) => void;
+  setFavoritesError: (error: string | null) => void;
 }
 
 interface AppStore extends SearchState, AuthState, FavoritesState {}
@@ -62,14 +69,32 @@ export const useStore = create<AppStore>((set) => ({
   setUser: (user) => set({ user, isAuthenticated: user !== null }),
   logout: () => set({ user: null, isAuthenticated: false }),
 
-  // Favorites slice
+  // Favorites slice (backend-synced)
+  favorites: [],
   favoriteIds: [],
-  addFavorite: (id) =>
-    set((state) => ({
-      favoriteIds: [...state.favoriteIds, id],
-    })),
-  removeFavorite: (id) =>
-    set((state) => ({
-      favoriteIds: state.favoriteIds.filter((fId) => fId !== id),
-    })),
+  isFavoritesLoading: false,
+  favoritesError: null,
+  setFavorites: (favorites) =>
+    set({
+      favorites,
+      favoriteIds: favorites.map((f) => f.hs_code_id),
+    }),
+  addFavoriteLocal: (favorite) =>
+    set((state) => {
+      const favorites = [...state.favorites, favorite];
+      return {
+        favorites,
+        favoriteIds: favorites.map((f) => f.hs_code_id),
+      };
+    }),
+  removeFavoriteLocal: (favoriteId) =>
+    set((state) => {
+      const favorites = state.favorites.filter((f) => f.id !== favoriteId);
+      return {
+        favorites,
+        favoriteIds: favorites.map((f) => f.hs_code_id),
+      };
+    }),
+  setIsFavoritesLoading: (isFavoritesLoading) => set({ isFavoritesLoading }),
+  setFavoritesError: (favoritesError) => set({ favoritesError }),
 }));

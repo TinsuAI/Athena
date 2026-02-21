@@ -180,6 +180,36 @@ export async function getLookupDetail(id: number): Promise<LookupDetail> {
   return response.data;
 }
 
+// Favorites API
+import type { Favorite } from "@/types/favorite";
+
+export async function getFavorites(): Promise<Favorite[]> {
+  const response = await apiClient.get<Favorite[]>("/api/favorites");
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.detail || "Failed to fetch favorites");
+  }
+  return response.data;
+}
+
+export async function addFavorite(hsCodeId: number): Promise<Favorite> {
+  const response = await apiClient.post<Favorite>("/api/favorites", {
+    hs_code_id: hsCodeId,
+  });
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.detail || "Failed to add favorite");
+  }
+  return response.data;
+}
+
+export async function removeFavorite(favoriteId: number): Promise<void> {
+  const response = await apiClient.delete<{ deleted: boolean }>(
+    `/api/favorites/${favoriteId}`
+  );
+  if (!response.success) {
+    throw new Error(response.error?.detail || "Failed to remove favorite");
+  }
+}
+
 // Search API
 import type { SearchResult } from "@/types/hs-code";
 

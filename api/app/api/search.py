@@ -309,6 +309,7 @@ async def search_hs_codes(
                         is_verified=True,
                         verified_by=verified_by_str,
                         verified_at=verified_at_str,
+                        hs_code_id=hs_code_obj.id,
                     )
 
                     logger.info(
@@ -419,6 +420,7 @@ async def search_hs_codes(
                             source=source,
                             is_verified=False,
                             nlm_raw_response=nlm_result.raw_answer,
+                            hs_code_id=hs_code_obj.id,
                         )
 
                         # Record lookup for knowledge base
@@ -581,6 +583,7 @@ async def search_hs_codes(
                         process_logs=process_logs,
                         source="ai_suggestion",
                         is_verified=False,
+                        hs_code_id=hs_code_obj.id,
                     )
 
                     logger.info(
@@ -789,6 +792,11 @@ async def search_hs_codes(
                          "final_hs_code": _format_hs_code(best_result.hs_code),
                          "confidence": best_result.confidence})
 
+        # Resolve hs_code_id before building response
+        hs_code_id = None
+        if best_result.hs_code_full and hasattr(best_result.hs_code_full, "id"):
+            hs_code_id = best_result.hs_code_full.id
+
         # Build response
         response_data = SearchResponseData(
             hs_code=_format_hs_code(best_result.hs_code),
@@ -804,12 +812,10 @@ async def search_hs_codes(
             process_logs=process_logs,
             source="ai_suggestion",
             is_verified=False,
+            hs_code_id=hs_code_id,
         )
 
         # Record lookup for knowledge base
-        hs_code_id = None
-        if best_result.hs_code_full and hasattr(best_result.hs_code_full, "id"):
-            hs_code_id = best_result.hs_code_full.id
         lookup_id = await _record_lookup(
             db=db,
             query=body.query,
