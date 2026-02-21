@@ -104,6 +104,76 @@ class TestFavoritesRepositoryCreate:
         db.refresh.assert_awaited_once()
 
 
+class TestFavoritesRepositoryUpdateNotes:
+    """Tests for FavoritesRepository.update_notes."""
+
+    @pytest.mark.asyncio
+    async def test_update_notes_success(self):
+        """Test updates notes on owned favorite."""
+        db = AsyncMock()
+        fav = MagicMock(spec=Favorite)
+        fav.id = 1
+        fav.user_id = 10
+        fav.notes = None
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = fav
+        db.execute.return_value = mock_result
+
+        repo = FavoritesRepository(db)
+        result = await repo.update_notes(1, 10, "My note")
+
+        assert result is not None
+        assert result.notes == "My note"
+        db.flush.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_update_notes_clear(self):
+        """Test sets notes to None."""
+        db = AsyncMock()
+        fav = MagicMock(spec=Favorite)
+        fav.id = 1
+        fav.user_id = 10
+        fav.notes = "Old note"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = fav
+        db.execute.return_value = mock_result
+
+        repo = FavoritesRepository(db)
+        result = await repo.update_notes(1, 10, None)
+
+        assert result is not None
+        assert result.notes is None
+
+    @pytest.mark.asyncio
+    async def test_update_notes_not_found(self):
+        """Test returns None for nonexistent ID."""
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        db.execute.return_value = mock_result
+
+        repo = FavoritesRepository(db)
+        result = await repo.update_notes(999, 10, "Note")
+
+        assert result is None
+        db.flush.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_update_notes_wrong_user(self):
+        """Test returns None for other user's favorite."""
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        db.execute.return_value = mock_result
+
+        repo = FavoritesRepository(db)
+        result = await repo.update_notes(1, 999, "Note")
+
+        assert result is None
+
+
 class TestFavoritesRepositoryDelete:
     """Tests for FavoritesRepository.delete."""
 

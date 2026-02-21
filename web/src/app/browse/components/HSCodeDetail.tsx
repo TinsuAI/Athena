@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import type { BrowseHSCodeItem, BrowseFTARateItem } from "@/types/browse";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { FavoriteNotes } from "@/components/FavoriteNotes";
 import { useStore } from "@/lib/store";
 import { getFavorites } from "@/lib/api";
 
@@ -102,11 +103,24 @@ export function HSCodeDetail({ hsCode }: HSCodeDetailProps) {
       className="bg-gradient-to-b from-accent to-card border-t border-primary/20 pl-10 pr-3 py-3 sm:px-5 sm:py-5 sm:pl-[134px] space-y-3 sm:space-y-4 animate-in slide-in-from-top-2 duration-250"
       data-testid="hs-code-detail"
     >
-      {/* Favorite button */}
+      {/* Favorite button + notes */}
       {session?.user && (
-        <div className="flex items-center gap-2">
-          <FavoriteButton hsCodeId={hsCode.id} size="sm" />
-          <span className="text-[11px] text-muted-foreground font-medium">Yêu thích</span>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <FavoriteButton hsCodeId={hsCode.id} size="sm" />
+            <span className="text-[11px] text-muted-foreground font-medium">Yêu thích</span>
+          </div>
+          {(() => {
+            const favorite = favorites.find((f) => f.hs_code_id === hsCode.id);
+            if (!favorite) return null;
+            return (
+              <FavoriteNotes
+                favoriteId={favorite.id}
+                hsCodeId={hsCode.id}
+                initialNotes={favorite.notes}
+              />
+            );
+          })()}
         </div>
       )}
 

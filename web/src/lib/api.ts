@@ -201,6 +201,20 @@ export async function addFavorite(hsCodeId: number): Promise<Favorite> {
   return response.data;
 }
 
+export async function updateFavoriteNotes(
+  favoriteId: number,
+  notes: string | null
+): Promise<Favorite> {
+  const response = await apiClient.patch<Favorite>(
+    `/api/favorites/${favoriteId}`,
+    { notes }
+  );
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.detail || "Failed to update notes");
+  }
+  return response.data;
+}
+
 export async function removeFavorite(favoriteId: number): Promise<void> {
   const response = await apiClient.delete<{ deleted: boolean }>(
     `/api/favorites/${favoriteId}`

@@ -37,6 +37,7 @@ interface FavoritesState {
   setFavorites: (favorites: Favorite[]) => void;
   addFavoriteLocal: (favorite: Favorite) => void;
   removeFavoriteLocal: (favoriteId: number) => void;
+  updateFavoriteNotesLocal: (favoriteId: number, notes: string | null) => void;
   setIsFavoritesLoading: (loading: boolean) => void;
   setFavoritesError: (error: string | null) => void;
 }
@@ -95,6 +96,12 @@ export const useStore = create<AppStore>((set) => ({
         favoriteIds: favorites.map((f) => f.hs_code_id),
       };
     }),
+  updateFavoriteNotesLocal: (favoriteId, notes) =>
+    set((state) => ({
+      favorites: state.favorites.map((f) =>
+        f.id === favoriteId ? { ...f, notes } : f
+      ),
+    })),
   setIsFavoritesLoading: (isFavoritesLoading) => set({ isFavoritesLoading }),
   setFavoritesError: (favoritesError) => set({ favoritesError }),
 }));

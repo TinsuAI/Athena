@@ -44,6 +44,18 @@ class FavoritesService:
         await self.db.commit()
         return self._to_response(favorite)
 
+    async def update_notes(
+        self, favorite_id: int, user_id: int, notes: str | None
+    ) -> dict | None:
+        """Update notes on a favorite. Empty string is normalized to None."""
+        if notes is not None and notes.strip() == "":
+            notes = None
+        favorite = await self.repo.update_notes(favorite_id, user_id, notes)
+        if not favorite:
+            return None
+        await self.db.commit()
+        return self._to_response(favorite)
+
     async def remove_favorite(self, favorite_id: int, user_id: int) -> bool:
         """Remove a favorite. Returns True if deleted, False if not found."""
         deleted = await self.repo.delete(favorite_id, user_id)

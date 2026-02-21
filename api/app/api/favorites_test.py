@@ -7,8 +7,13 @@ import pytest
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
-from app.api.favorites import add_favorite, list_favorites, remove_favorite
-from app.schemas.favorites import FavoriteCreate
+from app.api.favorites import (
+    add_favorite,
+    list_favorites,
+    remove_favorite,
+    update_favorite_notes,
+)
+from app.schemas.favorites import FavoriteCreate, FavoriteUpdateNotes
 from app.services.favorites_service import DuplicateFavoriteError
 
 
@@ -125,6 +130,96 @@ class TestAddFavorite:
         body_content = json.loads(result.body.decode())
         assert body_content["success"] is False
         assert body_content["error"]["status"] == 404
+
+
+class TestUpdateFavoriteNotes:
+    """Tests for PATCH /api/favorites/{favorite_id}."""
+
+    @pytest.mark.asyncio
+    async def test_patch_notes_success(self):
+        """Test 200 with updated notes."""
+        mock_db = AsyncMock()
+        user = {"id": 10, "email": "user@example.com", "role": "user"}
+        body = FavoriteUpdateNotes(notes="My note")
+
+        with patch("app.api.favorites.FavoritesService") as mock_service_cls:
+            mock_service = AsyncMock()
+            mock_service.update_notes.return_value = {
+                "id": 1,
+                "user_id": 10,
+                "hs_code_id": 100,
+                "hs_code": "01012100",
+                "description_vn": "Ngựa thuần chủng",
+                "notes": "My note",
+                "created_at": "2026-02-21T00:00:00+00:00",
+            }
+            mock_service_cls.return_value = mock_service
+
+            result = await update_favorite_notes(
+                favorite_id=1, body=body, current_user=user, db=mock_db
+            )
+
+        assert result["success"] is True
+        assert result["data"]["notes"] == "My note"
+
+    @pytest.mark.asyncio
+    async def test_patch_notes_clear(self):
+        """Test 200 with null notes."""
+        mock_db = AsyncMock()
+        user = {"id": 10, "email": "user@example.com", "role": "user"}
+        body = FavoriteUpdateNotes(notes=None)
+
+        with patch("app.api.favorites.FavoritesService") as mock_service_cls:
+            mock_service = AsyncMock()
+            mock_service.update_notes.return_value = {
+                "id": 1,
+                "user_id": 10,
+                "hs_code_id": 100,
+                "hs_code": "01012100",
+                "description_vn": "Ngựa thuần chủng",
+                "notes": None,
+                "created_at": "2026-02-21T00:00:00+00:00",
+            }
+            mock_service_cls.return_value = mock_service
+
+            result = await update_favorite_notes(
+                favorite_id=1, body=body, current_user=user, db=mock_db
+            )
+
+        assert result["success"] is True
+        assert result["data"]["notes"] is None
+
+    @pytest.mark.asyncio
+    async def test_patch_notes_not_found(self):
+        """Test 404 via JSONResponse when favorite not found."""
+        mock_db = AsyncMock()
+        user = {"id": 10, "email": "user@example.com", "role": "user"}
+        body = FavoriteUpdateNotes(notes="Note")
+
+        with patch("app.api.favorites.FavoritesService") as mock_service_cls:
+            mock_service = AsyncMock()
+            mock_service.update_notes.return_value = None
+            mock_service_cls.return_value = mock_service
+
+            result = await update_favorite_notes(
+                favorite_id=999, body=body, current_user=user, db=mock_db
+            )
+
+        assert isinstance(result, JSONResponse)
+        assert result.status_code == 404
+        body_content = json.loads(result.body.decode())
+        assert body_content["success"] is False
+        assert body_content["error"]["status"] == 404
+
+    @pytest.mark.asyncio
+    async def test_patch_notes_unauthenticated(self):
+        """Test unauthenticated PATCH request gets 401 via require_authenticated."""
+        from app.core.auth import require_authenticated
+
+        mock_request = MagicMock()
+        with pytest.raises(HTTPException) as exc_info:
+            await require_authenticated(mock_request)
+        assert exc_info.value.status_code == 401
 
 
 class TestRemoveFavorite:

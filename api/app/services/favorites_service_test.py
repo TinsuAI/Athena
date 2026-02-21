@@ -143,6 +143,71 @@ class TestFavoritesServiceAddFavorite:
                 await service.add_favorite(10, 99999)
 
 
+class TestFavoritesServiceUpdateNotes:
+    """Tests for FavoritesService.update_notes."""
+
+    @pytest.mark.asyncio
+    async def test_update_notes_success(self):
+        """Test updates and returns response dict."""
+        db = AsyncMock()
+
+        with patch(
+            "app.services.favorites_service.FavoritesRepository"
+        ) as mock_repo_cls:
+            fav = _make_favorite(1, 10, 100)
+            fav.notes = "Updated note"
+            mock_repo = AsyncMock()
+            mock_repo.update_notes.return_value = fav
+            mock_repo_cls.return_value = mock_repo
+
+            service = FavoritesService(db)
+            result = await service.update_notes(1, 10, "Updated note")
+
+        assert result is not None
+        assert result["id"] == 1
+        assert result["notes"] == "Updated note"
+        db.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_update_notes_empty_normalized(self):
+        """Test empty string becomes None."""
+        db = AsyncMock()
+
+        with patch(
+            "app.services.favorites_service.FavoritesRepository"
+        ) as mock_repo_cls:
+            fav = _make_favorite(1, 10, 100)
+            fav.notes = None
+            mock_repo = AsyncMock()
+            mock_repo.update_notes.return_value = fav
+            mock_repo_cls.return_value = mock_repo
+
+            service = FavoritesService(db)
+            result = await service.update_notes(1, 10, "  ")
+
+        assert result is not None
+        # Verify repo was called with None (empty string normalized)
+        mock_repo.update_notes.assert_awaited_once_with(1, 10, None)
+
+    @pytest.mark.asyncio
+    async def test_update_notes_not_found(self):
+        """Test returns None when favorite not found."""
+        db = AsyncMock()
+
+        with patch(
+            "app.services.favorites_service.FavoritesRepository"
+        ) as mock_repo_cls:
+            mock_repo = AsyncMock()
+            mock_repo.update_notes.return_value = None
+            mock_repo_cls.return_value = mock_repo
+
+            service = FavoritesService(db)
+            result = await service.update_notes(999, 10, "Note")
+
+        assert result is None
+        db.commit.assert_not_awaited()
+
+
 class TestFavoritesServiceRemoveFavorite:
     """Tests for FavoritesService.remove_favorite."""
 

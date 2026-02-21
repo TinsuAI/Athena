@@ -11,6 +11,12 @@ class FavoriteCreate(BaseModel):
     hs_code_id: int = Field(..., description="ID of the HS code to favorite")
 
 
+class FavoriteUpdateNotes(BaseModel):
+    """Input schema for updating favorite notes."""
+
+    notes: str | None = Field(None, description="Personal notes (null or empty string clears)")
+
+
 class FavoriteResponse(BaseModel):
     """Output schema for a single favorite."""
 

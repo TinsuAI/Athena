@@ -11,6 +11,7 @@ import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { useStore } from "@/lib/store";
 import { searchHsCodes, getFavorites } from "@/lib/api";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { FavoriteNotes } from "@/components/FavoriteNotes";
 
 /**
  * Search page with SearchBar component.
@@ -212,6 +213,21 @@ export default function SearchPage() {
                   </ul>
                 </div>
               )}
+
+              {/* Favorite notes (only if favorited) */}
+              {searchResult.hs_code_id && session?.user && (() => {
+                const fav = favorites.find((f) => f.hs_code_id === searchResult.hs_code_id);
+                if (!fav) return null;
+                return (
+                  <div className="border-t border-slate-100 pt-3 mt-4">
+                    <FavoriteNotes
+                      favoriteId={fav.id}
+                      hsCodeId={searchResult.hs_code_id}
+                      initialNotes={fav.notes}
+                    />
+                  </div>
+                );
+              })()}
 
               {/* Correction button */}
               <div className="border-t border-slate-100 pt-4 mt-4 flex justify-end">

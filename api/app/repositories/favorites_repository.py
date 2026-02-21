@@ -42,6 +42,22 @@ class FavoritesRepository:
         await self.db.refresh(favorite, ["hs_code"])
         return favorite
 
+    async def update_notes(
+        self, favorite_id: int, user_id: int, notes: str | None
+    ) -> Favorite | None:
+        """Update notes on a favorite, scoped to the owning user."""
+        result = await self.db.execute(
+            select(Favorite)
+            .options(selectinload(Favorite.hs_code))
+            .where(and_(Favorite.id == favorite_id, Favorite.user_id == user_id))
+        )
+        favorite = result.scalar_one_or_none()
+        if not favorite:
+            return None
+        favorite.notes = notes
+        await self.db.flush()
+        return favorite
+
     async def delete(self, favorite_id: int, user_id: int) -> bool:
         """Delete a favorite, scoped to the owning user. Returns True if deleted."""
         result = await self.db.execute(
