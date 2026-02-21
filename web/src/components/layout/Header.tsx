@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useStore } from "@/lib/store";
-import { Menu, X, Search, BookOpen, ClipboardList, Shield, ClipboardCheck, LogOut, LogIn, UserPlus } from "lucide-react";
+import { Menu, X, Search, BookOpen, ClipboardList, Star, Shield, ClipboardCheck, LogOut, LogIn, UserPlus } from "lucide-react";
 
 const navLinks = [
   { href: "/search", label: "Tìm kiếm", icon: Search },
@@ -111,6 +111,16 @@ export function Header() {
               </span>
             ) : session?.user ? (
               <>
+                <Link
+                  href="/favorites"
+                  className={
+                    pathname === "/favorites"
+                      ? "text-emerald-400 font-semibold"
+                      : "text-white/50 hover:text-emerald-400 transition-colors duration-150"
+                  }
+                >
+                  Yêu thích
+                </Link>
                 {isExpertOrAdmin && (
                   <Link
                     href="/expert/corrections"
@@ -246,6 +256,28 @@ export function Header() {
                 </Link>
               );
             })}
+
+            {/* Favorites link for authenticated users */}
+            {session?.user && (
+              <Link
+                href="/favorites"
+                className={`flex items-center gap-3 px-3 py-3 rounded-lg text-[14px] font-medium transition-all duration-200 ${
+                  pathname === "/favorites"
+                    ? "bg-emerald-500/[0.12] text-emerald-400"
+                    : "text-white/60 hover:text-white hover:bg-white/[0.05] active:bg-white/[0.08]"
+                }`}
+              >
+                <Star
+                  size={18}
+                  strokeWidth={pathname === "/favorites" ? 2.2 : 1.8}
+                  className={pathname === "/favorites" ? "text-emerald-400" : "text-white/40"}
+                />
+                <span>Yêu thích</span>
+                {pathname === "/favorites" && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                )}
+              </Link>
+            )}
 
             {/* Expert link for expert and admin users */}
             {isExpertOrAdmin && (

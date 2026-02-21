@@ -93,10 +93,10 @@ development_status:
   epic-6: in-progress
   6-1-save-hs-code-to-favorites: done  # was 5-1, was 4-1, was 3-1 (Code review: 1 critical + 2 high + 3 medium issues fixed)
   6-2-add-notes-to-favorites: done  # was 5-2, was 4-2, was 3-2 (Code review: 2 medium + 3 low issues fixed)
-  6-3-view-and-manage-favorites-list: in-progress  # was 5-3, was 4-3, was 3-3
-  6-4-search-within-favorites: ready-for-dev  # was 5-4, was 4-4, was 3-4
-  6-5-quick-favorites-access-during-search: ready-for-dev  # was 5-5, was 4-5, was 3-5
-  6-6-automatic-search-history-recording: backlog  # was 5-6, was 4-6, was 3-6
+  6-3-view-and-manage-favorites-list: done  # was 5-3, was 4-3, was 3-3 (Code review: 1 high + 2 medium + 2 low issues fixed)
+  6-4-search-within-favorites: review  # was 5-4, was 4-4, was 3-4
+  6-5-quick-favorites-access-during-search: in-progress  # was 5-5, was 4-5, was 3-5
+  6-6-automatic-search-history-recording: ready-for-dev  # was 5-6, was 4-6, was 3-6
   6-7-view-and-re-execute-search-history: backlog  # was 5-7, was 4-7, was 3-7
   6-8-clear-search-history: backlog  # was 5-8, was 4-8, was 3-8
   epic-6-retrospective: optional
