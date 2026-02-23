@@ -203,9 +203,12 @@ Login form should NOT enforce min 8 chars on password — only check it's not em
 
 ### Public vs Protected Routes
 
-Per UX spec ("No login wall for search"):
-- **Public** (no auth required): `/`, `/search`, `/browse`, `/lookups`, `/login`, `/register`
-- **Protected** (auth required): `/favorites`, `/history`, `/admin`
+**UPDATED 2026-02-22 (Sprint Change — Story 4-6):** `/search` is now protected.
+
+- **Public** (no auth required): `/`, `/browse`, `/lookups`, `/login`, `/register`
+- **Protected** (auth required): `/search`, `/favorites`, `/history`, `/admin`
+
+proxy.ts matcher updated in Story 4-6. The original "no login wall for search" decision from the UX spec was reversed by product owner on 2026-02-22.
 
 ### File Structure (Exact Paths)
 
@@ -259,7 +262,7 @@ web/src/components/layout/Header.tsx                # Add auth state (login/logo
 - **DO NOT** enforce password min length in login form — only require non-empty
 - **DO NOT** put login logic in the page server component — use client component
 - **DO NOT** use `redirect: true` with signIn — use `redirect: false` and handle manually for error display
-- **DO NOT** protect `/search`, `/browse`, or `/lookups` routes — they must remain public
+- **DO NOT** protect `/browse` or `/lookups` routes — they must remain public (NOTE: `/search` is now protected per Sprint Change 2026-02-22, Story 4-6)
 - **DO NOT** use status enums for loading states — use boolean `isSubmitting`
 - **DO NOT** use Next.js API routes for auth — call NextAuth signIn directly
 

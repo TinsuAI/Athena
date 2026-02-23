@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 from app.schemas.user import UserCreate
-from app.services.auth_service import AuthService, InactiveUserError, hash_password, verify_password
+from app.services.auth_service import AccountConflictError, AuthService, InactiveUserError, hash_password, verify_password
 
 
 class TestPasswordHashing:
@@ -208,6 +208,33 @@ class TestAuthServiceAuthenticate:
             service = AuthService(session)
             with pytest.raises(InactiveUserError):
                 await service.authenticate_user("inactive@example.com", "securepass123")
+
+    @pytest.mark.asyncio
+    async def test_authenticate_oauth_user_with_null_password_hash_returns_none(self):
+        """Test that OAuth user (password_hash=None) attempting credentials login returns None.
+
+        This guards against AttributeError crash where verify_password is called with
+        hashed=None, which would cause None.encode('utf-8') to raise AttributeError.
+        """
+        session = AsyncMock()
+
+        with patch("app.services.auth_service.UserRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_user = MagicMock(spec=User)
+            mock_user.id = 1
+            mock_user.email = "oauth@example.com"
+            mock_user.password_hash = None  # OAuth user — no password set
+            mock_user.role = "user"
+            mock_user.is_active = True
+            mock_user.created_at = "2026-02-23T00:00:00+00:00"
+            mock_repo.get_by_email.return_value = mock_user
+            mock_repo_class.return_value = mock_repo
+
+            service = AuthService(session)
+            # Must return None (not crash with AttributeError)
+            result = await service.authenticate_user("oauth@example.com", "anypassword")
+
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_authenticate_active_user_succeeds(self):
@@ -432,3 +459,105 @@ class TestResetPassword:
 
         assert result is False
         mock_user_repo.update_password.assert_not_awaited()
+
+
+class TestFindOrCreateOAuthUser:
+    """Tests for AuthService.find_or_create_oauth_user."""
+
+    @pytest.mark.asyncio
+    async def test_existing_oauth_user_returned(self):
+        """Test that existing OAuth user with same provider is returned."""
+        session = AsyncMock()
+
+        with patch("app.services.auth_service.UserRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_user = MagicMock(spec=User)
+            mock_user.id = 1
+            mock_user.email = "oauth@example.com"
+            mock_user.oauth_provider = "google"
+            mock_user.oauth_id = "google-123"
+            mock_user.role = "user"
+            mock_user.created_at = "2026-02-23T00:00:00+00:00"
+            mock_repo.get_by_email.return_value = mock_user
+            mock_repo_class.return_value = mock_repo
+
+            service = AuthService(session)
+            result = await service.find_or_create_oauth_user(
+                "oauth@example.com", "google", "google-123"
+            )
+
+        assert result.id == 1
+        assert result.email == "oauth@example.com"
+        mock_repo.create.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_new_oauth_user_created(self):
+        """Test that new OAuth user is created with password_hash=None and role='user'."""
+        session = AsyncMock()
+
+        with patch("app.services.auth_service.UserRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.get_by_email.return_value = None
+
+            mock_created = MagicMock(spec=User)
+            mock_created.id = 2
+            mock_created.email = "new@example.com"
+            mock_created.role = "user"
+            mock_created.created_at = "2026-02-23T00:00:00+00:00"
+            mock_repo.create.return_value = mock_created
+            mock_repo_class.return_value = mock_repo
+
+            service = AuthService(session)
+            result = await service.find_or_create_oauth_user(
+                "new@example.com", "google", "google-456"
+            )
+
+        assert result.id == 2
+        assert result.email == "new@example.com"
+        assert result.role == "user"
+        mock_repo.create.assert_awaited_once()
+
+        # Verify the User model was created correctly
+        created_user = mock_repo.create.call_args[0][0]
+        assert created_user.password_hash is None
+        assert created_user.oauth_provider == "google"
+        assert created_user.oauth_id == "google-456"
+        assert created_user.role == "user"
+
+    @pytest.mark.asyncio
+    async def test_conflict_with_credentials_user(self):
+        """Test that AccountConflictError is raised when email exists with credentials."""
+        session = AsyncMock()
+
+        with patch("app.services.auth_service.UserRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_user = MagicMock(spec=User)
+            mock_user.email = "creds@example.com"
+            mock_user.oauth_provider = None  # Credentials user
+            mock_repo.get_by_email.return_value = mock_user
+            mock_repo_class.return_value = mock_repo
+
+            service = AuthService(session)
+            with pytest.raises(AccountConflictError):
+                await service.find_or_create_oauth_user(
+                    "creds@example.com", "google", "google-789"
+                )
+
+    @pytest.mark.asyncio
+    async def test_conflict_with_different_oauth_provider(self):
+        """Test that AccountConflictError is raised for different OAuth provider."""
+        session = AsyncMock()
+
+        with patch("app.services.auth_service.UserRepository") as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_user = MagicMock(spec=User)
+            mock_user.email = "multi@example.com"
+            mock_user.oauth_provider = "facebook"
+            mock_repo.get_by_email.return_value = mock_user
+            mock_repo_class.return_value = mock_repo
+
+            service = AuthService(session)
+            with pytest.raises(AccountConflictError):
+                await service.find_or_create_oauth_user(
+                    "multi@example.com", "google", "google-000"
+                )

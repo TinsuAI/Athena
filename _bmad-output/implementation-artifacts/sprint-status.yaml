@@ -1,5 +1,5 @@
 # generated: 2026-01-26
-# updated: 2026-02-18 (Sprint Change: Advanced RBAC, Permissions & User Management)
+# updated: 2026-02-22 (Sprint Change: Social OAuth Login, Search Auth Gate & Search UX Hint)
 # project: athena
 # tracking_system: file-system
 # story_location: _bmad-output/implementation-artifacts
@@ -71,13 +71,14 @@ development_status:
   3-3-store-nlm-raw-response: done  # NEW: Sprint Change 2026-02-15 - persist full NLM response, display on lookup detail (Code review: 3 medium issues fixed)
   epic-3-retrospective: optional
 
-  # Epic 4: User Authentication & Sessions (was Epic 3, was Epic 2, 5 stories)
-  epic-4: done
+  # Epic 4: User Authentication & Sessions (was Epic 3, was Epic 2, 6 stories)
+  epic-4: in-progress
   4-1-user-registration: done  # was 3-1, was 2-1 (Code review: 1 high + 6 medium issues fixed)
   4-2-user-login: done  # was 3-2, was 2-2 (Code review: 1 high + 6 medium issues fixed)
   4-3-user-logout: done  # was 3-3, was 2-3 (Code review: 3 high + 4 medium issues fixed)
   4-4-password-reset: done  # was 3-4, was 2-4 (Code review: 3 high + 4 medium issues fixed)
   4-5-role-based-access-control: done  # was 3-5, was 2-5 (Code review: 4 high + 4 medium issues fixed)
+  4-6-enhanced-auth-oauth-search-gate-ux-hint: done  # NEW: Sprint Change 2026-02-22 - Google/Facebook OAuth, search auth gate, search UX hint (Code review: 1 critical + 2 high + 3 medium + 2 low issues fixed)
   epic-4-retrospective: optional
 
   # Epic 5: Advanced RBAC, Permissions & User Management (NEW - Sprint Change 2026-02-18, 5 stories)

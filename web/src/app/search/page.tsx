@@ -165,8 +165,10 @@ function SearchPageInner() {
                 isLoading={isSearching}
                 autoFocus
               />
-              <p className="text-[12px] text-slate-400 mt-2.5 text-center font-medium">
-                Nhấn Enter hoặc bấm Tìm kiếm để tra cứu mã HS
+              <p className="text-[12px] text-slate-400 mt-2.5 text-center font-medium transition-opacity duration-300">
+                {searchQuery.trim()
+                  ? "Nhấn Enter hoặc bấm Tìm kiếm để tra cứu mã HS"
+                  : "Mô tả chi tiết sản phẩm để có kết quả chính xác hơn (ví dụ: vật liệu, công dụng, thông số kỹ thuật)"}
               </p>
             </div>
 

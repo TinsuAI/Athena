@@ -151,6 +151,100 @@ class TestLoginEndpoint:
         assert "Tai khoan da bi vo hieu hoa" in response["error"]["detail"]
 
 
+class TestOAuthEndpoint:
+    """Tests for POST /api/auth/oauth."""
+
+    @pytest.mark.asyncio
+    async def test_oauth_create_new_user(self):
+        """Test OAuth with new email creates user and returns 200."""
+        from app.api.auth import oauth_find_or_create, OAuthUserRequest
+
+        mock_db = AsyncMock()
+        data = OAuthUserRequest(
+            email="oauth@example.com",
+            oauth_provider="google",
+            oauth_id="google-123",
+        )
+
+        with patch("app.api.auth.AuthService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.find_or_create_oauth_user.return_value = UserResponse(
+                id=1,
+                email="oauth@example.com",
+                role="user",
+                created_at="2026-02-23T00:00:00+00:00",
+            )
+            mock_service_class.return_value = mock_service
+
+            response = await oauth_find_or_create(data=data, db=mock_db)
+
+        assert response["success"] is True
+        assert response["data"]["id"] == 1
+        assert response["data"]["email"] == "oauth@example.com"
+        assert response["data"]["role"] == "user"
+
+    @pytest.mark.asyncio
+    async def test_oauth_existing_user_returned(self):
+        """Test OAuth with existing user returns existing user data."""
+        from app.api.auth import oauth_find_or_create, OAuthUserRequest
+
+        mock_db = AsyncMock()
+        data = OAuthUserRequest(
+            email="existing@example.com",
+            oauth_provider="google",
+            oauth_id="google-456",
+        )
+
+        with patch("app.api.auth.AuthService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.find_or_create_oauth_user.return_value = UserResponse(
+                id=5,
+                email="existing@example.com",
+                role="user",
+                created_at="2026-02-20T00:00:00+00:00",
+            )
+            mock_service_class.return_value = mock_service
+
+            response = await oauth_find_or_create(data=data, db=mock_db)
+
+        assert response["success"] is True
+        assert response["data"]["id"] == 5
+
+    @pytest.mark.asyncio
+    async def test_oauth_conflict_returns_409(self):
+        """Test OAuth conflict with credentials account returns 409."""
+        from app.api.auth import oauth_find_or_create, OAuthUserRequest
+        from app.services.auth_service import AccountConflictError
+
+        mock_db = AsyncMock()
+        data = OAuthUserRequest(
+            email="creds@example.com",
+            oauth_provider="google",
+            oauth_id="google-789",
+        )
+
+        with patch("app.api.auth.AuthService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.find_or_create_oauth_user.side_effect = AccountConflictError(
+                "Tài khoản này đã đăng ký bằng email/mật khẩu."
+            )
+            mock_service_class.return_value = mock_service
+
+            response = await oauth_find_or_create(data=data, db=mock_db)
+
+        assert response["success"] is False
+        assert response["error"]["status"] == 409
+        assert "email/mật khẩu" in response["error"]["detail"]
+
+    def test_oauth_missing_fields_rejected(self):
+        """Test OAuth request with missing fields is rejected by schema."""
+        from pydantic import ValidationError
+        from app.api.auth import OAuthUserRequest
+
+        with pytest.raises(ValidationError):
+            OAuthUserRequest(email="test@example.com")  # Missing oauth_provider and oauth_id
+
+
 class TestForgotPasswordEndpoint:
     """Tests for POST /api/auth/forgot-password."""
 

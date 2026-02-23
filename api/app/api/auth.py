@@ -1,6 +1,9 @@
 """Authentication API endpoints."""
 
+import re
+
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, field_validator
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +17,24 @@ from app.schemas.user import (
     UserCreate,
     UserLogin,
 )
-from app.services.auth_service import AuthService, InactiveUserError
+from app.services.auth_service import AccountConflictError, AuthService, InactiveUserError
+
+
+class OAuthUserRequest(BaseModel):
+    """Schema for OAuth user find-or-create request."""
+
+    email: str
+    oauth_provider: str
+    oauth_id: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        """Validate and normalize email format."""
+        pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not re.match(pattern, v):
+            raise ValueError("Please enter a valid email address")
+        return v.lower().strip()
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -40,6 +60,34 @@ async def register(
             instance="/api/auth/register",
         )
     return success_response(result.model_dump(mode="json"))
+
+
+@router.post("/oauth")
+async def oauth_find_or_create(
+    data: OAuthUserRequest,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Find or create a user via OAuth provider.
+
+    Called by NextAuth.js signIn callback for OAuth providers.
+    Returns user data for JWT token creation.
+    """
+    service = AuthService(db)
+    try:
+        result = await service.find_or_create_oauth_user(
+            email=data.email,
+            oauth_provider=data.oauth_provider,
+            oauth_id=data.oauth_id,
+        )
+        return success_response(result.model_dump(mode="json"))
+    except AccountConflictError as e:
+        return error_response(
+            type_uri="https://athena.example/errors/oauth-conflict",
+            title="Account Conflict",
+            status=409,
+            detail=str(e),
+            instance="/api/auth/oauth",
+        )
 
 
 async def _is_rate_limited(email: str, redis: Redis) -> bool:

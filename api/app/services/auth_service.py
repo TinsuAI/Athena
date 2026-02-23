@@ -6,6 +6,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -20,6 +21,12 @@ logger = logging.getLogger(__name__)
 
 class InactiveUserError(Exception):
     """Raised when an inactive user attempts to log in."""
+
+    pass
+
+
+class AccountConflictError(Exception):
+    """Raised when OAuth email conflicts with existing credentials account."""
 
     pass
 
@@ -66,6 +73,55 @@ class AuthService:
             created_at=created.created_at,
         )
 
+    async def find_or_create_oauth_user(
+        self, email: str, oauth_provider: str, oauth_id: str
+    ) -> UserResponse:
+        """Find or create a user via OAuth login.
+
+        Returns existing user if same provider, creates new if not found.
+        Raises AccountConflictError if email exists with different auth method.
+        """
+        existing = await self.repo.get_by_email(email)
+        if existing is not None:
+            if existing.oauth_provider == oauth_provider:
+                return UserResponse(
+                    id=existing.id,
+                    email=existing.email,
+                    role=existing.role,
+                    created_at=existing.created_at,
+                )
+            raise AccountConflictError(
+                "Tài khoản này đã đăng ký bằng email/mật khẩu. "
+                "Vui lòng đăng nhập bằng email và mật khẩu."
+            )
+        user = User(
+            email=email,
+            password_hash=None,
+            oauth_provider=oauth_provider,
+            oauth_id=oauth_id,
+            role="user",
+        )
+        try:
+            created = await self.repo.create(user)
+        except IntegrityError:
+            # Race condition: another request created the user between our check and insert.
+            # Re-fetch and return the existing user.
+            existing = await self.repo.get_by_email(email)
+            if existing is None:
+                raise  # Unexpected integrity error — re-raise
+            return UserResponse(
+                id=existing.id,
+                email=existing.email,
+                role=existing.role,
+                created_at=existing.created_at,
+            )
+        return UserResponse(
+            id=created.id,
+            email=created.email,
+            role=created.role,
+            created_at=created.created_at,
+        )
+
     async def authenticate_user(self, email: str, password: str) -> UserResponse | None:
         """Authenticate a user by email and password.
 
@@ -79,9 +135,14 @@ class AuthService:
         user = await self.repo.get_by_email(email)
 
         # Always verify password even if user doesn't exist (timing attack mitigation)
-        # Use a dummy hash if user not found to maintain constant time
+        # Use a dummy hash if user not found OR if user is an OAuth user (password_hash=None)
+        # This prevents AttributeError and maintains constant-time behavior
         dummy_hash = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5UpJFUjJJaO4i"
-        password_hash = user.password_hash if user is not None else dummy_hash
+        password_hash = (
+            user.password_hash
+            if user is not None and user.password_hash is not None
+            else dummy_hash
+        )
 
         password_valid = verify_password(password, password_hash)
 

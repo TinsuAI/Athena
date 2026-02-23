@@ -36,9 +36,9 @@ describe("RegisterForm", () => {
     render(<RegisterForm />);
 
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Mật khẩu/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /create account/i })
+      screen.getByRole("button", { name: /Tạo tài khoản/i })
     ).toBeInTheDocument();
   });
 
@@ -52,7 +52,7 @@ describe("RegisterForm", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/please enter a valid email address/i)
+        screen.getByText(/Vui lòng nhập địa chỉ email hợp lệ/i)
       ).toBeInTheDocument();
     });
   });
@@ -61,13 +61,13 @@ describe("RegisterForm", () => {
     const user = userEvent.setup();
     render(<RegisterForm />);
 
-    const passwordInput = screen.getByLabelText(/password/i);
+    const passwordInput = screen.getByLabelText(/Mật khẩu/i);
     await user.type(passwordInput, "short");
     await user.tab();
 
     await waitFor(() => {
       expect(
-        screen.getByText(/password must be at least 8 characters/i)
+        screen.getByText(/Mật khẩu phải có ít nhất 8 ký tự/i)
       ).toBeInTheDocument();
     });
   });
@@ -85,8 +85,8 @@ describe("RegisterForm", () => {
     render(<RegisterForm />);
 
     await user.type(screen.getByLabelText(/email/i), "new@example.com");
-    await user.type(screen.getByLabelText(/password/i), "securepass123");
-    await user.click(screen.getByRole("button", { name: /create account/i }));
+    await user.type(screen.getByLabelText(/Mật khẩu/i), "securepass123");
+    await user.click(screen.getByRole("button", { name: /Tạo tài khoản/i }));
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith("/api/auth/register", {
@@ -126,13 +126,37 @@ describe("RegisterForm", () => {
     render(<RegisterForm />);
 
     await user.type(screen.getByLabelText(/email/i), "existing@example.com");
-    await user.type(screen.getByLabelText(/password/i), "securepass123");
-    await user.click(screen.getByRole("button", { name: /create account/i }));
+    await user.type(screen.getByLabelText(/Mật khẩu/i), "securepass123");
+    await user.click(screen.getByRole("button", { name: /Tạo tài khoản/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/email already registered/i)).toBeInTheDocument();
+      expect(screen.getByText(/Email đã được đăng ký/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/log in instead/i)).toBeInTheDocument();
+    const loginLinks = screen.getAllByRole("link", { name: /Đăng nhập/i });
+    expect(loginLinks.some((link) => link.getAttribute("href") === "/login")).toBe(true);
+  });
+
+  // Social login button tests (AC #1, #2, #4)
+  it("renders Google login button on register page", () => {
+    render(<RegisterForm />);
+
+    expect(
+      screen.getByRole("button", { name: /Đăng nhập với Google/i })
+    ).toBeInTheDocument();
+  });
+
+  it("renders Facebook login button on register page", () => {
+    render(<RegisterForm />);
+
+    expect(
+      screen.getByRole("button", { name: /Đăng nhập với Facebook/i })
+    ).toBeInTheDocument();
+  });
+
+  it("renders divider between social buttons and email form", () => {
+    render(<RegisterForm />);
+
+    expect(screen.getByText("— hoặc —")).toBeInTheDocument();
   });
 });

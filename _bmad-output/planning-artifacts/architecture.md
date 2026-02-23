@@ -328,14 +328,23 @@ WHERE h.chapter_id = (SELECT id FROM hs_chapters WHERE chapter_code = '01');
 | **Backend Validation** | fastapi-nextauth-jwt | Decrypts NextAuth JWTs, shared secret |
 | **Password Hashing** | bcrypt (passlib) | Industry standard |
 | **Authorization** | Role-based (user/expert/admin) + permission model | Expert role for correction approval; permission tables for granular control (Sprint Change 2026-02-18) |
+| **OAuth Providers** | GoogleProvider + FacebookProvider (@auth/core) | Social login for reduced onboarding friction (Sprint Change 2026-02-22) |
 
 **Auth Flow:**
-1. User logs in via NextAuth.js (credentials provider)
+1. User logs in via NextAuth.js (credentials provider OR Google/Facebook OAuth)
 2. NextAuth creates encrypted JWT in httpOnly cookie
 3. Frontend requests include cookie automatically
 4. nginx proxies `/api/*` to FastAPI with cookie
 5. FastAPI middleware decrypts JWT, extracts user identity
 6. Route handlers receive authenticated user context
+
+**OAuth Notes (Sprint Change 2026-02-22, Story 4-6):**
+- GoogleProvider + FacebookProvider configured in `web/src/lib/auth.ts`
+- OAuth users: `password_hash=NULL`, `oauth_provider` + `oauth_id` columns on `users` table
+- Account conflict policy: email registered via credentials cannot use OAuth with same email (and vice versa); user shown explicit Vietnamese error
+- Same JWT flow applies: NextAuth wraps OAuth session in signed JWT → FastAPI decrypts unchanged
+- `/search` is now a protected route (proxy.ts matcher updated in Story 4-6)
+- New env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`
 
 ### API & Communication Patterns
 

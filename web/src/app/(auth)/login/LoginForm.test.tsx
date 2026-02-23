@@ -31,9 +31,9 @@ describe("LoginForm", () => {
     render(<LoginForm />);
 
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/enter your password/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Nhập mật khẩu của bạn")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /log in/i })
+      screen.getByRole("button", { name: /Đăng nhập$/i })
     ).toBeInTheDocument();
   });
 
@@ -47,7 +47,7 @@ describe("LoginForm", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/please enter a valid email address/i)
+        screen.getByText(/Vui lòng nhập địa chỉ email hợp lệ/i)
       ).toBeInTheDocument();
     });
   });
@@ -56,12 +56,12 @@ describe("LoginForm", () => {
     const user = userEvent.setup();
     render(<LoginForm />);
 
-    const passwordInput = screen.getByPlaceholderText(/enter your password/i);
+    const passwordInput = screen.getByPlaceholderText("Nhập mật khẩu của bạn");
     await user.click(passwordInput);
     await user.tab();
 
     await waitFor(() => {
-      expect(screen.getByText(/password is required/i)).toBeInTheDocument();
+      expect(screen.getByText(/Vui lòng nhập mật khẩu/i)).toBeInTheDocument();
     });
   });
 
@@ -73,12 +73,12 @@ describe("LoginForm", () => {
     render(<LoginForm />);
 
     await user.type(screen.getByLabelText(/email/i), "test@example.com");
-    await user.type(screen.getByPlaceholderText(/enter your password/i), "wrongpassword");
-    await user.click(screen.getByRole("button", { name: /log in/i }));
+    await user.type(screen.getByPlaceholderText("Nhập mật khẩu của bạn"), "wrongpassword");
+    await user.click(screen.getByRole("button", { name: /Đăng nhập$/i }));
 
     await waitFor(() => {
       expect(
-        screen.getByText(/invalid email or password/i)
+        screen.getByText(/Email hoặc mật khẩu không đúng/i)
       ).toBeInTheDocument();
     });
   });
@@ -91,8 +91,8 @@ describe("LoginForm", () => {
     render(<LoginForm />);
 
     await user.type(screen.getByLabelText(/email/i), "test@example.com");
-    await user.type(screen.getByPlaceholderText(/enter your password/i), "mypassword123");
-    await user.click(screen.getByRole("button", { name: /log in/i }));
+    await user.type(screen.getByPlaceholderText("Nhập mật khẩu của bạn"), "mypassword123");
+    await user.click(screen.getByRole("button", { name: /Đăng nhập$/i }));
 
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith("credentials", {
@@ -110,14 +110,16 @@ describe("LoginForm", () => {
   it("uses callbackUrl from search params for redirect", async () => {
     const user = userEvent.setup();
 
-    mockGet.mockReturnValue("/favorites");
+    mockGet.mockImplementation((key: string) =>
+      key === "callbackUrl" ? "/favorites" : null
+    );
     mockSignIn.mockResolvedValue({ error: null });
 
     render(<LoginForm />);
 
     await user.type(screen.getByLabelText(/email/i), "test@example.com");
-    await user.type(screen.getByPlaceholderText(/enter your password/i), "mypassword123");
-    await user.click(screen.getByRole("button", { name: /log in/i }));
+    await user.type(screen.getByPlaceholderText("Nhập mật khẩu của bạn"), "mypassword123");
+    await user.click(screen.getByRole("button", { name: /Đăng nhập$/i }));
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/favorites");
@@ -127,7 +129,7 @@ describe("LoginForm", () => {
   it("shows link to registration page", () => {
     render(<LoginForm />);
 
-    const signUpLink = screen.getByText(/sign up/i);
+    const signUpLink = screen.getByText(/Đăng ký/i);
     expect(signUpLink).toBeInTheDocument();
     expect(signUpLink.closest("a")).toHaveAttribute("href", "/register");
   });
@@ -140,13 +142,74 @@ describe("LoginForm", () => {
     render(<LoginForm />);
 
     await user.type(screen.getByLabelText(/email/i), "test@example.com");
-    await user.type(screen.getByPlaceholderText(/enter your password/i), "mypassword123");
-    await user.click(screen.getByRole("button", { name: /log in/i }));
+    await user.type(screen.getByPlaceholderText("Nhập mật khẩu của bạn"), "mypassword123");
+    await user.click(screen.getByRole("button", { name: /Đăng nhập$/i }));
 
     await waitFor(() => {
       expect(
-        screen.getByText(/an unexpected error occurred/i)
+        screen.getByText(/Đã xảy ra lỗi không mong muốn/i)
       ).toBeInTheDocument();
+    });
+  });
+
+  // Social login button tests (AC #1, #2, #4)
+  it("renders Google login button with Vietnamese text", () => {
+    render(<LoginForm />);
+
+    expect(
+      screen.getByRole("button", { name: /Đăng nhập với Google/i })
+    ).toBeInTheDocument();
+  });
+
+  it("renders Facebook login button with Vietnamese text", () => {
+    render(<LoginForm />);
+
+    expect(
+      screen.getByRole("button", { name: /Đăng nhập với Facebook/i })
+    ).toBeInTheDocument();
+  });
+
+  it("renders divider between social buttons and email form", () => {
+    render(<LoginForm />);
+
+    expect(screen.getByText("— hoặc —")).toBeInTheDocument();
+  });
+
+  it("displays conflict error when URL has OAuthAccountNotLinked error", () => {
+    mockGet.mockImplementation((key: string) =>
+      key === "error" ? "OAuthAccountNotLinked" : null
+    );
+
+    render(<LoginForm />);
+
+    expect(
+      screen.getByText(/Tài khoản này đã đăng ký bằng email\/mật khẩu/i)
+    ).toBeInTheDocument();
+  });
+
+  it("Google button calls signIn with google provider", async () => {
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    await user.click(
+      screen.getByRole("button", { name: /Đăng nhập với Google/i })
+    );
+
+    expect(mockSignIn).toHaveBeenCalledWith("google", {
+      callbackUrl: "/search",
+    });
+  });
+
+  it("Facebook button calls signIn with facebook provider", async () => {
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    await user.click(
+      screen.getByRole("button", { name: /Đăng nhập với Facebook/i })
+    );
+
+    expect(mockSignIn).toHaveBeenCalledWith("facebook", {
+      callbackUrl: "/search",
     });
   });
 });

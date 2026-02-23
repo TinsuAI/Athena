@@ -769,6 +769,11 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 - **FR69:** Admins can create, edit, deactivate, and search user accounts
 - **FR70:** Corrections follow a status workflow: pending → approved/rejected by expert
 
+**Social OAuth Login & Search Auth Gate (FR71-FR73):** _(added via sprint change 2026-02-22)_
+- **FR71:** Users can log in using their Google account (OAuth 2.0 via NextAuth.js GoogleProvider)
+- **FR72:** Users can log in using their Facebook account (OAuth 2.0 via NextAuth.js FacebookProvider)
+- **FR73:** Only authenticated users can perform HS code searches; unauthenticated users navigating to /search are redirected to /login with callbackUrl=/search
+
 ---
 
 **FR Coverage Validation:**
@@ -787,6 +792,7 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 | Tariff schedule browser (from sprint change 2026-02-11) | FR54-FR61 |
 | NotebookLM AI search (from sprint change 2026-02-15) | FR62-FR64 |
 | Role-based permissions & user management (from sprint change 2026-02-18) | FR65-FR70 |
+| Social OAuth login & search auth gate (from sprint change 2026-02-22) | FR71-FR73 |
 
 ---
 

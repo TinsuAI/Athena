@@ -1,10 +1,12 @@
 /**
- * NextAuth.js v5 configuration with Credentials provider.
+ * NextAuth.js v5 configuration with Credentials, Google, and Facebook providers.
  * Authenticates against FastAPI backend.
  */
 
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
+import Facebook from "next-auth/providers/facebook";
 
 const API_URL =
   process.env.API_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8980";
@@ -23,6 +25,8 @@ if (
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   providers: [
+    Google,
+    Facebook,
     Credentials({
       credentials: {
         email: {},
@@ -59,6 +63,31 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   callbacks: {
     authorized({ auth }) {
       return !!auth;
+    },
+    async signIn({ user, account }) {
+      if (account?.provider && account.provider !== "credentials") {
+        try {
+          const res = await fetch(`${API_URL}/api/auth/oauth`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: user.email,
+              oauth_provider: account.provider,
+              oauth_id: account.providerAccountId,
+            }),
+          });
+          const data = await res.json();
+          if (!data.success) {
+            return `/login?error=OAuthAccountNotLinked`;
+          }
+          user.id = String(data.data.id);
+          (user as { role?: string }).role = data.data.role;
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      return true;
     },
     jwt({ token, user }) {
       if (user) {
