@@ -167,6 +167,17 @@ class TestRedisCaching:
         assert result.hs_code == "7418.20.00"
         mock_redis.setex.assert_called_once()
 
+    async def test_guide_response_not_cached(self, service, mock_redis):
+        """Guide responses (no HS code) should NOT be cached in Redis."""
+        mock_redis.get = AsyncMock(return_value=None)
+
+        with patch.object(service, "_call_sdk", return_value=RESPONSE_GUIDE_NO_CODE):
+            result = await service.query("sản phẩm phức hợp")
+
+        assert result is not None
+        assert result.hs_code is None
+        mock_redis.setex.assert_not_called()
+
     async def test_redis_unavailable_still_works(self, service, mock_redis):
         """Service works when Redis raises an exception."""
         mock_redis.get = AsyncMock(side_effect=Exception("Redis down"))

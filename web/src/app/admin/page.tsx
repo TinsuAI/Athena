@@ -32,6 +32,28 @@ export default function AdminDashboard() {
             Cấu hình quyền truy cập theo vai trò và người dùng
           </p>
         </Link>
+        <Link
+          href="/admin/settings"
+          className="block rounded-lg border border-slate-200 bg-white p-6 hover:border-emerald-300 hover:shadow-sm transition-all"
+        >
+          <h2 className="text-lg font-semibold text-slate-900">
+            Cấu hình hệ thống
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Quản lý các cài đặt chung của hệ thống
+          </p>
+        </Link>
+        <Link
+          href="/admin/resources"
+          className="block rounded-lg border border-slate-200 bg-white p-6 hover:border-emerald-300 hover:shadow-sm transition-all"
+        >
+          <h2 className="text-lg font-semibold text-slate-900">
+            Tài liệu tham khảo
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            43 nguồn tài liệu về biểu thuế và phân loại HS code Việt Nam 2026
+          </p>
+        </Link>
       </div>
     </div>
   );

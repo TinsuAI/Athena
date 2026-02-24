@@ -162,3 +162,9 @@ class UpdateUserPermissionsRequest(BaseModel):
     """Request to update a user's permission overrides."""
 
     overrides: list[PermissionOverrideItem]
+
+
+class UpdateSettingRequest(BaseModel):
+    """Request to update a site setting value."""
+
+    value: str = Field(description="New value for the setting")

@@ -111,6 +111,13 @@ async def _record_lookup(
             existing.practical_notes = practical_notes
             existing.process_logs = process_logs
             existing.nlm_raw_response = nlm_raw_response
+            # Update match data if new result is better (non-null replacing null, or higher confidence)
+            if matched_hs_code_id is not None and (
+                existing.matched_hs_code_id is None
+                or (confidence_score or 0) > (existing.confidence_score or 0)
+            ):
+                existing.matched_hs_code_id = matched_hs_code_id
+                existing.confidence_score = confidence_score
             await repo.update(existing)
             return existing.id
 

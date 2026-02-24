@@ -25,7 +25,7 @@ function SearchPageInner() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [correctionPanelOpen, setCorrectionPanelOpen] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
-  const [showNlmResponse, setShowNlmResponse] = useState(false);
+  const [showNlmResponse, setShowNlmResponse] = useState(true);
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
   const { data: session } = useSession();
   const isAdmin = (session?.user as { role?: string })?.role === "admin";

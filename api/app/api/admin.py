@@ -17,12 +17,14 @@ from app.schemas.admin import (
     AuditLogResponse,
     RoleUpdateRequest,
     UpdateRolePermissionsRequest,
+    UpdateSettingRequest,
     UpdateUserPermissionsRequest,
     UserStatusRequest,
 )
 from app.schemas.base import error_response, success_response
 from app.services.admin_service import AdminService
 from app.services.permission_service import PermissionService
+from app.services.site_setting_service import SiteSettingService
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -356,3 +358,39 @@ async def update_user_permissions(
     # Return updated effective permissions
     result = await service.get_user_effective_permissions(user_id, target.role)
     return success_response(result)
+
+
+# --- Site settings endpoints ---
+
+
+@router.get("/settings", response_model=None)
+async def get_admin_settings(
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """List all site settings. Requires admin role."""
+    service = SiteSettingService(db)
+    settings = await service.get_all()
+    return success_response(settings)
+
+
+@router.put("/settings/{key}", response_model=None)
+async def update_admin_setting(
+    key: str,
+    body: UpdateSettingRequest,
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Update a site setting. Requires admin role."""
+    try:
+        service = SiteSettingService(db)
+        result = await service.update(key, body.value, admin_id=current_user["id"])
+        return success_response(result)
+    except KeyError as e:
+        return error_response(
+            type_uri="https://athena.example/errors/not-found",
+            title="Setting Not Found",
+            status=404,
+            detail=str(e),
+            instance=f"/api/admin/settings/{key}",
+        )

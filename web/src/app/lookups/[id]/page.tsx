@@ -49,7 +49,7 @@ export default function LookupDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCorrectionPanel, setShowCorrectionPanel] = useState(false);
   const [showProcessLogs, setShowProcessLogs] = useState(false);
-  const [showNlmResponse, setShowNlmResponse] = useState(false);
+  const [showNlmResponse, setShowNlmResponse] = useState(true);
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
   const { data: session } = useSession();
   const isAdmin = (session?.user as { role?: string })?.role === "admin";
@@ -163,7 +163,7 @@ export default function LookupDetailPage() {
       </div>
 
       {/* Matched Result Section */}
-      {lookup.matched_hs_code && (
+      {lookup.matched_hs_code ? (
         <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-sm">
           <h2 className="mb-4 text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
             Kết quả phù hợp
@@ -199,6 +199,31 @@ export default function LookupDetailPage() {
                 {lookup.matched_hs_code.vat_rate}
               </span>
             )}
+          </div>
+        </div>
+      ) : (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm dark:border-amber-800 dark:bg-amber-900/10">
+          <div className="flex items-start gap-3">
+            <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                Chưa xác định được mã HS cụ thể
+              </h2>
+              <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
+                Hệ thống không thể xác định một mã HS duy nhất cho truy vấn này. Có thể sản phẩm thuộc nhiều nhóm phân loại hoặc cần mô tả chi tiết hơn.
+              </p>
+              <Link
+                href={`/search?q=${encodeURIComponent(lookup.query_text)}`}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Tìm kiếm lại
+              </Link>
+            </div>
           </div>
         </div>
       )}

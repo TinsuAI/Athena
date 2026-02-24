@@ -725,3 +725,74 @@ class TestPermissionEndpointsRequireAdmin:
             with pytest.raises(HTTPException) as exc_info:
                 await require_admin(mock_request)
             assert exc_info.value.status_code == 403
+
+
+class TestGetAdminSettings:
+    """Tests for GET /api/admin/settings."""
+
+    @pytest.mark.asyncio
+    async def test_returns_all_settings(self):
+        mock_db = AsyncMock()
+        admin_user = {"id": 1, "email": "admin@example.com", "role": "admin"}
+
+        with patch("app.api.admin.SiteSettingService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.get_all.return_value = [
+                {"key": "search_requires_auth", "value": "true", "description": "desc"},
+            ]
+            mock_service_class.return_value = mock_service
+
+            from app.api.admin import get_admin_settings
+            result = await get_admin_settings(current_user=admin_user, db=mock_db)
+
+        assert result["success"] is True
+        assert len(result["data"]) == 1
+        assert result["data"][0]["key"] == "search_requires_auth"
+
+
+class TestUpdateAdminSetting:
+    """Tests for PUT /api/admin/settings/{key}."""
+
+    @pytest.mark.asyncio
+    async def test_updates_setting_successfully(self):
+        mock_db = AsyncMock()
+        admin_user = {"id": 1, "email": "admin@example.com", "role": "admin"}
+
+        with patch("app.api.admin.SiteSettingService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.update.return_value = {
+                "key": "search_requires_auth",
+                "value": "false",
+                "description": "desc",
+            }
+            mock_service_class.return_value = mock_service
+
+            from app.api.admin import update_admin_setting
+            from app.schemas.admin import UpdateSettingRequest
+            body = UpdateSettingRequest(value="false")
+            result = await update_admin_setting(
+                key="search_requires_auth", body=body, current_user=admin_user, db=mock_db
+            )
+
+        assert result["success"] is True
+        assert result["data"]["value"] == "false"
+
+    @pytest.mark.asyncio
+    async def test_returns_404_for_unknown_key(self):
+        mock_db = AsyncMock()
+        admin_user = {"id": 1, "email": "admin@example.com", "role": "admin"}
+
+        with patch("app.api.admin.SiteSettingService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.update.side_effect = KeyError("Unknown setting key: bad")
+            mock_service_class.return_value = mock_service
+
+            from app.api.admin import update_admin_setting
+            from app.schemas.admin import UpdateSettingRequest
+            body = UpdateSettingRequest(value="true")
+            result = await update_admin_setting(
+                key="bad", body=body, current_user=admin_user, db=mock_db
+            )
+
+        assert result["success"] is False
+        assert result["error"]["status"] == 404

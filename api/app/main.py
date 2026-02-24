@@ -17,6 +17,7 @@ from app.api.history import router as history_router
 from app.api.hs_codes import router as hs_codes_router
 from app.api.lookups import router as lookups_router
 from app.api.search import router as search_router
+from app.api.settings import router as settings_router
 from app.core.config import get_settings
 from app.core.database import engine
 from app.core.rate_limiter import RateLimitMiddleware
@@ -65,6 +66,7 @@ app.include_router(history_router)
 app.include_router(hs_codes_router)
 app.include_router(lookups_router)
 app.include_router(search_router)
+app.include_router(settings_router)
 
 
 @app.get("/health", response_model=ApiResponse[HealthData])

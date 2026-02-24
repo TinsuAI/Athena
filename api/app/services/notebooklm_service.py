@@ -76,8 +76,10 @@ class NotebookLMService:
         # Parse response
         result = self._parse_response(raw_answer)
 
-        # Cache successful result
-        await self._save_to_cache(query_text, result)
+        # Only cache results with a valid HS code — guide/empty responses
+        # should not be cached so that re-searches get a fresh NLM query.
+        if result.hs_code:
+            await self._save_to_cache(query_text, result)
 
         return result
 
