@@ -2,6 +2,7 @@
 
 from app.models.audit_log import AuditLog
 from app.models.base import Base
+from app.models.customs_import_batch import CustomsImportBatch
 from app.models.data_version import DataVersion
 from app.models.favorite import Favorite
 from app.models.fta_rate import FTARate
@@ -19,6 +20,7 @@ from app.models.user import User
 __all__ = [
     "AuditLog",
     "Base",
+    "CustomsImportBatch",
     "DataVersion",
     "Favorite",
     "FTARate",

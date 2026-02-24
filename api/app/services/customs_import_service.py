@@ -8,11 +8,13 @@ import logging
 import re
 import unicodedata
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.customs_import_batch import CustomsImportBatch
 from app.models.hs_code import HSCode
 from app.models.lookup_record import LookupRecord
 from app.repositories.lookup_record_repository import compute_query_hash
@@ -48,6 +50,7 @@ class ImportResult:
     duplicates_skipped: int = 0
     unmatched_codes: list[dict[str, str | int]] = field(default_factory=list)
     errors: list[dict[str, str | int]] = field(default_factory=list)
+    batch_id: int | None = None
 
 
 class CustomsReportParser:
@@ -360,6 +363,7 @@ class CustomsImportService:
         parsed_rows: list[ParsedRow],
         source_file: str,
         company_name: str,
+        imported_by_user_id: int | None = None,
     ) -> ImportResult:
         """Import parsed rows into the knowledge base.
 
@@ -367,13 +371,31 @@ class CustomsImportService:
             parsed_rows: List of ParsedRow from CustomsReportParser.
             source_file: Original filename for traceability notes.
             company_name: Company name for traceability notes.
+            imported_by_user_id: ID of the admin user who triggered the import.
 
         Returns:
             ImportResult with counts and error details.
         """
         result = ImportResult(total_rows=len(parsed_rows))
 
+        # Create batch tracking record
+        import_batch = CustomsImportBatch(
+            file_name=source_file,
+            company_name=company_name,
+            imported_by_user_id=imported_by_user_id,
+            total_rows=len(parsed_rows),
+        )
+        self.session.add(import_batch)
+        await self.session.flush()  # Get the batch ID
+        result.batch_id = import_batch.id
+
         if not parsed_rows:
+            import_batch.records_imported = 0
+            import_batch.duplicates_skipped = 0
+            import_batch.unmatched_codes = 0
+            import_batch.errors_count = 0
+            import_batch.completed_at = datetime.now(timezone.utc)
+            await self.session.commit()
             return result
 
         # Step 1: Batch lookup all distinct HS codes -> {code: id}
@@ -431,15 +453,22 @@ class CustomsImportService:
 
         # Step 4: Batch insert
         for i in range(0, len(records_to_insert), self.BATCH_SIZE):
-            batch = records_to_insert[i:i + self.BATCH_SIZE]
-            self.session.add_all(batch)
+            chunk = records_to_insert[i:i + self.BATCH_SIZE]
+            self.session.add_all(chunk)
             await self.session.flush()
             logger.info(
                 f"Inserted batch {i // self.BATCH_SIZE + 1}: "
-                f"{len(batch)} records"
+                f"{len(chunk)} records"
             )
 
         result.records_imported = len(records_to_insert)
+
+        # Update batch tracking record with final counts
+        import_batch.records_imported = result.records_imported
+        import_batch.duplicates_skipped = result.duplicates_skipped
+        import_batch.unmatched_codes = len(result.unmatched_codes)
+        import_batch.errors_count = len(result.errors)
+        import_batch.completed_at = datetime.now(timezone.utc)
 
         await self.session.commit()
 

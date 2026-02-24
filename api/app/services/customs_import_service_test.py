@@ -595,7 +595,8 @@ class TestCustomsImportServiceImport:
     async def test_successful_import(self):
         """Test importing valid parsed rows creates LookupRecord entries."""
         session = AsyncMock()
-        # add_all is synchronous in SQLAlchemy; override to avoid unawaited coroutine warnings
+        # add and add_all are synchronous in SQLAlchemy; override to avoid unawaited coroutine warnings
+        session.add = MagicMock()
         session.add_all = MagicMock()
         session.flush = AsyncMock()
 
@@ -648,6 +649,7 @@ class TestCustomsImportServiceImport:
     async def test_duplicate_skipping_existing_hash(self):
         """Test that rows with existing query_hash are skipped."""
         session = AsyncMock()
+        session.add = MagicMock()
 
         from app.repositories.lookup_record_repository import compute_query_hash
 
@@ -681,6 +683,7 @@ class TestCustomsImportServiceImport:
     async def test_duplicate_skipping_within_file(self):
         """Test that duplicate product names within the same file are skipped."""
         session = AsyncMock()
+        session.add = MagicMock()
         session.add_all = MagicMock()
         session.flush = AsyncMock()
 
@@ -713,6 +716,7 @@ class TestCustomsImportServiceImport:
     async def test_unmatched_hs_code_tracking(self):
         """Test that rows with unmatched HS codes are tracked in the result."""
         session = AsyncMock()
+        session.add = MagicMock()
         session.add_all = MagicMock()
         session.flush = AsyncMock()
 
@@ -746,6 +750,7 @@ class TestCustomsImportServiceImport:
     async def test_empty_parsed_rows(self):
         """Test importing empty list returns zero counts."""
         session = AsyncMock()
+        session.add = MagicMock()
         service = CustomsImportService(session)
 
         result = await service.import_rows(
@@ -763,6 +768,7 @@ class TestCustomsImportServiceImport:
     async def test_import_result_summary_accuracy(self):
         """Test that the import result accurately sums all categories."""
         session = AsyncMock()
+        session.add = MagicMock()
         session.add_all = MagicMock()
         session.flush = AsyncMock()
 
@@ -805,6 +811,7 @@ class TestCustomsImportServiceImport:
     async def test_import_commits_transaction(self):
         """Test that import_rows commits the session after inserting records."""
         session = AsyncMock()
+        session.add = MagicMock()
         session.add_all = MagicMock()
         session.flush = AsyncMock()
         session.commit = AsyncMock()
@@ -1015,6 +1022,138 @@ class TestParsedRowDataclass:
         assert row.product_name == "Test"
         assert row.hs_code == "12345678"
         assert row.row_number == 1
+
+
+class TestBatchTracking:
+    """Tests for batch tracking in import_rows (Story 9-3)."""
+
+    @pytest.mark.asyncio
+    async def test_import_creates_batch_record(self):
+        """Test that import_rows creates a CustomsImportBatch record."""
+        session = AsyncMock()
+        session.add = MagicMock()
+        session.add_all = MagicMock()
+        session.flush = AsyncMock()
+        session.commit = AsyncMock()
+
+        hs_result = MagicMock()
+        hs_result.all.return_value = [MagicMock(code="39269099", id=100)]
+
+        hash_result = MagicMock()
+        hash_result.all.return_value = []
+
+        session.execute = AsyncMock(side_effect=[hs_result, hash_result])
+
+        service = CustomsImportService(session)
+        parsed_rows = [
+            ParsedRow(product_name="Vo hop nhua", hs_code="39269099", row_number=11),
+        ]
+
+        result = await service.import_rows(
+            parsed_rows=parsed_rows,
+            source_file="test.xlsx",
+            company_name="Test Co",
+            imported_by_user_id=42,
+        )
+
+        # session.add should be called with a CustomsImportBatch instance
+        session.add.assert_called_once()
+        batch_arg = session.add.call_args[0][0]
+        from app.models.customs_import_batch import CustomsImportBatch
+
+        assert isinstance(batch_arg, CustomsImportBatch)
+        assert batch_arg.file_name == "test.xlsx"
+        assert batch_arg.company_name == "Test Co"
+        assert batch_arg.imported_by_user_id == 42
+        assert batch_arg.total_rows == 1
+
+    @pytest.mark.asyncio
+    async def test_import_populates_batch_counts(self):
+        """Test that import_rows updates the batch record with final counts."""
+        session = AsyncMock()
+        session.add_all = MagicMock()
+        session.commit = AsyncMock()
+
+        from app.repositories.lookup_record_repository import compute_query_hash
+
+        # Simulate flush assigning an ID to the batch object
+        flush_call_count = 0
+
+        async def mock_flush():
+            nonlocal flush_call_count
+            flush_call_count += 1
+            if flush_call_count == 1:
+                # First flush is for the batch record
+                batch_arg = session.add.call_args[0][0]
+                batch_arg.id = 99
+
+        session.add = MagicMock()
+        session.flush = AsyncMock(side_effect=mock_flush)
+
+        hs_result = MagicMock()
+        hs_result.all.return_value = [MagicMock(code="39269099", id=100)]
+
+        # One existing hash for "Existing product"
+        existing_hash = compute_query_hash("Existing product")
+        hash_result = MagicMock()
+        hash_result.all.return_value = [(existing_hash,)]
+
+        session.execute = AsyncMock(side_effect=[hs_result, hash_result])
+
+        service = CustomsImportService(session)
+        parsed_rows = [
+            ParsedRow(product_name="New product", hs_code="39269099", row_number=11),
+            ParsedRow(product_name="Existing product", hs_code="39269099", row_number=12),
+            ParsedRow(product_name="Unmatched", hs_code="99999999", row_number=13),
+        ]
+
+        result = await service.import_rows(
+            parsed_rows=parsed_rows,
+            source_file="test.xlsx",
+            company_name="Test Co",
+            imported_by_user_id=1,
+        )
+
+        # Verify the batch object had its counts updated
+        batch_arg = session.add.call_args[0][0]
+        assert batch_arg.records_imported == 1
+        assert batch_arg.duplicates_skipped == 1
+        assert batch_arg.unmatched_codes == 1
+        assert batch_arg.errors_count == 0
+        assert batch_arg.completed_at is not None
+
+        # Verify the result includes batch_id
+        assert result.batch_id == 99
+
+    @pytest.mark.asyncio
+    async def test_import_empty_rows_still_creates_batch(self):
+        """Test that import_rows creates a batch even for empty parsed rows."""
+        session = AsyncMock()
+        session.commit = AsyncMock()
+
+        # Simulate flush assigning an ID to the batch object
+        async def mock_flush():
+            batch_arg = session.add.call_args[0][0]
+            batch_arg.id = 77
+
+        session.add = MagicMock()
+        session.flush = AsyncMock(side_effect=mock_flush)
+
+        service = CustomsImportService(session)
+
+        result = await service.import_rows(
+            parsed_rows=[],
+            source_file="empty.xlsx",
+            company_name="Test Co",
+            imported_by_user_id=5,
+        )
+
+        # Batch should still be created for tracking purposes
+        session.add.assert_called_once()
+        batch_arg = session.add.call_args[0][0]
+        assert batch_arg.total_rows == 0
+        assert batch_arg.records_imported == 0
+        assert result.batch_id == 77
 
 
 class TestDetectCompanyName:

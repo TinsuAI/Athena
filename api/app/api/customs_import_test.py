@@ -215,6 +215,175 @@ class TestUploadEndpoint:
         assert response.status_code == 401
 
 
+class TestHistoryEndpoint:
+    """Tests for GET /api/admin/customs-import/history."""
+
+    @pytest.mark.asyncio
+    async def test_history_returns_paginated_results(
+        self, mock_admin_auth, mock_db_session
+    ):
+        """Test that history endpoint returns paginated import batches."""
+        mock_items = [
+            {
+                "id": 1,
+                "file_name": "report.xlsx",
+                "company_name": "Test Co",
+                "imported_by_email": "admin@test.com",
+                "total_rows": 100,
+                "records_imported": 90,
+                "duplicates_skipped": 8,
+                "unmatched_codes": 2,
+                "errors_count": 0,
+                "started_at": "2026-02-24T10:00:00+00:00",
+                "completed_at": "2026-02-24T10:00:05+00:00",
+            }
+        ]
+
+        with patch(
+            "app.api.customs_import.CustomsImportRepository"
+        ) as mock_repo_cls:
+            mock_repo = mock_repo_cls.return_value
+            mock_repo.get_import_history = AsyncMock(
+                return_value=(mock_items, 1)
+            )
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/admin/customs-import/history?limit=20&offset=0"
+                )
+
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["total"] == 1
+        assert len(data["data"]["items"]) == 1
+        assert data["data"]["items"][0]["file_name"] == "report.xlsx"
+        assert data["data"]["items"][0]["records_imported"] == 90
+
+    @pytest.mark.asyncio
+    async def test_history_empty_returns_empty_list(
+        self, mock_admin_auth, mock_db_session
+    ):
+        """Test that history returns empty list when no imports exist."""
+        with patch(
+            "app.api.customs_import.CustomsImportRepository"
+        ) as mock_repo_cls:
+            mock_repo = mock_repo_cls.return_value
+            mock_repo.get_import_history = AsyncMock(
+                return_value=([], 0)
+            )
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/admin/customs-import/history"
+                )
+
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["total"] == 0
+        assert data["data"]["items"] == []
+
+    @pytest.mark.asyncio
+    async def test_history_requires_admin(self):
+        """Test that history endpoint requires admin auth."""
+        app.dependency_overrides.clear()
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            response = await client.get(
+                "/api/admin/customs-import/history"
+            )
+
+        assert response.status_code == 401
+
+
+class TestStatsEndpoint:
+    """Tests for GET /api/admin/customs-import/stats."""
+
+    @pytest.mark.asyncio
+    async def test_stats_returns_kb_statistics(
+        self, mock_admin_auth, mock_db_session
+    ):
+        """Test that stats endpoint returns KB quality statistics."""
+        mock_stats = {
+            "total_verified": 150,
+            "breakdown_by_method": [
+                {"search_method": "customs_import", "count": 100},
+                {"search_method": "notebooklm", "count": 50},
+            ],
+            "top_chapters": [
+                {
+                    "chapter_code": "85",
+                    "name_vn": "May dien va thiet bi dien",
+                    "record_count": 75,
+                },
+            ],
+        }
+        mock_recent = [
+            {
+                "id": 1,
+                "file_name": "recent.xlsx",
+                "company_name": "Test Co",
+                "imported_by_email": "admin@test.com",
+                "total_rows": 50,
+                "records_imported": 45,
+                "duplicates_skipped": 3,
+                "unmatched_codes": 2,
+                "errors_count": 0,
+                "started_at": "2026-02-24T10:00:00+00:00",
+                "completed_at": "2026-02-24T10:00:05+00:00",
+            }
+        ]
+
+        with patch(
+            "app.api.customs_import.CustomsImportRepository"
+        ) as mock_repo_cls:
+            mock_repo = mock_repo_cls.return_value
+            mock_repo.get_kb_stats = AsyncMock(return_value=mock_stats)
+            mock_repo.get_recent_imports = AsyncMock(
+                return_value=mock_recent
+            )
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/admin/customs-import/stats"
+                )
+
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["total_verified"] == 150
+        assert len(data["data"]["breakdown_by_method"]) == 2
+        assert data["data"]["breakdown_by_method"][0]["search_method"] == "customs_import"
+        assert len(data["data"]["top_chapters"]) == 1
+        assert data["data"]["top_chapters"][0]["chapter_code"] == "85"
+        assert len(data["data"]["recent_imports"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_stats_requires_admin(self):
+        """Test that stats endpoint requires admin auth."""
+        app.dependency_overrides.clear()
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            response = await client.get(
+                "/api/admin/customs-import/stats"
+            )
+
+        assert response.status_code == 401
+
+
 class TestExecuteEndpoint:
     """Tests for POST /api/admin/customs-import/execute."""
 

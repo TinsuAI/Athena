@@ -6,15 +6,18 @@ import tempfile
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session
 from app.core.auth import require_admin
+from app.repositories.customs_import_repository import CustomsImportRepository
 from app.schemas.base import error_response, success_response
 from app.schemas.customs_import import (
     CustomsImportPreviewResponse,
     CustomsImportResultResponse,
+    ImportBatchResponse,
+    KBStatsResponse,
     SampleRow,
 )
 from app.services.customs_import_service import (
@@ -163,6 +166,7 @@ async def execute_customs_import(
             parsed_rows=parsed_rows,  # type: ignore[arg-type]
             source_file=file.filename or "unknown",
             company_name=current_user.get("email", "admin_upload"),
+            imported_by_user_id=current_user.get("id"),
         )
 
         elapsed = time.monotonic() - start_time
@@ -175,6 +179,7 @@ async def execute_customs_import(
             unmatched_codes=result.unmatched_codes,
             errors=result.errors,
             elapsed_seconds=round(elapsed, 2),
+            batch_id=result.batch_id,
         )
 
         return success_response(response.model_dump())
@@ -192,3 +197,68 @@ async def execute_customs_import(
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
+
+
+@router.get("/history", response_model=None)
+async def get_import_history(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Get paginated history of customs data imports.
+
+    Returns list of import batches with user email, ordered by most recent first.
+    Requires admin role.
+    """
+    try:
+        repo = CustomsImportRepository(db)
+        items, total = await repo.get_import_history(limit=limit, offset=offset)
+
+        return success_response({
+            "items": [ImportBatchResponse(**item).model_dump() for item in items],
+            "total": total,
+        })
+    except Exception as e:
+        logger.exception("Error fetching import history: %s", e)
+        return error_response(
+            type_uri="https://athena.example/errors/server-error",
+            title="Server Error",
+            status=500,
+            detail="Loi he thong khi tai lich su nhap du lieu.",
+            instance="/api/admin/customs-import/history",
+        )
+
+
+@router.get("/stats", response_model=None)
+async def get_kb_stats(
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Get knowledge base quality statistics.
+
+    Returns total verified records, breakdown by search method,
+    top chapters by coverage, and recent imports. Requires admin role.
+    """
+    try:
+        repo = CustomsImportRepository(db)
+        stats = await repo.get_kb_stats()
+        recent_imports = await repo.get_recent_imports(limit=5)
+
+        response = KBStatsResponse(
+            total_verified=stats["total_verified"],
+            breakdown_by_method=stats["breakdown_by_method"],
+            top_chapters=stats["top_chapters"],
+            recent_imports=[ImportBatchResponse(**item) for item in recent_imports],
+        )
+
+        return success_response(response.model_dump())
+    except Exception as e:
+        logger.exception("Error fetching KB stats: %s", e)
+        return error_response(
+            type_uri="https://athena.example/errors/server-error",
+            title="Server Error",
+            status=500,
+            detail="Loi he thong khi tai thong ke co so kien thuc.",
+            instance="/api/admin/customs-import/stats",
+        )

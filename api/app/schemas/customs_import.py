@@ -46,3 +46,44 @@ class CustomsImportResultResponse(BaseModel):
         description="Rows that caused errors during import",
     )
     elapsed_seconds: float = Field(description="Time taken for the import in seconds")
+    batch_id: int | None = Field(default=None, description="Import batch tracking ID")
+
+
+class ImportBatchResponse(BaseModel):
+    """A single import batch record for history display."""
+
+    id: int
+    file_name: str
+    company_name: str | None = None
+    imported_by_email: str | None = None
+    total_rows: int
+    records_imported: int
+    duplicates_skipped: int
+    unmatched_codes: int
+    errors_count: int
+    started_at: str | None = None
+    completed_at: str | None = None
+
+
+class SearchMethodBreakdown(BaseModel):
+    """KB record count for a single search method."""
+
+    search_method: str
+    count: int
+
+
+class ChapterCoverage(BaseModel):
+    """KB record count for a single HS chapter."""
+
+    chapter_code: str
+    name_vn: str
+    record_count: int
+
+
+class KBStatsResponse(BaseModel):
+    """Knowledge base quality statistics."""
+
+    total_verified: int
+    breakdown_by_method: list[SearchMethodBreakdown]
+    top_chapters: list[ChapterCoverage]
+    recent_imports: list[ImportBatchResponse]

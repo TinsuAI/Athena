@@ -119,8 +119,8 @@ development_status:
   epic-8-retrospective: optional
 
   # Epic 9: Customs Data Ingestion (NEW - Sprint Change 2026-02-24, 3 stories)
-  epic-9: in-progress
+  epic-9: done
   9-1-customs-report-parser-import-service: done  # NEW: Sprint Change 2026-02-24 - parse XLS/XLSX, extract product→HS code, bulk insert to KB (Code review: 1 critical + 2 high + 3 medium + 1 low issues fixed)
   9-2-admin-bulk-import-api-ui: done  # NEW: Sprint Change 2026-02-24 - upload/preview/execute endpoints + admin page (Code review: 2 high + 3 medium issues fixed)
-  9-3-import-history-quality-dashboard: backlog  # NEW: Sprint Change 2026-02-24 - batch tracking, KB stats
+  9-3-import-history-quality-dashboard: done  # NEW: Sprint Change 2026-02-24 - batch tracking, KB stats (Code review: 2 high + 2 medium issues fixed)
   epic-9-retrospective: optional
