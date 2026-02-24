@@ -44,6 +44,17 @@ export default function AdminDashboard() {
           </p>
         </Link>
         <Link
+          href="/admin/customs-import"
+          className="block rounded-lg border border-slate-200 bg-white p-6 hover:border-emerald-300 hover:shadow-sm transition-all"
+        >
+          <h2 className="text-lg font-semibold text-slate-900">
+            Nhập dữ liệu hải quan
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Tải lên báo cáo hải quan để nhập dữ liệu vào cơ sở kiến thức
+          </p>
+        </Link>
+        <Link
           href="/admin/resources"
           className="block rounded-lg border border-slate-200 bg-white p-6 hover:border-emerald-300 hover:shadow-sm transition-all"
         >

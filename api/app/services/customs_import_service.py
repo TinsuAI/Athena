@@ -274,6 +274,87 @@ class CustomsImportService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def preview_import(
+        self,
+        parsed_rows: list[ParsedRow],
+    ) -> dict:
+        """Preview what an import would do without actually inserting records.
+
+        Performs the same dedup + HS code matching as import_rows but does NOT
+        insert into the database. Returns preview data for the admin UI.
+
+        Args:
+            parsed_rows: List of ParsedRow from CustomsReportParser.
+
+        Returns:
+            Dict with preview stats: total_rows, sample_rows, duplicate_count,
+            unmatched_count, ready_to_import_count.
+        """
+        total_rows = len(parsed_rows)
+
+        if not parsed_rows:
+            return {
+                "total_rows": 0,
+                "sample_rows": [],
+                "duplicate_count": 0,
+                "unmatched_count": 0,
+                "ready_to_import_count": 0,
+            }
+
+        # Step 1: Batch lookup all distinct HS codes -> {code: id}
+        distinct_codes = {row.hs_code for row in parsed_rows}
+        hs_code_map = await self._batch_lookup_hs_codes(distinct_codes)
+
+        # Step 2: Compute query hashes for dedup check
+        hash_to_row: dict[str, ParsedRow] = {}
+        for row in parsed_rows:
+            qhash = compute_query_hash(row.product_name)
+            if qhash not in hash_to_row:
+                hash_to_row[qhash] = row
+
+        existing_hashes = await self._batch_check_existing_hashes(set(hash_to_row.keys()))
+
+        # Step 3: Count categories
+        duplicate_count = 0
+        unmatched_count = 0
+        ready_to_import_count = 0
+        seen_hashes: set[str] = set()
+
+        for row in parsed_rows:
+            qhash = compute_query_hash(row.product_name)
+
+            # Within-file or KB duplicate
+            if qhash in seen_hashes or qhash in existing_hashes:
+                duplicate_count += 1
+                seen_hashes.add(qhash)
+                continue
+            seen_hashes.add(qhash)
+
+            # HS code not in database
+            if row.hs_code not in hs_code_map:
+                unmatched_count += 1
+                continue
+
+            ready_to_import_count += 1
+
+        # Sample rows: first 10
+        sample_rows = [
+            {
+                "product_name": row.product_name,
+                "hs_code": row.hs_code,
+                "row_number": row.row_number,
+            }
+            for row in parsed_rows[:10]
+        ]
+
+        return {
+            "total_rows": total_rows,
+            "sample_rows": sample_rows,
+            "duplicate_count": duplicate_count,
+            "unmatched_count": unmatched_count,
+            "ready_to_import_count": ready_to_import_count,
+        }
+
     async def import_rows(
         self,
         parsed_rows: list[ParsedRow],
@@ -359,6 +440,8 @@ class CustomsImportService:
             )
 
         result.records_imported = len(records_to_insert)
+
+        await self.session.commit()
 
         return result
 

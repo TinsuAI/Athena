@@ -802,6 +802,35 @@ class TestCustomsImportServiceImport:
         # Total accounted: 1 + 2 + 1 = 4 (matches total_rows)
 
     @pytest.mark.asyncio
+    async def test_import_commits_transaction(self):
+        """Test that import_rows commits the session after inserting records."""
+        session = AsyncMock()
+        session.add_all = MagicMock()
+        session.flush = AsyncMock()
+        session.commit = AsyncMock()
+
+        hs_result = MagicMock()
+        hs_result.all.return_value = [MagicMock(code="39269099", id=100)]
+
+        hash_result = MagicMock()
+        hash_result.all.return_value = []
+
+        session.execute = AsyncMock(side_effect=[hs_result, hash_result])
+
+        service = CustomsImportService(session)
+        parsed_rows = [
+            ParsedRow(product_name="Vo hop nhua", hs_code="39269099", row_number=11),
+        ]
+
+        await service.import_rows(
+            parsed_rows=parsed_rows,
+            source_file="test.xlsx",
+            company_name="Test Co",
+        )
+
+        session.commit.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_compute_query_hash_integration(self):
         """Test that compute_query_hash is correctly used from the repository module."""
         from app.repositories.lookup_record_repository import compute_query_hash
@@ -825,6 +854,138 @@ class TestCustomsImportServiceImport:
         hash_mixed = compute_query_hash("Vo Hop Nhua")
 
         assert hash_lower == hash_upper == hash_mixed
+
+
+class TestCustomsImportServicePreview:
+    """Tests for CustomsImportService.preview_import."""
+
+    @pytest.mark.asyncio
+    async def test_preview_empty_rows(self):
+        """Test preview with empty parsed rows returns zero counts."""
+        session = AsyncMock()
+        service = CustomsImportService(session)
+        preview = await service.preview_import([])
+
+        assert preview["total_rows"] == 0
+        assert preview["sample_rows"] == []
+        assert preview["duplicate_count"] == 0
+        assert preview["unmatched_count"] == 0
+        assert preview["ready_to_import_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_preview_all_ready(self):
+        """Test preview where all rows are ready to import."""
+        session = AsyncMock()
+        session.add_all = MagicMock()
+
+        hs_result = MagicMock()
+        hs_result.all.return_value = [
+            MagicMock(code="39269099", id=100),
+            MagicMock(code="85414000", id=200),
+        ]
+
+        hash_result = MagicMock()
+        hash_result.all.return_value = []
+
+        session.execute = AsyncMock(side_effect=[hs_result, hash_result])
+
+        service = CustomsImportService(session)
+        parsed_rows = [
+            ParsedRow(product_name="Product A", hs_code="39269099", row_number=11),
+            ParsedRow(product_name="Product B", hs_code="85414000", row_number=12),
+        ]
+
+        preview = await service.preview_import(parsed_rows)
+
+        assert preview["total_rows"] == 2
+        assert preview["ready_to_import_count"] == 2
+        assert preview["duplicate_count"] == 0
+        assert preview["unmatched_count"] == 0
+        assert len(preview["sample_rows"]) == 2
+        assert preview["sample_rows"][0]["product_name"] == "Product A"
+        assert preview["sample_rows"][0]["hs_code"] == "39269099"
+        assert preview["sample_rows"][0]["row_number"] == 11
+
+    @pytest.mark.asyncio
+    async def test_preview_with_duplicates_and_unmatched(self):
+        """Test preview counting duplicates and unmatched codes."""
+        session = AsyncMock()
+
+        from app.repositories.lookup_record_repository import compute_query_hash
+
+        existing_hash = compute_query_hash("Existing product")
+
+        hs_result = MagicMock()
+        hs_result.all.return_value = [MagicMock(code="39269099", id=100)]
+
+        hash_result = MagicMock()
+        hash_result.all.return_value = [(existing_hash,)]
+
+        session.execute = AsyncMock(side_effect=[hs_result, hash_result])
+
+        service = CustomsImportService(session)
+        parsed_rows = [
+            ParsedRow(product_name="New product", hs_code="39269099", row_number=11),
+            ParsedRow(product_name="Existing product", hs_code="39269099", row_number=12),
+            ParsedRow(product_name="Unmatched", hs_code="99999999", row_number=13),
+        ]
+
+        preview = await service.preview_import(parsed_rows)
+
+        assert preview["total_rows"] == 3
+        assert preview["ready_to_import_count"] == 1
+        assert preview["duplicate_count"] == 1
+        assert preview["unmatched_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_preview_sample_rows_limited_to_10(self):
+        """Test preview returns at most 10 sample rows."""
+        session = AsyncMock()
+
+        hs_result = MagicMock()
+        hs_result.all.return_value = [MagicMock(code="39269099", id=100)]
+
+        hash_result = MagicMock()
+        hash_result.all.return_value = []
+
+        session.execute = AsyncMock(side_effect=[hs_result, hash_result])
+
+        service = CustomsImportService(session)
+        parsed_rows = [
+            ParsedRow(product_name=f"Product {i}", hs_code="39269099", row_number=i + 10)
+            for i in range(15)
+        ]
+
+        preview = await service.preview_import(parsed_rows)
+
+        assert len(preview["sample_rows"]) == 10
+        assert preview["sample_rows"][0]["product_name"] == "Product 0"
+        assert preview["sample_rows"][9]["product_name"] == "Product 9"
+
+    @pytest.mark.asyncio
+    async def test_preview_does_not_insert(self):
+        """Test that preview does not call session.add_all or session.flush."""
+        session = AsyncMock()
+        session.add_all = MagicMock()
+        session.flush = AsyncMock()
+
+        hs_result = MagicMock()
+        hs_result.all.return_value = [MagicMock(code="39269099", id=100)]
+
+        hash_result = MagicMock()
+        hash_result.all.return_value = []
+
+        session.execute = AsyncMock(side_effect=[hs_result, hash_result])
+
+        service = CustomsImportService(session)
+        parsed_rows = [
+            ParsedRow(product_name="Product", hs_code="39269099", row_number=11),
+        ]
+
+        await service.preview_import(parsed_rows)
+
+        session.add_all.assert_not_called()
+        session.flush.assert_not_called()
 
 
 class TestImportResultDataclass:

@@ -11,8 +11,9 @@ from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.browse import router as browse_router
 from app.api.corrections import router as corrections_router
-from app.api.favorites import router as favorites_router
+from app.api.customs_import import router as customs_import_router
 from app.api.expert import router as expert_router
+from app.api.favorites import router as favorites_router
 from app.api.history import router as history_router
 from app.api.hs_codes import router as hs_codes_router
 from app.api.lookups import router as lookups_router
@@ -60,6 +61,7 @@ app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(browse_router)
 app.include_router(corrections_router)
+app.include_router(customs_import_router)
 app.include_router(expert_router)
 app.include_router(favorites_router)
 app.include_router(history_router)
