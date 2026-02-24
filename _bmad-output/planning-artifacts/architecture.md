@@ -200,6 +200,41 @@ athena/
 3. Merge and rank results by combined score
 4. Return top N with confidence percentages
 
+### Customs Data Ingestion (Sprint Change 2026-02-24)
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Data Target** | `lookup_records` table | Existing KB schema fits perfectly — no migration needed |
+| **File Formats** | XLS (xlrd) + XLSX (openpyxl) | Matches actual customs report file formats |
+| **Deduplication** | SHA-256 query_hash | Same mechanism as existing KB; skips duplicates automatically |
+| **Verification Level** | is_verified=true, confidence=100 | Customs-approved = highest confidence |
+| **Batch Tracking** | `customs_import_batches` table | Audit trail for ongoing imports |
+
+**New Services:**
+
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `CustomsReportParser` | `api/app/services/customs_import_service.py` | Parse XLS/XLSX reports, extract product→HS code pairs |
+| `CustomsImportService` | `api/app/services/customs_import_service.py` | Match HS codes, deduplicate, bulk insert into lookup_records |
+
+**Import Flow:**
+1. Admin uploads XLS/XLSX customs report file
+2. Parser identifies product description + HS code columns
+3. Extracts all (product_name, hs_code) pairs
+4. Matches each HS code against `hs_codes` table by code field
+5. Deduplicates against existing lookup_records via query_hash
+6. Bulk inserts as verified records (search_method="customs_import")
+7. Logs batch to `customs_import_batches`
+8. Records immediately available via KB lookup (no reindex needed)
+
+**Data Flow into Search Pipeline (no changes needed):**
+```
+User query → KB exact hash match → KB similar match → [NotebookLM] → [vector/fuzzy]
+                    ↑                      ↑
+            customs_import records are already here
+            (is_verified=true, searched by find_verified_exact/find_verified_similar)
+```
+
 ### NotebookLM Integration (Sprint Change 2026-02-15)
 
 | Decision | Choice | Rationale |
@@ -280,6 +315,11 @@ lookup_records (id, query_text, query_hash, query_language, matched_hs_code_id,
                classification_data JSONB, practical_notes JSONB, process_logs JSONB,
                created_at, updated_at)
     -- correction_status: "pending" | "approved" | "rejected" | null (Sprint Change 2026-02-18)
+
+customs_import_batches (id, file_name, company_name, imported_by_user_id,
+    total_rows, records_imported, duplicates_skipped, unmatched_codes, errors,
+    started_at, completed_at)
+    -- Tracks each bulk import execution (Sprint Change 2026-02-24)
 
 users (id, email, password_hash, role, is_active, created_at)
     -- role: "user" | "expert" | "admin"; is_active: bool (Sprint Change 2026-02-18)
@@ -396,6 +436,11 @@ POST /api/admin/data/upload   # Upload tariff Excel
 POST /api/admin/data/preview  # Preview changes
 POST /api/admin/data/activate # Activate new version
 POST /api/admin/data/rollback # Rollback to previous
+
+POST /api/admin/customs-import/upload   # Upload customs report, return preview
+POST /api/admin/customs-import/execute  # Confirm and run bulk import
+GET  /api/admin/customs-import/history  # Past import batches (paginated)
+GET  /api/admin/customs-import/stats    # KB quality stats by source
 ```
 
 ### Frontend Architecture

@@ -1,5 +1,5 @@
 # generated: 2026-01-26
-# updated: 2026-02-22 (Sprint Change: Social OAuth Login, Search Auth Gate & Search UX Hint)
+# updated: 2026-02-24 (Sprint Change: Customs Data Ingestion - bulk KB import from company reports)
 # project: athena
 # tracking_system: file-system
 # story_location: _bmad-output/implementation-artifacts
@@ -117,3 +117,10 @@ development_status:
   8-4-rollback-to-previous-version: backlog  # was 7-4, was 6-4, was 5-4
   8-5-data-version-history: backlog  # was 7-5, was 6-5, was 5-5
   epic-8-retrospective: optional
+
+  # Epic 9: Customs Data Ingestion (NEW - Sprint Change 2026-02-24, 3 stories)
+  epic-9: backlog
+  9-1-customs-report-parser-import-service: backlog  # NEW: Sprint Change 2026-02-24 - parse XLS/XLSX, extract product→HS code, bulk insert to KB
+  9-2-admin-bulk-import-api-ui: backlog  # NEW: Sprint Change 2026-02-24 - upload/preview/execute endpoints + admin page
+  9-3-import-history-quality-dashboard: backlog  # NEW: Sprint Change 2026-02-24 - batch tracking, KB stats
+  epic-9-retrospective: optional

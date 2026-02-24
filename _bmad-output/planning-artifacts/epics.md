@@ -2,9 +2,9 @@
 stepsCompleted: [1, 2, 3, 4]
 status: complete
 completedAt: '2026-01-26'
-totalEpics: 8  # Added Epic 5 (Advanced RBAC, 2026-02-18), renumbered 5→6, 6→7, 7→8. Previous: 7.
-totalStories: 44  # Added Stories 5-1 through 5-5 (Sprint Change 2026-02-18). Previous: 39.
-frCoverage: '70/70 (100%)'  # Added FR65-FR70 (2026-02-18). Previous: 64/64.
+totalEpics: 9  # Added Epic 9 (Customs Data Ingestion, 2026-02-24). Previous: 8.
+totalStories: 47  # Added Stories 9-1 through 9-3 (Sprint Change 2026-02-24). Previous: 44.
+frCoverage: '75/75 (100%)'  # Added FR74-FR78 (2026-02-24). Previous: 70/70.
 inputDocuments:
   - path: _bmad-output/planning-artifacts/prd.md
     type: prd
@@ -274,6 +274,11 @@ This document provides the complete epic and story breakdown for Athena, decompo
 | FR68 | Epic 5 | Admin manages per-user permission overrides |
 | FR69 | Epic 5 | Admin full user management (create/edit/deactivate/search) |
 | FR70 | Epic 5 | Corrections follow pending/approved/rejected workflow |
+| FR74 | Epic 9 | Admin upload customs reports for bulk KB import |
+| FR75 | Epic 9 | Parse reports, extract product + HS code pairs |
+| FR76 | Epic 9 | Preview import results before confirming |
+| FR77 | Epic 9 | Store as verified KB entries, immediately searchable |
+| FR78 | Epic 9 | View import history with stats |
 
 ## Epic List
 
@@ -373,6 +378,21 @@ Admins can upload new tariff data (Excel), preview changes, activate updates, an
 - Change detection and preview
 - Version management with activation/rollback
 - Admin-only access with audit logging
+
+### Epic 9: Customs Data Ingestion (NEW - Sprint Change 2026-02-24)
+Admins can upload customs-approved import/export report files (XLS/XLSX) from Vietnamese companies to bulk-import verified product→HS code mappings into the knowledge base. Supports ongoing ingestion of new reports. Imported records are immediately available as high-confidence search results via the existing KB lookup pipeline.
+
+**FRs covered:** FR74, FR75, FR76, FR77, FR78
+
+**Implementation Notes:**
+- **Sprint Change Proposal:** `sprint-change-proposal-2026-02-24.md`
+- Story 9-1: Customs report parser & import service (XLS/XLSX parsing, product→HS code extraction, bulk insert into lookup_records as verified)
+- Story 9-2: Admin bulk import API & UI (upload, preview, confirm, results)
+- Story 9-3: Import history & data quality dashboard (batch tracking, stats)
+- No schema migration needed for core data — lookup_records already accommodates bulk import
+- Data source: `docs/baocaohangchitiet/` (3 initial files, ~25K+ product lines)
+- search_method="customs_import", is_verified=true, confidence_score=100
+- Priority: Before Epic 7 and 8 (highest ROI for search accuracy)
 
 ---
 
@@ -2410,3 +2430,146 @@ So that **I can track changes and audit data management**.
 **Then** all admin actions are logged (NFR-SEC5):
 - Upload, preview, activate, rollback actions
 - Timestamp, admin ID, action type, result
+
+---
+
+## Epic 9: Customs Data Ingestion
+
+Admins can bulk-import verified product→HS code mappings from customs-approved import/export reports into the knowledge base.
+
+### Story 9-1: Customs Report Parser & Import Service
+
+As an **admin**,
+I want **a service that parses customs import/export report files and extracts verified product→HS code mappings into the knowledge base**,
+So that **search accuracy is dramatically improved with ground-truth data from thousands of real customs declarations**.
+
+**Data Source:** `docs/baocaohangchitiet/` (3 XLS/XLSX files from Do Thanh, Growatt Vietnam, KDE — 2025 customs-approved reports)
+
+**Acceptance Criteria:**
+
+**Given** a customs import/export report file (XLS or XLSX format)
+**When** the parser processes the file
+**Then** it extracts all rows containing a product description and 8-digit HS code
+**And** normalizes product descriptions (trim whitespace, normalize Unicode)
+**And** matches each HS code against the `hs_codes` table
+
+**Given** extracted product→HS code pairs
+**When** the import service runs
+**Then** each pair is inserted into `lookup_records` with:
+  - `query_text` = product description from report
+  - `query_hash` = SHA-256 of normalized product description
+  - `matched_hs_code_id` = `correct_hs_code_id` = matched HS code ID
+  - `is_verified` = true
+  - `search_method` = "customs_import"
+  - `confidence_score` = 100
+  - `notes` = source file name and company name
+
+**Given** a product description that already exists in the knowledge base (same query_hash)
+**When** the import runs
+**Then** the duplicate is skipped (not inserted)
+**And** the skip count is tracked in the import summary
+
+**Given** an HS code in the report that does not match any code in the `hs_codes` table
+**When** the import runs
+**Then** the row is logged as an error (unmatched HS code)
+**And** the error count and details are tracked in the import summary
+
+**Given** all 3 initial report files are processed
+**When** import completes
+**Then** a summary is produced: total rows processed, records imported, duplicates skipped, unmatched codes, errors
+**And** imported records are immediately available via KB search (find_verified_exact and find_verified_similar)
+
+**Technical Tasks:**
+
+1. Analyze the 3 report file formats — identify column positions for product name and HS code across Do Thanh (XLS), Growatt (XLS), KDE (XLSX)
+2. Create `api/app/services/customs_import_service.py`:
+   - `CustomsReportParser` class — parse XLS/XLSX, extract (product_name, hs_code) pairs
+   - `CustomsImportService` class — match HS codes, deduplicate, bulk insert
+   - Return `ImportResult` dataclass with counts and error details
+3. Create `api/app/scripts/import_customs_data.py`:
+   - CLI script for initial bulk import
+   - Usage: `python -m app.scripts.import_customs_data docs/baocaohangchitiet/`
+4. Tests: parser tests with sample data, import service tests with mocked DB
+
+---
+
+### Story 9-2: Admin Bulk Import API & UI
+
+As an **admin**,
+I want **a web interface to upload customs report files, preview the import, and confirm execution**,
+So that **I can import new company data files as they become available without needing CLI access**.
+
+**Acceptance Criteria:**
+
+**Given** I am logged in as an admin
+**When** I navigate to the admin section
+**Then** I see a "Nhập dữ liệu hải quan" (Customs Data Import) menu item
+
+**Given** I am on the customs data import page
+**When** I upload an XLS/XLSX file
+**Then** the system parses the file and shows a preview:
+  - Total rows found
+  - Sample rows (first 10 product→HS code pairs)
+  - Duplicate count (already in KB)
+  - Unmatched HS code count
+  - Ready-to-import count
+
+**Given** I have reviewed the preview
+**When** I click "Xác nhận nhập" (Confirm Import)
+**Then** the import executes and I see a results summary:
+  - Records imported
+  - Duplicates skipped
+  - Errors encountered
+  - Time elapsed
+
+**Given** I upload a file that is not XLS/XLSX or has no parseable data
+**When** the system processes the file
+**Then** I see a clear error message explaining the issue
+
+**Technical Tasks:**
+
+1. Backend endpoints:
+   - `POST /api/admin/customs-import/upload` — parse file, return preview
+   - `POST /api/admin/customs-import/execute` — run import, return results
+   - Both require admin role
+2. Frontend page: `web/src/app/admin/customs-import/page.tsx`
+   - File upload dropzone
+   - Preview table with stats
+   - Confirm/cancel buttons
+   - Results summary display
+3. Tests: API endpoint tests, parser edge cases
+
+---
+
+### Story 9-3: Import History & Quality Dashboard
+
+As an **admin**,
+I want **to see a history of customs data imports and knowledge base quality stats**,
+So that **I can track what has been imported, monitor KB growth, and identify data quality issues**.
+
+**Acceptance Criteria:**
+
+**Given** I am logged in as an admin
+**When** I navigate to the customs data import page
+**Then** I see a history section showing past imports:
+  - Source file name
+  - Import date
+  - Records imported / duplicates / errors
+  - Imported by (admin user)
+
+**Given** imports have been completed
+**When** I view the quality dashboard section
+**Then** I see:
+  - Total verified KB records (breakdown by search_method: customs_import, notebooklm, expert_correction)
+  - Top HS chapters by KB coverage
+  - Recent import activity
+
+**Technical Tasks:**
+
+1. New table: `customs_import_batches` (id, file_name, company_name, imported_by_user_id, total_rows, records_imported, duplicates_skipped, unmatched_codes, errors, started_at, completed_at)
+2. Alembic migration for new table
+3. Backend endpoints:
+   - `GET /api/admin/customs-import/history` — paginated import history
+   - `GET /api/admin/customs-import/stats` — KB quality stats
+4. Frontend: history table + stats cards on the customs import admin page
+5. Tests: history retrieval, stats aggregation

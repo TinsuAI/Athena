@@ -774,6 +774,13 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 - **FR72:** Users can log in using their Facebook account (OAuth 2.0 via NextAuth.js FacebookProvider)
 - **FR73:** Only authenticated users can perform HS code searches; unauthenticated users navigating to /search are redirected to /login with callbackUrl=/search
 
+**Customs Data Ingestion (FR74-FR78):** _(added via sprint change 2026-02-24)_
+- **FR74:** Admins can upload customs-approved import/export report files (XLS/XLSX) to bulk-import verified product→HS code mappings into the knowledge base
+- **FR75:** The system parses uploaded reports to extract product descriptions and their associated 8-digit HS codes, matching them against the existing hs_codes table
+- **FR76:** Admins can preview import results before confirming (total records, unique products, duplicates detected, unmatched HS codes)
+- **FR77:** Imported records are stored as verified knowledge base entries (is_verified=true, search_method="customs_import") and are immediately available for search
+- **FR78:** Admins can view import history showing past imports with source file, date, record counts, and error summary
+
 ---
 
 **FR Coverage Validation:**
@@ -793,6 +800,7 @@ This MVP is designed to solve a specific, validated pain point: inefficient HS c
 | NotebookLM AI search (from sprint change 2026-02-15) | FR62-FR64 |
 | Role-based permissions & user management (from sprint change 2026-02-18) | FR65-FR70 |
 | Social OAuth login & search auth gate (from sprint change 2026-02-22) | FR71-FR73 |
+| Customs data ingestion (from sprint change 2026-02-24) | FR74-FR78 |
 
 ---
 
