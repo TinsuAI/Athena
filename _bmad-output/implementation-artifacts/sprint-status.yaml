@@ -1,5 +1,5 @@
 # generated: 2026-01-26
-# updated: 2026-02-24 (Sprint Change: Customs Data Ingestion - bulk KB import from company reports)
+# updated: 2026-02-24 (Sprint Change: KB Containment Lookup - fix partial query matching for customs-imported records)
 # project: athena
 # tracking_system: file-system
 # story_location: _bmad-output/implementation-artifacts
@@ -50,7 +50,7 @@ development_status:
   1-6-hs-code-detail-view: backlog  # MINOR UPDATE: show verification status
   1-7-error-handling-system-feedback: backlog
   1-8-knowledge-base-schema-lookup-storage: done  # NEW: Sprint Change 2026-02-10 - KB foundation (Code review: 4 medium + 3 low issues fixed)
-  1-9-knowledge-enhanced-search: review  # NEW: Sprint Change 2026-02-10 - KB as primary search, AI fallback
+  1-9-knowledge-enhanced-search: review  # NEW: Sprint Change 2026-02-10 - KB as primary search, AI fallback. UPDATE: Sprint Change 2026-02-24 - add containment matching for partial queries (customs-imported records)
   1-10-expert-review-correction-interface: done  # NEW: Sprint Change 2026-02-10 - human-in-the-loop (Code review: 3 high + 3 medium + 2 low issues fixed). NOTE: Superseded by Epic 5 stories (Sprint Change 2026-02-18)
   1-11-persist-full-lookup-details: done  # NEW: Sprint Change 2026-02-10 - persist classification, notes, logs (Code review: 1 high + 3 medium issues fixed)
   1-12-lookup-history-api-list-page: review  # NEW: Sprint Change 2026-02-10 - lookup history list

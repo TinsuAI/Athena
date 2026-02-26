@@ -111,6 +111,34 @@ class LookupRecordRepository:
         rows = result.all()
         return [(row.LookupRecord, row.similarity) for row in rows]
 
+    async def find_verified_containment(
+        self,
+        query_text: str,
+        limit: int = 1,
+    ) -> list[tuple[LookupRecord, float]]:
+        """Find verified lookup records where query_text contains the search query.
+
+        Useful for matching short user queries against long customs-imported descriptions.
+        Returns list of (record, confidence_score) tuples ordered by query_text length ASC
+        (prefer shortest/most specific match).
+        """
+        normalized_query = query_text.strip().lower()
+        if len(normalized_query) < 4:
+            return []  # Avoid overly broad containment matches
+
+        result = await self.session.execute(
+            select(LookupRecord, func.length(LookupRecord.query_text).label("text_len"))
+            .where(
+                LookupRecord.is_verified == True,  # noqa: E712
+                LookupRecord.correct_hs_code_id.isnot(None),
+                func.lower(LookupRecord.query_text).contains(normalized_query),
+            )
+            .order_by(func.length(LookupRecord.query_text).asc())
+            .limit(limit)
+        )
+        rows = result.all()
+        return [(row.LookupRecord, 0.95) for row in rows]
+
     async def get_unverified_with_hs_codes(
         self, limit: int = 20, offset: int = 0
     ) -> list[LookupRecord]:

@@ -91,9 +91,9 @@ const HISTORY_PAGE_SIZE = 10;
 // --- Step indicator ---
 
 const STEPS: { key: Step; label: string }[] = [
-  { key: "upload", label: "Tai tep len" },
-  { key: "preview", label: "Xem truoc" },
-  { key: "result", label: "Ket qua" },
+  { key: "upload", label: "Tải tệp lên" },
+  { key: "preview", label: "Xem trước" },
+  { key: "result", label: "Kết quả" },
 ];
 
 function StepIndicator({ current }: { current: Step }) {
@@ -208,7 +208,7 @@ function TabSwitcher({
             : "text-slate-400 hover:text-slate-600"
         }`}
       >
-        Nhap du lieu
+        Nhập dữ liệu
         {active === "import" && (
           <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 rounded-full" />
         )}
@@ -221,7 +221,7 @@ function TabSwitcher({
             : "text-slate-400 hover:text-slate-600"
         }`}
       >
-        Lich su & Thong ke
+        Lịch sử & Thống kê
         {active === "history" && (
           <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 rounded-full" />
         )}
@@ -233,9 +233,9 @@ function TabSwitcher({
 // --- Helpers ---
 
 const METHOD_LABELS: Record<string, string> = {
-  customs_import: "Nhap hai quan",
+  customs_import: "Nhập hải quan",
   notebooklm: "NotebookLM AI",
-  expert_correction: "Chuyen gia xac nhan",
+  expert_correction: "Chuyên gia xác nhận",
 };
 
 const METHOD_ICONS: Record<
@@ -323,7 +323,7 @@ function HistoryStatsSection() {
     return (
       <div className="flex items-center justify-center py-20 text-slate-400">
         <Loader2 className="size-5 animate-spin mr-2" />
-        Dang tai du lieu...
+        Đang tải dữ liệu...
       </div>
     );
   }
@@ -340,10 +340,10 @@ function HistoryStatsSection() {
           <Inbox className="size-10 text-slate-300" />
         </div>
         <p className="text-base font-medium text-slate-500">
-          Chua co du lieu nhap khau nao
+          Chưa có dữ liệu nhập khẩu nào
         </p>
         <p className="text-sm text-slate-400 mt-1">
-          Bat dau bang cach tai len bao cao hai quan
+          Bắt đầu bằng cách tải lên báo cáo hải quan
         </p>
       </div>
     );
@@ -356,11 +356,11 @@ function HistoryStatsSection() {
         <>
           <div>
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">
-              Thong ke co so kien thuc
+              Thống kê cơ sở kiến thức
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatCard
-                label="Tong ban ghi da xac minh"
+                label="Tổng bản ghi đã xác minh"
                 value={stats.total_verified.toLocaleString("vi-VN")}
                 icon={CheckCircle2}
                 accent="emerald"
@@ -385,7 +385,7 @@ function HistoryStatsSection() {
             <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80">
                 <h3 className="text-sm font-semibold text-slate-700">
-                  Chuong co nhieu du lieu nhat
+                  Chương có nhiều dữ liệu nhất
                 </h3>
               </div>
               <div className="divide-y divide-slate-50">
@@ -424,7 +424,7 @@ function HistoryStatsSection() {
             <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80">
                 <h3 className="text-sm font-semibold text-slate-700">
-                  Nhap gan day
+                  Nhập gần đây
                 </h3>
               </div>
               <div className="divide-y divide-slate-50">
@@ -455,12 +455,12 @@ function HistoryStatsSection() {
                       </span>
                       {batch.duplicates_skipped > 0 && (
                         <span className="text-amber-500">
-                          {batch.duplicates_skipped} trung
+                          {batch.duplicates_skipped} trùng
                         </span>
                       )}
                       {batch.errors_count > 0 && (
                         <span className="text-red-500">
-                          {batch.errors_count} loi
+                          {batch.errors_count} lỗi
                         </span>
                       )}
                     </div>
@@ -476,11 +476,11 @@ function HistoryStatsSection() {
       <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-700">
-            Lich su nhap du lieu
+            Lịch sử nhập dữ liệu
           </h3>
           {historyTotal > 0 && (
             <span className="text-xs text-slate-400 tabular-nums">
-              {historyTotal} ban ghi
+              {historyTotal} bản ghi
             </span>
           )}
         </div>
@@ -488,12 +488,12 @@ function HistoryStatsSection() {
         {isLoadingHistory ? (
           <div className="flex items-center justify-center py-12 text-slate-400">
             <Loader2 className="size-4 animate-spin mr-2" />
-            Dang tai...
+            Đang tải...
           </div>
         ) : history.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-slate-400">
             <Inbox className="size-8 text-slate-300 mb-2" />
-            <p className="text-sm">Chua co du lieu nhap khau nao</p>
+            <p className="text-sm">Chưa có dữ liệu nhập khẩu nào</p>
           </div>
         ) : (
           <>
@@ -501,16 +501,16 @@ function HistoryStatsSection() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wider text-slate-400">
-                    <th className="px-4 py-2.5 font-medium">Tep nguon</th>
-                    <th className="px-4 py-2.5 font-medium">Ngay nhap</th>
+                    <th className="px-4 py-2.5 font-medium">Tệp nguồn</th>
+                    <th className="px-4 py-2.5 font-medium">Ngày nhập</th>
                     <th className="px-4 py-2.5 font-medium text-right">
-                      Da nhap
+                      Đã nhập
                     </th>
                     <th className="px-4 py-2.5 font-medium text-right">
-                      Trung lap
+                      Trùng lặp
                     </th>
-                    <th className="px-4 py-2.5 font-medium text-right">Loi</th>
-                    <th className="px-4 py-2.5 font-medium">Nguoi nhap</th>
+                    <th className="px-4 py-2.5 font-medium text-right">Lỗi</th>
+                    <th className="px-4 py-2.5 font-medium">Người nhập</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -556,7 +556,7 @@ function HistoryStatsSection() {
                   className="text-xs font-medium text-slate-500 hover:text-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                 >
                   <ChevronLeft className="size-3.5" />
-                  Trang truoc
+                  Trang trước
                 </button>
                 <span className="text-xs text-slate-400 tabular-nums">
                   Trang {historyPage + 1} / {totalPages}
@@ -597,7 +597,7 @@ export default function CustomsImportPage() {
   const validateFile = useCallback((file: File): boolean => {
     const name = file.name.toLowerCase();
     if (!name.endsWith(".xls") && !name.endsWith(".xlsx")) {
-      setError("Chi chap nhan tep XLS hoac XLSX. Vui long chon lai.");
+      setError("Chỉ chấp nhận tệp XLS hoặc XLSX. Vui lòng chọn lại.");
       return false;
     }
     setError(null);
@@ -663,14 +663,14 @@ export default function CustomsImportPage() {
       const json = await res.json();
 
       if (!json.success) {
-        setError(json.error?.detail || "Loi khi tai tep len. Vui long thu lai.");
+        setError(json.error?.detail || "Lỗi khi tải tệp lên. Vui lòng thử lại.");
         return;
       }
 
       setPreview(json.data);
       setStep("preview");
     } catch {
-      setError("Khong the ket noi den may chu. Vui long thu lai.");
+      setError("Không thể kết nối đến máy chủ. Vui lòng thử lại.");
     } finally {
       setIsUploading(false);
     }
@@ -697,14 +697,14 @@ export default function CustomsImportPage() {
       const json = await res.json();
 
       if (!json.success) {
-        setError(json.error?.detail || "Loi khi nhap du lieu. Vui long thu lai.");
+        setError(json.error?.detail || "Lỗi khi nhập dữ liệu. Vui lòng thử lại.");
         return;
       }
 
       setResult(json.data);
       setStep("result");
     } catch {
-      setError("Khong the ket noi den may chu. Vui long thu lai.");
+      setError("Không thể kết nối đến máy chủ. Vui lòng thử lại.");
     } finally {
       setIsImporting(false);
     }
@@ -738,21 +738,21 @@ export default function CustomsImportPage() {
           className="hover:text-emerald-700 transition-colors flex items-center gap-1"
         >
           <ArrowLeft className="size-3.5" />
-          Quan tri
+          Quản trị
         </Link>
         <ChevronRight className="size-3.5 text-slate-300" />
         <span className="text-slate-800 font-medium">
-          Nhap du lieu hai quan
+          Nhập dữ liệu hải quan
         </span>
       </nav>
 
       {/* Page header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Nhap du lieu hai quan
+          Nhập dữ liệu hải quan
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Tai len bao cao hai quan (XLS/XLSX) de nhap du lieu vao co so kien thuc
+          Tải lên báo cáo hải quan (XLS/XLSX) để nhập dữ liệu vào cơ sở kiến thức
         </p>
       </div>
 
@@ -770,7 +770,7 @@ export default function CustomsImportPage() {
             <div className="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               <XCircle className="size-5 shrink-0 mt-0.5 text-red-500" />
               <div>
-                <p className="font-medium">Loi</p>
+                <p className="font-medium">Lỗi</p>
                 <p className="mt-0.5">{error}</p>
               </div>
             </div>
@@ -817,7 +817,7 @@ export default function CustomsImportPage() {
                       {formatFileSize(selectedFile.size)}
                     </p>
                     <p className="text-xs text-slate-400 mt-3">
-                      Nhan de chon tep khac
+                      Nhấn để chọn tệp khác
                     </p>
                   </>
                 ) : (
@@ -826,10 +826,10 @@ export default function CustomsImportPage() {
                       <Upload className="size-8 text-slate-400" />
                     </div>
                     <p className="text-base font-medium text-slate-700">
-                      Keo tha hoac chon tep XLS/XLSX
+                      Kéo thả hoặc chọn tệp XLS/XLSX
                     </p>
                     <p className="text-sm text-slate-400 mt-1">
-                      Bao cao hai quan Viet Nam (.xls, .xlsx)
+                      Báo cáo hải quan Việt Nam (.xls, .xlsx)
                     </p>
                   </>
                 )}
@@ -846,12 +846,12 @@ export default function CustomsImportPage() {
                   {isUploading ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
-                      Dang xu ly...
+                      Đang xử lý...
                     </>
                   ) : (
                     <>
                       <Upload className="size-4" />
-                      Tai len va xem truoc
+                      Tải lên và xem trước
                     </>
                   )}
                 </Button>
@@ -865,25 +865,25 @@ export default function CustomsImportPage() {
               {/* Stats grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <StatCard
-                  label="Tong so dong"
+                  label="Tổng số dòng"
                   value={preview.total_rows}
                   icon={FileSpreadsheet}
                   accent="slate"
                 />
                 <StatCard
-                  label="San sang nhap"
+                  label="Sẵn sàng nhập"
                   value={preview.ready_to_import_count}
                   icon={PackageCheck}
                   accent="emerald"
                 />
                 <StatCard
-                  label="Trung lap"
+                  label="Trùng lặp"
                   value={preview.duplicate_count}
                   icon={Copy}
                   accent="amber"
                 />
                 <StatCard
-                  label="Khong khop ma HS"
+                  label="Không khớp mã HS"
                   value={preview.unmatched_count}
                   icon={AlertTriangle}
                   accent={preview.unmatched_count > 0 ? "red" : "slate"}
@@ -894,16 +894,16 @@ export default function CustomsImportPage() {
               <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80">
                   <h3 className="text-sm font-semibold text-slate-700">
-                    Du lieu mau (10 dong dau)
+                    Dữ liệu mẫu (10 dòng đầu)
                   </h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wider text-slate-400">
-                        <th className="px-4 py-2.5 w-16 font-medium">Dong</th>
-                        <th className="px-4 py-2.5 font-medium">Ten hang</th>
-                        <th className="px-4 py-2.5 w-32 font-medium">Ma HS</th>
+                        <th className="px-4 py-2.5 w-16 font-medium">Dòng</th>
+                        <th className="px-4 py-2.5 font-medium">Tên hàng</th>
+                        <th className="px-4 py-2.5 w-32 font-medium">Mã HS</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -936,7 +936,7 @@ export default function CustomsImportPage() {
                   disabled={isImporting}
                 >
                   <Ban className="size-4" />
-                  Huy bo
+                  Hủy bỏ
                 </Button>
                 <Button
                   onClick={handleExecute}
@@ -947,12 +947,12 @@ export default function CustomsImportPage() {
                   {isImporting ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
-                      Dang nhap...
+                      Đang nhập...
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="size-4" />
-                      Xac nhan nhap
+                      Xác nhận nhập
                     </>
                   )}
                 </Button>
@@ -968,11 +968,11 @@ export default function CustomsImportPage() {
                 <CheckCircle2 className="size-5 text-emerald-600 mt-0.5 shrink-0" />
                 <div>
                   <p className="font-semibold text-emerald-800">
-                    Nhap du lieu thanh cong
+                    Nhập dữ liệu thành công
                   </p>
                   <p className="text-sm text-emerald-700 mt-0.5">
-                    Tep <span className="font-medium">{result.file_name}</span>{" "}
-                    da duoc xu ly hoan tat.
+                    Tệp <span className="font-medium">{result.file_name}</span>{" "}
+                    đã được xử lý hoàn tất.
                   </p>
                 </div>
               </div>
@@ -980,25 +980,25 @@ export default function CustomsImportPage() {
               {/* Result stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <StatCard
-                  label="Da nhap"
+                  label="Đã nhập"
                   value={result.records_imported}
                   icon={PackageCheck}
                   accent="emerald"
                 />
                 <StatCard
-                  label="Trung lap bo qua"
+                  label="Trùng lặp bỏ qua"
                   value={result.duplicates_skipped}
                   icon={Copy}
                   accent="amber"
                 />
                 <StatCard
-                  label="Loi"
+                  label="Lỗi"
                   value={result.errors.length}
                   icon={XCircle}
                   accent={result.errors.length > 0 ? "red" : "slate"}
                 />
                 <StatCard
-                  label="Thoi gian"
+                  label="Thời gian"
                   value={`${result.elapsed_seconds}s`}
                   icon={Clock}
                   accent="blue"
@@ -1011,16 +1011,16 @@ export default function CustomsImportPage() {
                   <div className="px-4 py-3 border-b border-amber-100 bg-amber-50">
                     <h3 className="text-sm font-semibold text-amber-800 flex items-center gap-2">
                       <AlertTriangle className="size-4" />
-                      Ma HS khong khop ({result.unmatched_codes.length})
+                      Mã HS không khớp ({result.unmatched_codes.length})
                     </h3>
                   </div>
                   <div className="overflow-x-auto max-h-48">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-amber-100 text-left text-xs uppercase tracking-wider text-amber-600">
-                          <th className="px-4 py-2 w-16 font-medium">Dong</th>
-                          <th className="px-4 py-2 w-32 font-medium">Ma HS</th>
-                          <th className="px-4 py-2 font-medium">Ten hang</th>
+                          <th className="px-4 py-2 w-16 font-medium">Dòng</th>
+                          <th className="px-4 py-2 w-32 font-medium">Mã HS</th>
+                          <th className="px-4 py-2 font-medium">Tên hàng</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1050,7 +1050,7 @@ export default function CustomsImportPage() {
               <div className="flex justify-end pt-2">
                 <Button onClick={handleReset} variant="outline" size="lg">
                   <Upload className="size-4" />
-                  Nhap tep moi
+                  Nhập tệp mới
                 </Button>
               </div>
             </div>

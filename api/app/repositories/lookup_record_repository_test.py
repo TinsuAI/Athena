@@ -301,6 +301,74 @@ class TestLookupRecordRepository:
 
         assert len(results) == 3
 
+    # --- Tests for find_verified_containment (Sprint Change 2026-02-24) ---
+
+    @pytest.mark.asyncio
+    async def test_find_verified_containment_found(self):
+        """Test finding verified record when query is substring of stored query_text."""
+        mock_session = AsyncMock()
+        expected_record = self._make_record(
+            id=1,
+            is_verified=True,
+            correct_hs_code_id=42,
+            query_text="Vỏ hộp chính, bằng nhựa PC, kích thước 400.2*396mm. Hàng mới 100%.",
+        )
+
+        mock_row = MagicMock()
+        mock_row.LookupRecord = expected_record
+        mock_row.text_len = 66
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        results = await repo.find_verified_containment("Vỏ hộp chính, bằng nhựa PC")
+
+        assert len(results) == 1
+        record, confidence = results[0]
+        assert record is expected_record
+        assert confidence == 0.95
+
+    @pytest.mark.asyncio
+    async def test_find_verified_containment_not_found(self):
+        """Test no containment match found."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        results = await repo.find_verified_containment("xyznonexistent123")
+
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_find_verified_containment_short_query_skipped(self):
+        """Test that queries shorter than 4 chars skip containment search."""
+        mock_session = AsyncMock()
+
+        repo = LookupRecordRepository(session=mock_session)
+        results = await repo.find_verified_containment("PC")
+
+        assert results == []
+        mock_session.execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_find_verified_containment_strips_whitespace(self):
+        """Test that query is normalized (stripped) before containment search."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        repo = LookupRecordRepository(session=mock_session)
+        results = await repo.find_verified_containment("   test query   ")
+
+        assert results == []
+        # Should have executed (length after strip is 10, >= 4)
+        mock_session.execute.assert_awaited_once()
+
     # --- Tests for get_unverified_with_hs_codes (Story 1-10, Task 2.1) ---
 
     @pytest.mark.asyncio

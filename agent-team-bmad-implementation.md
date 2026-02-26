@@ -33,7 +33,7 @@ This document defines the automated agent team workflow for implementing epics s
 - **Status update:** `sprint-status.yaml` story status → `review`
 
 ### Step 3: Code Review & Auto-Fix
-**Agent:** DEV 2 (Sonnet 4.5)
+**Agent:** DEV 2 (Sonnet 4.6)
 ```
 /bmad-bmm-code-review *story-number
 ```

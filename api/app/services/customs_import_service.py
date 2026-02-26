@@ -31,6 +31,9 @@ HS_CODE_CLEAN_RE = re.compile(r"[.\s]")
 # Separator used in product names: "CODE#&Description" -> "Description"
 PRODUCT_NAME_SEPARATOR = "#&"
 
+# Trailing internal part/material code in parentheses, e.g. "(920.0038701)" or "(047.0003100)"
+TRAILING_PART_CODE_RE = re.compile(r"\s*\(\d[\d.]*\)\s*$")
+
 
 @dataclass
 class ParsedRow:
@@ -79,65 +82,33 @@ class CustomsReportParser:
             raise ValueError(f"Unsupported file format: {ext}. Expected .xls or .xlsx")
 
     def _parse_xls(self) -> list[ParsedRow]:
-        """Parse an XLS file using xlrd."""
+        """Parse an XLS file using xlrd.
+
+        Iterates all sheets and extracts rows from any sheet that contains
+        the expected header columns.
+        """
         import xlrd
 
         wb = xlrd.open_workbook(str(self.file_path))
-        sheet = wb.sheet_by_index(0)
+        all_rows: list[ParsedRow] = []
 
-        # Find header row and column positions
-        hs_col, name_col, data_start_row = self._find_columns_xls(sheet)
-
-        rows: list[ParsedRow] = []
-        for r in range(data_start_row, sheet.nrows):
+        for sheet_idx in range(wb.nsheets):
+            sheet = wb.sheet_by_index(sheet_idx)
             try:
-                raw_hs = str(sheet.cell_value(r, hs_col)).strip()
-                raw_name = str(sheet.cell_value(r, name_col)).strip()
-
-                if not raw_hs or not raw_name:
-                    continue
-
-                hs_code = self._normalize_hs_code(raw_hs)
-                if not hs_code:
-                    continue
-
-                product_name = self._normalize_product_name(raw_name)
-                if not product_name:
-                    continue
-
-                rows.append(ParsedRow(
-                    product_name=product_name,
-                    hs_code=hs_code,
-                    row_number=r + 1,  # 1-indexed for user-facing output
-                ))
-            except Exception as e:
-                logger.warning(f"Error parsing row {r + 1}: {e}")
+                hs_col, name_col, data_start_row = self._find_columns_xls(sheet)
+            except ValueError:
+                # Sheet doesn't have the expected headers — skip it
                 continue
 
-        return rows
+            logger.info(
+                "Parsing sheet %d (%s): %d total rows",
+                sheet_idx, sheet.name, sheet.nrows
+            )
 
-    def _parse_xlsx(self) -> list[ParsedRow]:
-        """Parse an XLSX file using openpyxl."""
-        from openpyxl import load_workbook
-
-        wb = load_workbook(str(self.file_path), read_only=True, data_only=True)
-        try:
-            ws = wb.active
-
-            # Find header row and column positions
-            hs_col, name_col, data_start_row = self._find_columns_xlsx(ws)
-
-            rows: list[ParsedRow] = []
-            # Start iteration from data_start_row + 1 (1-indexed) to skip header rows
-            # This avoids re-iterating over rows already scanned during header detection
-            for r_idx, row in enumerate(
-                ws.iter_rows(min_row=data_start_row + 1, values_only=True)
-            ):
-                actual_row = data_start_row + 1 + r_idx  # 1-indexed absolute row number
-
+            for r in range(data_start_row, sheet.nrows):
                 try:
-                    raw_hs = str(row[hs_col]).strip() if row[hs_col] is not None else ""
-                    raw_name = str(row[name_col]).strip() if row[name_col] is not None else ""
+                    raw_hs = str(sheet.cell_value(r, hs_col)).strip()
+                    raw_name = str(sheet.cell_value(r, name_col)).strip()
 
                     if not raw_hs or not raw_name:
                         continue
@@ -150,18 +121,73 @@ class CustomsReportParser:
                     if not product_name:
                         continue
 
-                    rows.append(ParsedRow(
+                    all_rows.append(ParsedRow(
                         product_name=product_name,
                         hs_code=hs_code,
-                        row_number=actual_row,
+                        row_number=r + 1,  # 1-indexed for user-facing output
                     ))
                 except Exception as e:
-                    logger.warning(f"Error parsing row {actual_row}: {e}")
+                    logger.warning(f"Error parsing row {r + 1} in sheet {sheet.name}: {e}")
                     continue
+
+        return all_rows
+
+    def _parse_xlsx(self) -> list[ParsedRow]:
+        """Parse an XLSX file using openpyxl.
+
+        Iterates all sheets and extracts rows from any sheet that contains
+        the expected header columns.
+        """
+        from openpyxl import load_workbook
+
+        wb = load_workbook(str(self.file_path), read_only=True, data_only=True)
+        try:
+            all_rows: list[ParsedRow] = []
+
+            for ws in wb.worksheets:
+                try:
+                    hs_col, name_col, data_start_row = self._find_columns_xlsx(ws)
+                except ValueError:
+                    # Sheet doesn't have the expected headers — skip it
+                    continue
+
+                logger.info(
+                    "Parsing sheet '%s': data starts at row %d",
+                    ws.title, data_start_row + 1
+                )
+
+                for r_idx, row in enumerate(
+                    ws.iter_rows(min_row=data_start_row + 1, values_only=True)
+                ):
+                    actual_row = data_start_row + 1 + r_idx
+
+                    try:
+                        raw_hs = str(row[hs_col]).strip() if row[hs_col] is not None else ""
+                        raw_name = str(row[name_col]).strip() if row[name_col] is not None else ""
+
+                        if not raw_hs or not raw_name:
+                            continue
+
+                        hs_code = self._normalize_hs_code(raw_hs)
+                        if not hs_code:
+                            continue
+
+                        product_name = self._normalize_product_name(raw_name)
+                        if not product_name:
+                            continue
+
+                        all_rows.append(ParsedRow(
+                            product_name=product_name,
+                            hs_code=hs_code,
+                            row_number=actual_row,
+                        ))
+                    except Exception as e:
+                        logger.warning(f"Error parsing row {actual_row} in sheet {ws.title}: {e}")
+                        continue
         finally:
             wb.close()
 
-        return rows
+        return all_rows
 
     def _find_columns_xls(self, sheet: object) -> tuple[int, int, int]:
         """Find HS code and product name column indices in an XLS sheet.
@@ -251,12 +277,16 @@ class CustomsReportParser:
         """Normalize a product description.
 
         - Strips the code prefix before '#&' separator if present
+        - Strips trailing internal part/material codes like (920.0038701)
         - Trims whitespace
         - Normalizes Unicode to NFC form
         """
         # Strip code prefix: "CODE#&Description" -> "Description"
         if PRODUCT_NAME_SEPARATOR in raw:
             raw = raw.split(PRODUCT_NAME_SEPARATOR, 1)[1]
+
+        # Strip trailing part/material code: "...Hàng mới 100%. (920.0038701)" -> "...Hàng mới 100%."
+        raw = TRAILING_PART_CODE_RE.sub("", raw)
 
         # Trim whitespace and normalize Unicode
         normalized = raw.strip()

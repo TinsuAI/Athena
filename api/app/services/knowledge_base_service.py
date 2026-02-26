@@ -28,7 +28,7 @@ class KnowledgeBaseService:
     """Service for looking up verified HS codes from the knowledge base.
 
     Checks verified expert corrections before falling back to AI search.
-    Priority: exact hash match -> pg_trgm similar match -> None (caller falls back to AI).
+    Priority: exact hash -> containment -> pg_trgm similar -> None (AI fallback).
     """
 
     def __init__(self, session: AsyncSession):
@@ -58,7 +58,21 @@ class KnowledgeBaseService:
                 match_type="exact",
             )
 
-        # Step 2: Similar text match (pg_trgm, <50ms)
+        # Step 2: Containment match — short query found within long KB description (<50ms)
+        containment = await self.repo.find_verified_containment(query)
+        if containment:
+            record, conf_score = containment[0]
+            return KBLookupResult(
+                hs_code_id=record.correct_hs_code_id,
+                confidence=int(conf_score * 100),
+                similarity_score=conf_score,
+                lookup_record_id=record.id,
+                verified_by_user_id=record.verified_by_user_id,
+                verified_at=record.verified_at,
+                match_type="containment",
+            )
+
+        # Step 3: Similar text match (pg_trgm, <50ms)
         similar = await self.repo.find_verified_similar(query, threshold=0.85)
         if similar:
             record, sim_score = similar[0]
@@ -72,5 +86,5 @@ class KnowledgeBaseService:
                 match_type="similar",
             )
 
-        # Step 3: No match - caller should fall back to AI search
+        # Step 4: No match - caller should fall back to AI search
         return None

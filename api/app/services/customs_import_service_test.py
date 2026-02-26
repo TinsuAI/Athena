@@ -285,8 +285,8 @@ class TestCustomsReportParserXlsx:
         finally:
             Path(tmp.name).unlink(missing_ok=True)
 
-    def test_missing_headers_raises_error(self):
-        """Test that ValueError is raised if header row is not found."""
+    def test_missing_headers_returns_empty(self):
+        """Sheets without expected headers are skipped; returns empty list."""
         from openpyxl import Workbook
 
         wb = Workbook()
@@ -301,8 +301,8 @@ class TestCustomsReportParserXlsx:
 
         try:
             parser = CustomsReportParser(tmp.name)
-            with pytest.raises(ValueError, match="Could not find header row"):
-                parser.parse()
+            result = parser.parse()
+            assert result == []
         finally:
             Path(tmp.name).unlink(missing_ok=True)
 
@@ -428,6 +428,7 @@ class TestCustomsReportParserXls:
             return ""
 
         sheet.cell_value = MagicMock(side_effect=cell_value)
+        sheet.name = "Sheet1"
         return sheet
 
     def test_parse_xls_valid_rows(self):
@@ -448,6 +449,7 @@ class TestCustomsReportParserXls:
         try:
             parser = CustomsReportParser(tmp.name)
             with patch("xlrd.open_workbook") as mock_wb:
+                mock_wb.return_value.nsheets = 1
                 mock_wb.return_value.sheet_by_index.return_value = sheet
                 rows = parser._parse_xls()
 
@@ -479,6 +481,7 @@ class TestCustomsReportParserXls:
         try:
             parser = CustomsReportParser(tmp.name)
             with patch("xlrd.open_workbook") as mock_wb:
+                mock_wb.return_value.nsheets = 1
                 mock_wb.return_value.sheet_by_index.return_value = sheet
                 rows = parser._parse_xls()
 
@@ -505,6 +508,7 @@ class TestCustomsReportParserXls:
         try:
             parser = CustomsReportParser(tmp.name)
             with patch("xlrd.open_workbook") as mock_wb:
+                mock_wb.return_value.nsheets = 1
                 mock_wb.return_value.sheet_by_index.return_value = sheet
                 rows = parser._parse_xls()
 
@@ -530,6 +534,7 @@ class TestCustomsReportParserXls:
         try:
             parser = CustomsReportParser(tmp.name)
             with patch("xlrd.open_workbook") as mock_wb:
+                mock_wb.return_value.nsheets = 1
                 mock_wb.return_value.sheet_by_index.return_value = sheet
                 rows = parser._parse_xls()
 
@@ -538,11 +543,12 @@ class TestCustomsReportParserXls:
         finally:
             Path(tmp.name).unlink(missing_ok=True)
 
-    def test_parse_xls_missing_headers_raises_error(self):
-        """Test that ValueError is raised if header row not found in XLS."""
+    def test_parse_xls_missing_headers_returns_empty(self):
+        """When no sheet has expected headers, returns empty list."""
         sheet = MagicMock()
         sheet.nrows = 5
         sheet.ncols = 10
+        sheet.name = "TestSheet"
         sheet.cell_value = MagicMock(return_value="SomethingElse")
 
         tmp = tempfile.NamedTemporaryFile(suffix=".xls", delete=False)
@@ -551,9 +557,10 @@ class TestCustomsReportParserXls:
         try:
             parser = CustomsReportParser(tmp.name)
             with patch("xlrd.open_workbook") as mock_wb:
+                mock_wb.return_value.nsheets = 1
                 mock_wb.return_value.sheet_by_index.return_value = sheet
-                with pytest.raises(ValueError, match="Could not find header row"):
-                    parser._parse_xls()
+                result = parser._parse_xls()
+                assert result == []
         finally:
             Path(tmp.name).unlink(missing_ok=True)
 
@@ -574,6 +581,7 @@ class TestCustomsReportParserXls:
         try:
             parser = CustomsReportParser(tmp.name)
             with patch("xlrd.open_workbook") as mock_wb:
+                mock_wb.return_value.nsheets = 1
                 mock_wb.return_value.sheet_by_index.return_value = sheet
                 rows = parser._parse_xls()
 

@@ -92,7 +92,7 @@ class TestKnowledgeBaseService:
 
     @pytest.mark.asyncio
     async def test_lookup_similar_match(self):
-        """Test KB lookup falls back to similar match when no exact match."""
+        """Test KB lookup falls back to similar match when no exact or containment match."""
         mock_session = AsyncMock()
         verified_record = self._make_verified_record(id=2)
 
@@ -101,6 +101,7 @@ class TestKnowledgeBaseService:
         ) as mock_repo_class:
             mock_repo = AsyncMock()
             mock_repo.find_verified_exact.return_value = None
+            mock_repo.find_verified_containment.return_value = []
             mock_repo.find_verified_similar.return_value = [
                 (verified_record, 0.92)
             ]
@@ -116,26 +117,36 @@ class TestKnowledgeBaseService:
         assert result.match_type == "similar"
 
     @pytest.mark.asyncio
-    async def test_lookup_no_match_returns_none(self):
-        """Test KB lookup returns None when no KB match exists."""
+    async def test_lookup_containment_match(self):
+        """Test KB lookup returns containment match when query is substring of stored text."""
         mock_session = AsyncMock()
+        verified_record = self._make_verified_record(
+            id=3,
+            query_text="Vỏ hộp chính, bằng nhựa PC, kích thước 400.2*396mm. Hàng mới 100%.",
+        )
 
         with patch(
             "app.services.knowledge_base_service.LookupRecordRepository"
         ) as mock_repo_class:
             mock_repo = AsyncMock()
             mock_repo.find_verified_exact.return_value = None
-            mock_repo.find_verified_similar.return_value = []
+            mock_repo.find_verified_containment.return_value = [
+                (verified_record, 0.95)
+            ]
             mock_repo_class.return_value = mock_repo
 
             service = KnowledgeBaseService(session=mock_session)
-            result = await service.lookup("xyznonexistent123")
+            result = await service.lookup("Vỏ hộp chính, bằng nhựa PC")
 
-        assert result is None
+        assert result is not None
+        assert result.hs_code_id == 42
+        assert result.confidence == 95
+        assert result.similarity_score == 0.95
+        assert result.match_type == "containment"
 
     @pytest.mark.asyncio
-    async def test_lookup_exact_takes_priority_over_similar(self):
-        """Test exact match short-circuits (similar search not called)."""
+    async def test_lookup_exact_takes_priority_over_containment(self):
+        """Test exact match short-circuits (containment and similar not called)."""
         mock_session = AsyncMock()
         verified_record = self._make_verified_record()
 
@@ -151,6 +162,70 @@ class TestKnowledgeBaseService:
 
         assert result is not None
         assert result.match_type == "exact"
+        mock_repo.find_verified_containment.assert_not_awaited()
+        mock_repo.find_verified_similar.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_lookup_containment_takes_priority_over_similar(self):
+        """Test containment match short-circuits (similar not called)."""
+        mock_session = AsyncMock()
+        verified_record = self._make_verified_record(id=3)
+
+        with patch(
+            "app.services.knowledge_base_service.LookupRecordRepository"
+        ) as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_verified_exact.return_value = None
+            mock_repo.find_verified_containment.return_value = [
+                (verified_record, 0.95)
+            ]
+            mock_repo_class.return_value = mock_repo
+
+            service = KnowledgeBaseService(session=mock_session)
+            result = await service.lookup("Vỏ hộp chính, bằng nhựa PC")
+
+        assert result is not None
+        assert result.match_type == "containment"
+        mock_repo.find_verified_similar.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_lookup_no_match_returns_none(self):
+        """Test KB lookup returns None when no KB match exists."""
+        mock_session = AsyncMock()
+
+        with patch(
+            "app.services.knowledge_base_service.LookupRecordRepository"
+        ) as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_verified_exact.return_value = None
+            mock_repo.find_verified_containment.return_value = []
+            mock_repo.find_verified_similar.return_value = []
+            mock_repo_class.return_value = mock_repo
+
+            service = KnowledgeBaseService(session=mock_session)
+            result = await service.lookup("xyznonexistent123")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_lookup_exact_takes_priority_over_similar(self):
+        """Test exact match short-circuits (containment and similar not called)."""
+        mock_session = AsyncMock()
+        verified_record = self._make_verified_record()
+
+        with patch(
+            "app.services.knowledge_base_service.LookupRecordRepository"
+        ) as mock_repo_class:
+            mock_repo = AsyncMock()
+            mock_repo.find_verified_exact.return_value = verified_record
+            mock_repo_class.return_value = mock_repo
+
+            service = KnowledgeBaseService(session=mock_session)
+            result = await service.lookup("copper towel rack")
+
+        assert result is not None
+        assert result.match_type == "exact"
+        mock_repo.find_verified_containment.assert_not_awaited()
         mock_repo.find_verified_similar.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -163,6 +238,7 @@ class TestKnowledgeBaseService:
         ) as mock_repo_class:
             mock_repo = AsyncMock()
             mock_repo.find_verified_exact.return_value = None
+            mock_repo.find_verified_containment.return_value = []
             mock_repo.find_verified_similar.return_value = []
             mock_repo_class.return_value = mock_repo
 
@@ -183,6 +259,7 @@ class TestKnowledgeBaseService:
         ) as mock_repo_class:
             mock_repo = AsyncMock()
             mock_repo.find_verified_exact.return_value = None
+            mock_repo.find_verified_containment.return_value = []
             mock_repo.find_verified_similar.return_value = [
                 (verified_record, 0.87)
             ]
